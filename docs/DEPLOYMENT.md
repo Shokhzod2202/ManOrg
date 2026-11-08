@@ -78,6 +78,21 @@ docker compose --env-file .\infra\production\.env -f .\infra\production\docker-c
 `down` without `-v` leaves the volume in place. `docker volume rm` in that command names
 `shohona_prod_postgres` only.
 
+## If the owner still looks like a pending employee
+
+An email sign-in is a different account from Telegram. The page shows `Telegram id 5220814834` only
+after Telegram has signed that visit in. An email address or the name Shokhzod Haydar is not proof,
+and this server will not promote that account.
+
+The configured owner opens `@shohona_bakery_bot` and launches the app. The server checks
+`Telegram.WebApp.initData`. When that Telegram id is `5220814834` and the account has a pending or
+active employee membership in `Shohona Bakery`, the membership becomes admin. A membership in a
+different organization is left as it is. A removed admin is not granted again. Do not edit the
+database.
+
+If the page shows an email and no Telegram id, choose Sign out, then open the bot again. The owner
+account is the one that shows the Telegram id.
+
 ## What is included
 
 | URL                                                | What it is                                                    |

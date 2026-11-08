@@ -1,4 +1,4 @@
-import { createHmac } from 'node:crypto';
+import { createHmac, randomUUID } from 'node:crypto';
 import { type INestApplication } from '@nestjs/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { resetEnvCache } from '../../src/config/env';
@@ -10,10 +10,17 @@ const WEBHOOK_SECRET = 'telegram-webhook-test-secret';
 const ADMIN_TELEGRAM_ID = 4200000001;
 const OTHER_ADMIN_TELEGRAM_ID = 4200000002;
 const EMPLOYEE_TELEGRAM_ID = 4200000003;
+const PENDING_SAME_ORG_ID = 4200000004;
+const PENDING_OTHER_ORG_ID = 4200000005;
 
 process.env.TELEGRAM_BOT_TOKEN = BOT;
 process.env.TELEGRAM_WEBHOOK_SECRET = WEBHOOK_SECRET;
-process.env.TELEGRAM_BOOTSTRAP_ADMIN_IDS = `${ADMIN_TELEGRAM_ID},${OTHER_ADMIN_TELEGRAM_ID}`;
+process.env.TELEGRAM_BOOTSTRAP_ADMIN_IDS = [
+  ADMIN_TELEGRAM_ID,
+  OTHER_ADMIN_TELEGRAM_ID,
+  PENDING_SAME_ORG_ID,
+  PENDING_OTHER_ORG_ID,
+].join(',');
 process.env.TELEGRAM_BOOTSTRAP_ORG_NAME = 'Shohona Bakery';
 process.env.TELEGRAM_BOOTSTRAP_TIMEZONE = 'Asia/Tashkent';
 process.env.TELEGRAM_WEBAPP_URL = 'https://bakery.haydar.store';
@@ -178,6 +185,130 @@ describe('Telegram Mini App sign-in', () => {
       .post(`/api/v1/organizations/${orgId}/applications`)
       .set('Authorization', `Bearer ${employee.body.tokens.accessToken}`)
       .expect(201);
+  });
+
+  it('promotes a pending configured owner in Shohona Bakery and leaves other accounts alone', async () => {
+    const admin = await api.http
+      .post('/api/v1/auth/telegram')
+      .send({ initData: signInitData(ADMIN_TELEGRAM_ID) })
+      .expect(200);
+    const shohona = await asOwner({ organizationId: null, userId: admin.body.user.id }, (tx) =>
+      tx.organization.findFirst({ where: { name: 'Shohona Bakery' }, select: { id: true } }),
+    );
+    expect(shohona).not.toBeNull();
+    const shohonaId = shohona!.id;
+
+    await asOwner({ organizationId: null, userId: admin.body.user.id }, (tx) =>
+      tx.platformSetting.delete({ where: { key: 'telegram_bootstrap_org_id' } }),
+    );
+    const pendingOwnerId = randomUUID();
+    await asOwner({ organizationId: shohonaId, userId: pendingOwnerId }, async (tx) => {
+      await tx.user.create({
+        data: {
+          id: pendingOwnerId,
+          name: 'Pending Owner',
+          telegramUserId: BigInt(PENDING_SAME_ORG_ID),
+        },
+      });
+      await tx.membership.create({
+        data: {
+          organizationId: shohonaId,
+          userId: pendingOwnerId,
+          role: 'employee',
+          status: 'pending',
+        },
+      });
+    });
+
+    const promoted = await api.http
+      .post('/api/v1/auth/telegram')
+      .send({ initData: signInitData(PENDING_SAME_ORG_ID) })
+      .expect(200);
+    expect(promoted.body.provisioning).toBe('promoted_admin');
+    expect(promoted.body.user).toMatchObject({
+      id: pendingOwnerId,
+      telegramUserId: String(PENDING_SAME_ORG_ID),
+    });
+    const promotedMe = await api.http
+      .get('/api/v1/me')
+      .set('Authorization', `Bearer ${promoted.body.tokens.accessToken}`)
+      .expect(200);
+    expect(promotedMe.body.memberships).toEqual([
+      expect.objectContaining({
+        role: 'admin',
+        status: 'active',
+        organization: expect.objectContaining({ id: shohonaId, name: 'Shohona Bakery' }),
+      }),
+    ]);
+
+    const again = await api.http
+      .post('/api/v1/auth/telegram')
+      .send({ initData: signInitData(PENDING_SAME_ORG_ID) })
+      .expect(200);
+    expect(again.body.provisioning).toBe('already_member');
+    const audits = await auditFor(promotedMe.body.memberships[0].id as string, {
+      organizationId: shohonaId,
+      userId: pendingOwnerId,
+    });
+    expect(audits.filter((entry) => entry.action === 'membership.bootstrap_admin')).toHaveLength(1);
+
+    const email = await api.register('Shokhzod Haydar');
+    await api.http
+      .post(`/api/v1/organizations/${shohonaId}/applications`)
+      .set('Authorization', `Bearer ${email.accessToken}`)
+      .expect(201);
+    const emailMe = await api.http
+      .get('/api/v1/me')
+      .set('Authorization', `Bearer ${email.accessToken}`)
+      .expect(200);
+    expect(emailMe.body.telegramUserId).toBeNull();
+    expect(emailMe.body.email).toBe(email.email);
+    expect(emailMe.body.memberships).toEqual([
+      expect.objectContaining({
+        role: 'employee',
+        status: 'pending',
+        organization: expect.objectContaining({ name: 'Shohona Bakery' }),
+      }),
+    ]);
+
+    const otherOrg = await asOwner({ organizationId: null, userId: admin.body.user.id }, (tx) =>
+      tx.organization.findFirst({ where: { name: 'Other Bakery' }, select: { id: true } }),
+    );
+    expect(otherOrg).not.toBeNull();
+    const otherUserId = randomUUID();
+    await asOwner({ organizationId: otherOrg!.id, userId: otherUserId }, async (tx) => {
+      await tx.user.create({
+        data: {
+          id: otherUserId,
+          name: 'Other Pending',
+          telegramUserId: BigInt(PENDING_OTHER_ORG_ID),
+        },
+      });
+      await tx.membership.create({
+        data: {
+          organizationId: otherOrg!.id,
+          userId: otherUserId,
+          role: 'employee',
+          status: 'pending',
+        },
+      });
+    });
+    const skipped = await api.http
+      .post('/api/v1/auth/telegram')
+      .send({ initData: signInitData(PENDING_OTHER_ORG_ID) })
+      .expect(200);
+    expect(skipped.body.provisioning).toBe('skipped_other_organization');
+    const skippedMe = await api.http
+      .get('/api/v1/me')
+      .set('Authorization', `Bearer ${skipped.body.tokens.accessToken}`)
+      .expect(200);
+    expect(skippedMe.body.memberships).toEqual([
+      expect.objectContaining({
+        role: 'employee',
+        status: 'pending',
+        organization: expect.objectContaining({ id: otherOrg!.id, name: 'Other Bakery' }),
+      }),
+    ]);
   });
 
   it('lets a Telegram-only account set an email and password without a current password', async () => {

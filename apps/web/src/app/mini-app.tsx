@@ -239,7 +239,17 @@ export function MiniApp() {
             {me.telegramUsername ? ` (@${me.telegramUsername})` : ''}
           </p>
           <p>{me.email ?? 'No email on this account yet.'}</p>
-          {me.telegramUserId ? <p>Telegram id {me.telegramUserId}</p> : null}
+          {me.telegramUserId ? (
+            <p>Telegram id {me.telegramUserId}</p>
+          ) : (
+            <p>
+              This account has no Telegram id. An email address or display name cannot become the
+              bakery owner. Sign out, open @shohona_bakery_bot, and launch the app. Telegram signs
+              that visit in. If that account is the configured owner, a pending membership in
+              Shohona Bakery becomes admin. This email account stays separate until that admin
+              approves it.
+            </p>
+          )}
           <h3>Memberships</h3>
           {me.memberships.length === 0 ? <p>You are not in an organization yet.</p> : null}
           <ul>
@@ -400,6 +410,8 @@ function provisioningNotice(provisioning: string): string {
       return 'Your Telegram account was added as an admin of the existing bakery.';
     case 'already_member':
       return 'Signed in. Your existing membership was left as it is.';
+    case 'promoted_admin':
+      return 'Telegram checked this sign-in. You are now an admin of the bakery.';
     case 'skipped_other_organization':
       return 'This Telegram account already belongs to an organization, so it was not made a bakery admin.';
     default:

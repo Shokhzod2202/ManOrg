@@ -151,9 +151,11 @@ paths:
         stay empty until the person sets them in Settings.
 
         Only Telegram user ids listed in the server's bootstrap admin list become admin of the one
-        bootstrap bakery, and only when they do not already belong to an organization. Removing that
-        admin in the app is sticky: a later sign-in does not grant the role again. Every other
-        Telegram user gets an ordinary account with no membership.
+        bootstrap bakery. A pending or active employee membership in that bakery is promoted to
+        active admin. A pending or active membership in a different organization is left unchanged.
+        Removing that admin in the app is sticky: a later sign-in does not grant the role again.
+        Email and display name are not accepted as proof. Every other Telegram user gets an
+        ordinary account with no membership.
       tags: [auth]
       security: []
       requestBody:
@@ -650,6 +652,7 @@ components:
             - created_organization
             - joined_organization
             - already_member
+            - promoted_admin
             - skipped_other_organization
     TelegramWebhookResult:
       type: object

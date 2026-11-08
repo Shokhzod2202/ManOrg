@@ -359,7 +359,7 @@ export interface components {
             user: components["schemas"]["UserSummary"];
             tokens: components["schemas"]["TokenPair"];
             /** @enum {string} */
-            provisioning: "not_bootstrap_admin" | "created_organization" | "joined_organization" | "already_member" | "skipped_other_organization";
+            provisioning: "not_bootstrap_admin" | "created_organization" | "joined_organization" | "already_member" | "promoted_admin" | "skipped_other_organization";
         };
         TelegramWebhookResult: {
             /** @constant */

@@ -17,6 +17,7 @@ export type TelegramProvisioning =
   | 'created_organization'
   | 'joined_organization'
   | 'already_member'
+  | 'promoted_admin'
   | 'skipped_other_organization';
 
 export interface TelegramAuthResult {
@@ -48,7 +49,9 @@ export class TelegramService {
   /**
    * Signs in the Telegram user inside initData. The user id is taken from the checked
    * payload only. Ids in TELEGRAM_BOOTSTRAP_ADMIN_IDS become admin of the one bootstrap
-   * bakery. Every other Telegram user gets an ordinary account and no membership.
+   * bakery. A pending or active employee membership in that bakery is promoted. A membership
+   * in another organization is left alone, and a removed or rejected membership is not restored.
+   * Every other Telegram user gets an ordinary account and no membership.
    */
   async login(initData: string): Promise<TelegramAuthResult> {
     const config = env();
@@ -177,15 +180,18 @@ export class TelegramService {
     if (!admins.some((id) => id === telegramUserId)) return 'not_bootstrap_admin';
 
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(81421901)`;
+    const open = await this.openMembership(tx, userId);
     const setting = await tx.platformSetting.findUnique({ where: { key: BOOTSTRAP_KEY } });
     if (!setting) {
-      if (await this.hasOpenMembership(tx, userId)) return 'skipped_other_organization';
-      return this.createBootstrapOrganization(tx, userId);
+      if (!open) return this.createBootstrapOrganization(tx, userId);
+      if (!this.isIntendedBakery(open.organization)) return 'skipped_other_organization';
+      await tx.platformSetting.create({ data: { key: BOOTSTRAP_KEY, value: open.organizationId } });
+      return this.ensureBootstrapAdmin(tx, userId, open);
     }
 
     const org = await tx.organization.findUnique({
       where: { id: setting.value },
-      select: { id: true },
+      select: { id: true, name: true, type: true },
     });
     if (!org) {
       throw Errors.unavailable(
@@ -193,23 +199,36 @@ export class TelegramService {
         'The bakery created for Telegram admins is missing.',
       );
     }
-    const membership = await tx.membership.findFirst({
-      where: { userId, organizationId: org.id },
-      select: { id: true },
-    });
-    if (membership) return 'already_member';
-    if (await this.hasOpenMembership(tx, userId)) return 'skipped_other_organization';
+    if (open && open.organizationId !== org.id) return 'skipped_other_organization';
 
-    await switchOrganization(tx, org.id);
+    const membership =
+      open && open.organizationId === org.id
+        ? open
+        : await tx.membership.findFirst({
+            where: { userId, organizationId: org.id },
+            select: membershipShape,
+          });
+    if (!membership) return this.joinBootstrapOrganization(tx, userId, org.id);
+    if (membership.status === 'removed' || membership.status === 'rejected')
+      return 'already_member';
+    return this.ensureBootstrapAdmin(tx, userId, membership);
+  }
+
+  private async joinBootstrapOrganization(
+    tx: Tx,
+    userId: string,
+    organizationId: string,
+  ): Promise<TelegramProvisioning> {
+    await switchOrganization(tx, organizationId);
     const created = await createMembershipOnce(
       () =>
         tx.membership.create({
-          data: { organizationId: org.id, userId, role: 'admin', status: 'active' },
+          data: { organizationId, userId, role: 'admin', status: 'active' },
         }),
       'you',
     );
     await this.audit.record(tx, {
-      organizationId: org.id,
+      organizationId,
       actor: userActor(userId),
       action: 'membership.create',
       entity: 'membership',
@@ -217,6 +236,49 @@ export class TelegramService {
       after: { role: created.role, status: created.status, userId },
     });
     return 'joined_organization';
+  }
+
+  /** Promotes a pending or active employee of the bootstrap bakery. An active admin is unchanged. */
+  private async ensureBootstrapAdmin(
+    tx: Tx,
+    userId: string,
+    membership: OpenMembership,
+  ): Promise<TelegramProvisioning> {
+    if (membership.role === 'admin' && membership.status === 'active') return 'already_member';
+    await switchOrganization(tx, membership.organizationId);
+    await tx.membership.update({
+      where: { id: membership.id },
+      data: {
+        role: 'admin',
+        status: 'active',
+        decidedById: userId,
+        decidedAt: new Date(),
+        version: { increment: 1 },
+      },
+    });
+    await this.audit.record(tx, {
+      organizationId: membership.organizationId,
+      actor: userActor(userId),
+      action: 'membership.bootstrap_admin',
+      entity: 'membership',
+      entityId: membership.id,
+      before: { role: membership.role, status: membership.status },
+      after: { role: 'admin', status: 'active', userId },
+    });
+    return 'promoted_admin';
+  }
+
+  private isIntendedBakery(organization: { name: string; type: string }): boolean {
+    return (
+      organization.type === 'bakery' && organization.name === env().TELEGRAM_BOOTSTRAP_ORG_NAME
+    );
+  }
+
+  private openMembership(tx: Tx, userId: string): Promise<OpenMembership | null> {
+    return tx.membership.findFirst({
+      where: { userId, status: { in: ['pending', 'active'] } },
+      select: membershipShape,
+    });
   }
 
   private async createBootstrapOrganization(tx: Tx, userId: string): Promise<TelegramProvisioning> {
@@ -264,14 +326,6 @@ export class TelegramService {
     return 'created_organization';
   }
 
-  private async hasOpenMembership(tx: Tx, userId: string): Promise<boolean> {
-    const open = await tx.membership.findFirst({
-      where: { userId, status: { in: ['pending', 'active'] } },
-      select: { id: true },
-    });
-    return open !== null;
-  }
-
   private async reply(message: PrivateMessage): Promise<boolean> {
     const config = env();
     const token = config.TELEGRAM_BOT_TOKEN;
@@ -316,6 +370,22 @@ export class TelegramService {
       return false;
     }
   }
+}
+
+const membershipShape = {
+  id: true,
+  role: true,
+  status: true,
+  organizationId: true,
+  organization: { select: { id: true, name: true, type: true } },
+} as const;
+
+interface OpenMembership {
+  id: string;
+  role: 'admin' | 'employee';
+  status: 'pending' | 'active' | 'rejected' | 'removed';
+  organizationId: string;
+  organization: { id: string; name: string; type: 'bakery' | 'contractor' };
 }
 
 function displayName(firstName: string, lastName: string | undefined): string {
