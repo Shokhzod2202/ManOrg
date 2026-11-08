@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.next/
+.expo/
+coverage/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+apps/api/src/generated/
+packages/contracts/src/schema.d.ts.tmp
+.DS_Store
+*.log

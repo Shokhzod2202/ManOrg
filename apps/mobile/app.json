@@ -1,0 +1,11 @@
+{
+  "expo": {
+    "name": "Organization Management",
+    "slug": "manorg",
+    "version": "0.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": { "supportsTablet": true, "bundleIdentifier": "app.manorg.mobile" },
+    "android": { "package": "app.manorg.mobile" }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "name": "@manorg/contracts",
+  "version": "0.0.0",
+  "private": true,
+  "description": "OpenAPI 3.1 contract (single source of truth) and the types generated from it.",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./openapi.yaml": "./openapi.yaml"
+  },
+  "scripts": {
+    "gen": "openapi-typescript openapi.yaml -o src/schema.d.ts",
+    "check": "openapi-typescript openapi.yaml -o src/schema.d.ts.tmp >/dev/null && cmp -s src/schema.d.ts src/schema.d.ts.tmp; s=$?; rm -f src/schema.d.ts.tmp; [ $s -eq 0 ] || echo \"src/schema.d.ts is stale: run pnpm contracts:gen\"; exit $s",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "pnpm check"
+  },
+  "dependencies": {
+    "openapi-fetch": "^0.17.0"
+  },
+  "devDependencies": {
+    "@manorg/config": "workspace:*",
+    "openapi-typescript": "^7.13.0",
+    "typescript": "~6.0.3"
+  }
+}

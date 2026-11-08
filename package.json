@@ -1,0 +1,32 @@
+{
+  "name": "manorg",
+  "private": true,
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm -r --parallel --filter ./apps/* dev",
+    "build": "pnpm -r build",
+    "lint": "eslint . --max-warnings 0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "contracts:gen": "pnpm --filter @manorg/contracts gen",
+    "db:migrate": "pnpm --filter @manorg/api db:migrate",
+    "db:seed": "pnpm --filter @manorg/api db:seed",
+    "infra:up": "docker compose -f infra/docker-compose.yml up -d db redis",
+    "infra:down": "docker compose -f infra/docker-compose.yml down"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@manorg/config": "workspace:*",
+    "eslint": "^10.14.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.14.0",
+    "prettier": "^3.9.10",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.72.1"
+  }
+}

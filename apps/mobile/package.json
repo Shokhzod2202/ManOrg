@@ -1,0 +1,25 @@
+{
+  "name": "@manorg/mobile",
+  "version": "0.0.0",
+  "private": true,
+  "main": "index.ts",
+  "scripts": {
+    "dev": "expo start",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@manorg/contracts": "workspace:*",
+    "@manorg/ui": "workspace:*",
+    "expo": "~58.0.23",
+    "expo-status-bar": "*",
+    "react": "19.3.1",
+    "react-native": "0.88.1"
+  },
+  "devDependencies": {
+    "@manorg/config": "workspace:*",
+    "@types/react": "^19.2.0",
+    "typescript": "~6.0.3",
+    "vitest": "^5.1.0"
+  }
+}
