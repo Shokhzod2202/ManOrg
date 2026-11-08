@@ -12,3 +12,5 @@ packages/contracts/src/schema.d.ts.tmp
 .DS_Store
 *.log
 apps/web/next-env.d.ts
+# Written by next dev on every start
+apps/web/AGENTS.md
