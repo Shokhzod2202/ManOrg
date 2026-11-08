@@ -1,0 +1,14 @@
+# Secret scan configuration (spec section 12: secret scanning in CI).
+# Extends gitleaks' default rules; the allowlist covers only fixed development placeholders
+# that are not secrets anywhere.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Development and test placeholders"
+regexes = [
+  '''manorg_(owner|app)_dev''',
+  '''postgres_dev''',
+  '''test-(access|refresh)-secret-0123456789abcdef''',
+  '''Password123!''',
+]

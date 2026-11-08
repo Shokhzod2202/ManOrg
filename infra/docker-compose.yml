@@ -4,10 +4,11 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: manorg
-      POSTGRES_USER: manorg_owner
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-manorg_owner_dev}
-      # Runtime role used by the API; it does not own the tables, so row-level security applies.
+      # Superuser for administration only; the app never connects with it.
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres_dev}
+      # Roles created by postgres/init/01-roles.sh (see infra/README.md).
+      MANORG_OWNER_PASSWORD: ${MANORG_OWNER_PASSWORD:-manorg_owner_dev}
       MANORG_APP_PASSWORD: ${MANORG_APP_PASSWORD:-manorg_app_dev}
     ports:
       - '5432:5432'
@@ -15,7 +16,7 @@ services:
       - db-data:/var/lib/postgresql/data
       - ./postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U manorg_owner -d manorg']
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d manorg']
       interval: 5s
       timeout: 3s
       retries: 20
