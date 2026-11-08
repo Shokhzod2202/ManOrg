@@ -30,7 +30,6 @@ services:
       MANORG_REQUIRE_STRONG_PASSWORDS: '1'
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ../postgres/init:/docker-entrypoint-initdb.d:ro
     command:
       - postgres
       - -c
@@ -41,10 +40,10 @@ services:
       - password_encryption=scram-sha-256
     shm_size: 128mb
     mem_limit: 512m
-    # TCP, not the init socket. The entrypoint's temporary server is local-only and
-    # would otherwise look healthy while migrate cannot connect.
+    # TCP, not the init socket. Do not require the manorg database: db-init creates it,
+    # including on a volume whose first init script exited before creating roles.
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -p 5432 -U postgres -d manorg']
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -p 5432 -U postgres -d postgres']
       interval: 5s
       timeout: 3s
       retries: 30
@@ -72,6 +71,32 @@ services:
       timeout: 3s
       retries: 20
 
+  db-init:
+    <<: *logging
+    image: postgres:16-alpine
+    environment:
+      PGHOST: db
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      MANORG_OWNER_PASSWORD: ${MANORG_OWNER_PASSWORD:?set MANORG_OWNER_PASSWORD}
+      MANORG_APP_PASSWORD: ${MANORG_APP_PASSWORD:?set MANORG_APP_PASSWORD}
+      MANORG_REQUIRE_STRONG_PASSWORDS: '1'
+    volumes:
+      - ../postgres/init:/roles:ro
+      - ./scripts/db-init.sh:/bootstrap/db-init.sh:ro
+    # Strip CR before sh reads the file. A CRLF checkout must not be executed
+    # through its shebang (/bin/sh^M exits 126).
+    entrypoint: ['sh', '-c']
+    command: ['sed "s/\r$$//" /bootstrap/db-init.sh | sh']
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: 'no'
+    mem_limit: 128m
+
   migrate:
     <<: [*logging, *api-image]
     working_dir: /app/apps/api
@@ -92,8 +117,8 @@ services:
       NODE_ENV: production
       DATABASE_MIGRATION_URL: postgresql://manorg_owner:${MANORG_OWNER_PASSWORD}@db:5432/manorg
     depends_on:
-      db:
-        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
     restart: 'no'
     mem_limit: 512m
 

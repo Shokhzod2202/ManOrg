@@ -13,6 +13,71 @@ for `https://bakery.haydar.store` and should keep forwarding to that address.
 Secrets stay in `infra\production\.env` on that PC. Do not commit that file and do not paste it
 into chat.
 
+## Recover the stopped first start
+
+The first Windows start built the images and then Postgres exited 126:
+`/docker-entrypoint-initdb.d/01-roles.sh: /bin/sh^M: bad interpreter`. `core.autocrlf=true` had
+checked the script out as CRLF. The volume `shohona_prod_postgres` has a data directory and no
+ManOrg roles. Postgres will not run that init script again. Do not delete the volume. The `db-init`
+service applies the same script over the network, and it is safe to run again.
+
+Leave the process on port `5432` running. Do not run `docker volume prune`.
+
+From the repo root. This keeps the existing `.env`:
+
+```powershell
+Copy-Item -Force .\infra\production\.env "$env:TEMP\shohona-production.env"
+git fetch origin cursor/windows-prod-miniapp-efa2
+git checkout cursor/windows-prod-miniapp-efa2
+git reset --hard origin/cursor/windows-prod-miniapp-efa2
+if (-not (Test-Path .\infra\production\.env)) {
+  Copy-Item -Force "$env:TEMP\shohona-production.env" .\infra\production\.env
+}
+git ls-files --eol -- infra/postgres/init/01-roles.sh infra/postgres/init/check-passwords.sh infra/production/scripts/db-init.sh
+```
+
+Each of those lines must show `i/lf` and `w/lf`. Do not run `generate-env.ps1` again.
+
+The old test app is on `4317` again. Stop only that container:
+
+```powershell
+docker ps --format "{{.ID}} {{.Names}} {{.Ports}}"
+docker stop <old-test-container>
+```
+
+The images are already built. Start the same project. This does not remove `shohona_prod_postgres`:
+
+```powershell
+docker compose --env-file .\infra\production\.env -f .\infra\production\docker-compose.yml up -d
+curl.exe http://127.0.0.1:4317/api/v1/health/ready
+node .\infra\production\scripts\smoke.mjs
+```
+
+`/api/v1/health/ready` returns 200 when the roles exist and migrations have been applied. Then:
+
+```powershell
+node .\infra\production\scripts\telegram-sync.mjs --dry-run
+node .\infra\production\scripts\telegram-sync.mjs --confirm-cutover
+```
+
+If `db-init` fails, read its log before touching a volume:
+
+```powershell
+docker compose --env-file .\infra\production\.env -f .\infra\production\docker-compose.yml logs db-init
+```
+
+Only when that log shows the cluster has no ManOrg data, and you still want an empty cluster, remove
+this one volume and start again:
+
+```powershell
+docker compose --env-file .\infra\production\.env -f .\infra\production\docker-compose.yml down
+docker volume rm shohona_prod_postgres
+docker compose --env-file .\infra\production\.env -f .\infra\production\docker-compose.yml up -d
+```
+
+`down` without `-v` leaves the volume in place. `docker volume rm` in that command names
+`shohona_prod_postgres` only.
+
 ## What is included
 
 | URL                                                | What it is                                                    |
@@ -63,7 +128,8 @@ Leave the tunnel config pointed at `http://127.0.0.1:4317` (or `http://localhost
 
 ## 2. Generate secrets and build
 
-From the repo root:
+Skip this step when `infra\production\.env` already exists. Generating again replaces the webhook
+secret. From the repo root, only for a new machine:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\infra\production\scripts\generate-env.ps1
@@ -154,12 +220,14 @@ Changing `JWT_ACCESS_SECRET` or `JWT_REFRESH_SECRET` signs everyone out. Changin
 
 | Path                                         | Role                                                         |
 | -------------------------------------------- | ------------------------------------------------------------ |
+| `.gitattributes`                             | Checks out shell scripts and configs as LF                   |
 | `infra/production/docker-compose.yml`        | Project `shohona_prod`. No host database or Redis ports      |
 | `infra/production/Dockerfile`                | API and web images                                           |
 | `infra/production/nginx.conf`                | One origin. Legacy webhook path. Telegram may frame the page |
 | `infra/production/.env.example`              | Names only                                                   |
+| `infra/production/scripts/db-init.sh`        | Creates roles again on a partial volume                      |
 | `infra/production/scripts/generate-env.ps1`  | Local secrets                                                |
-| `infra/production/scripts/deploy.ps1`        | Build and start on `127.0.0.1:4317`                          |
+| `infra/production/scripts/deploy.ps1`        | Build and start on `127.0.0.1:4317`. No NetTCPIP module      |
 | `infra/production/scripts/telegram-sync.mjs` | Menu and webhook. Live call needs `--confirm-cutover`        |
 | `infra/production/scripts/smoke.mjs`         | Health, auth, proxy, and port checks                         |
 | `infra/production/SHA256SUMS`                | Checksums of the packaging files above                       |
