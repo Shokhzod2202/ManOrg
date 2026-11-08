@@ -21,7 +21,8 @@ export interface AuditEntry {
   after?: object | null;
 }
 
-const SECRET_KEY = /password|token|secret|hash/i;
+/** Keys whose values are secrets. Flags such as `passwordChanged` are kept. */
+const SECRET_KEY = /^password$|passwordhash|token|secret|hash$/i;
 
 /** Removes secrets and turns Dates and Decimals into JSON-safe values. */
 export function sanitizeForAudit(value: unknown): Prisma.InputJsonValue | null {

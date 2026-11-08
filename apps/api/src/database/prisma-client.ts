@@ -31,3 +31,8 @@ export async function withDbContext<T>(
     return fn(tx);
   });
 }
+
+/** Moves the current transaction into another organization, e.g. right after creating it. */
+export async function switchOrganization(tx: Tx, organizationId: string): Promise<void> {
+  await tx.$queryRaw`SELECT set_config('app.organization_id', ${organizationId}, true)`;
+}

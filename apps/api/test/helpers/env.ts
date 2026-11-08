@@ -30,5 +30,6 @@ export function applyTestEnv(): void {
   process.env.DATABASE_MIGRATION_URL = testEnv.ownerUrl;
   process.env.JWT_ACCESS_SECRET ??= 'test-access-secret-0123456789abcdef';
   process.env.JWT_REFRESH_SECRET ??= 'test-refresh-secret-0123456789abcdef';
+  process.env.AUTH_RATE_LIMIT_PER_MINUTE ??= '100000';
   process.env.NODE_ENV = 'test';
 }

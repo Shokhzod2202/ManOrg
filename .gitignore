@@ -11,3 +11,4 @@ apps/api/src/generated/
 packages/contracts/src/schema.d.ts.tmp
 .DS_Store
 *.log
+apps/web/next-env.d.ts

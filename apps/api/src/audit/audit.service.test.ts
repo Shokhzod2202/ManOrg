@@ -8,11 +8,13 @@ describe('sanitizeForAudit', () => {
     expect(
       sanitizeForAudit({
         name: 'Mina',
+        password: 'plain',
         passwordHash: 'x',
+        passwordChanged: true,
         nested: { refreshToken: 'y', ok: 1 },
         list: [{ apiSecret: 'z', keep: true }],
       }),
-    ).toEqual({ name: 'Mina', nested: { ok: 1 }, list: [{ keep: true }] });
+    ).toEqual({ name: 'Mina', passwordChanged: true, nested: { ok: 1 }, list: [{ keep: true }] });
   });
 
   it('serialises dates and decimals', () => {
