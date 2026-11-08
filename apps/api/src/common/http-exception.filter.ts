@@ -20,6 +20,7 @@ const STATUS_CODES: Record<number, string> = {
   413: 'PAYLOAD_TOO_LARGE',
   415: 'UNSUPPORTED_MEDIA_TYPE',
   429: 'RATE_LIMITED',
+  503: 'UNAVAILABLE',
 };
 
 /** Turns every error into the spec's error body. Logs carry no names, emails or coordinates. */

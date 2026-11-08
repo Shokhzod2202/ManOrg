@@ -12,6 +12,7 @@ const GLOBAL_TABLES = [
   '_prisma_migrations',
   'device_tokens',
   'organizations',
+  'platform_settings',
   'refresh_tokens',
   'users',
 ];

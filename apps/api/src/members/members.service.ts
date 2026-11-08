@@ -20,7 +20,7 @@ type MemberRow = {
   status: 'pending' | 'active' | 'rejected' | 'removed';
   version: number;
   createdAt: Date;
-  user: { id: string; name: string; email: string };
+  user: { id: string; name: string; email: string | null };
 };
 
 function present(m: MemberRow) {

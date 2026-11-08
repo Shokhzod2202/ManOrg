@@ -45,6 +45,20 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
 
+      - name: Production password check rejects development defaults
+        run: |
+          set -eu
+          if MANORG_REQUIRE_STRONG_PASSWORDS=1 POSTGRES_PASSWORD=postgres_dev MANORG_OWNER_PASSWORD=aaaaaaaaaaaaaaaaaaaaaaaa MANORG_APP_PASSWORD=bbbbbbbbbbbbbbbbbbbbbbbb sh infra/postgres/init/check-passwords.sh; then
+            echo "expected the development password to be rejected"
+            exit 1
+          fi
+          MANORG_REQUIRE_STRONG_PASSWORDS=1 \
+            POSTGRES_PASSWORD=aaaaaaaaaaaaaaaaaaaaaaaa \
+            MANORG_OWNER_PASSWORD=bbbbbbbbbbbbbbbbbbbbbbbb \
+            MANORG_APP_PASSWORD=cccccccccccccccccccccccc \
+            sh infra/postgres/init/check-passwords.sh
+          sh infra/postgres/init/check-passwords.sh
+
       - name: Install
         run: pnpm install --frozen-lockfile
 

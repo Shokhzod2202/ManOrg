@@ -25,9 +25,23 @@ export class MeService {
     return this.db.run({ organizationId: null, userId: user.userId }, async (tx) => {
       const current = await tx.user.findUnique({ where: { id: user.userId } });
       if (!current || current.deletedAt) throw Errors.unauthenticated();
-      if (input.currentPassword !== undefined) {
-        if (!(await verifyPassword(current.passwordHash, input.currentPassword))) {
-          throw Errors.validation({ currentPassword: ['Your current password is incorrect.'] });
+      const credentialChange =
+        (input.email !== undefined && input.email !== current.email) ||
+        input.password !== undefined;
+      if (credentialChange) {
+        if (current.passwordHash) {
+          if (
+            input.currentPassword === undefined ||
+            !(await verifyPassword(current.passwordHash, input.currentPassword))
+          ) {
+            throw Errors.validation({ currentPassword: ['Your current password is incorrect.'] });
+          }
+        } else if (input.currentPassword !== undefined) {
+          throw Errors.validation({
+            currentPassword: [
+              'This account has no password yet. Leave the current password empty.',
+            ],
+          });
         }
       }
       if (input.email && input.email !== current.email) {
@@ -88,6 +102,8 @@ export class MeService {
       id: user.id,
       name: user.name,
       email: user.email,
+      telegramUserId: user.telegramUserId?.toString() ?? null,
+      telegramUsername: user.telegramUsername,
       locale: user.locale,
       memberships: user.memberships.map((m) => ({
         id: m.id,

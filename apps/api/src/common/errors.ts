@@ -44,4 +44,6 @@ export const Errors = {
     ),
   unprocessable: (code: string, message: string) =>
     new AppError(HttpStatus.UNPROCESSABLE_ENTITY, code, message),
+  unavailable: (code: string, message: string) =>
+    new AppError(HttpStatus.SERVICE_UNAVAILABLE, code, message),
 } as const;

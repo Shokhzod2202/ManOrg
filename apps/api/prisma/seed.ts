@@ -8,6 +8,7 @@
 import path from 'node:path';
 import { hash } from '@node-rs/argon2';
 import { config as loadEnv } from 'dotenv';
+import { assertDemoSeedAllowed } from '../src/config/demo-seed';
 import { createPrismaClient, withDbContext } from '../src/database/prisma-client';
 
 loadEnv({ path: path.resolve(__dirname, '../../../.env'), quiet: true });
@@ -15,6 +16,7 @@ loadEnv({ path: path.resolve(__dirname, '../../../.env'), quiet: true });
 const PASSWORD = 'Password123!';
 
 async function main(): Promise<void> {
+  assertDemoSeedAllowed();
   const url = process.env.DATABASE_MIGRATION_URL;
   if (!url) throw new Error('DATABASE_MIGRATION_URL is not set');
   const prisma = createPrismaClient(url);

@@ -30,10 +30,11 @@ export class AuthService {
         select: { id: true },
       });
       if (taken) throw Errors.conflict('EMAIL_TAKEN', 'An account with this email already exists.');
-      const user = await tx.user.create({
+      const created = await tx.user.create({
         data: { id, name: input.name, email: input.email, passwordHash },
         select: { id: true, name: true, email: true },
       });
+      const user = { id: created.id, name: created.name, email: created.email ?? input.email };
       await this.audit.record(tx, {
         organizationId: null,
         actor: userActor(user.id),
@@ -56,7 +57,7 @@ export class AuthService {
         : await verifyAgainstDummy(input.password);
     if (!user || !ok) throw Errors.unauthenticated('Email or password is incorrect.');
     return this.db.run({ organizationId: null, userId: user.id }, async (tx) => ({
-      user: { id: user.id, name: user.name, email: user.email },
+      user: { id: user.id, name: user.name, email: user.email ?? input.email },
       tokens: await this.tokens.issuePair(tx, user.id),
     }));
   }

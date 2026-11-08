@@ -20,6 +20,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/health/ready": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Readiness, including the database */
+        get: operations["getReady"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/register": {
         parameters: {
             query?: never;
@@ -67,6 +84,58 @@ export interface paths {
          * @description Presenting a refresh token that was already used signs out every session that descends from it.
          */
         post: operations["refreshTokens"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/telegram": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign in with Telegram Mini App initData
+         * @description Send the raw `Telegram.WebApp.initData` string. The server checks the HMAC with the bot
+         *     token and the auth_date. A user id, username, or forged initData is not accepted, and there
+         *     is no development bypass. The account is keyed by the Telegram user id. Email and password
+         *     stay empty until the person sets them in Settings.
+         *
+         *     Only Telegram user ids listed in the server's bootstrap admin list become admin of the one
+         *     bootstrap bakery, and only when they do not already belong to an organization. Removing that
+         *     admin in the app is sticky: a later sign-in does not grant the role again. Every other
+         *     Telegram user gets an ordinary account with no membership.
+         */
+        post: operations["loginWithTelegram"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/telegram/webhook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Telegram bot webhook (messages only)
+         * @description Telegram calls this with header `X-Telegram-Bot-Api-Secret-Token`. The proxy exposes the
+         *     same handler at `/api/telegram/webhook` so the existing bot URL can stay.
+         *     Private messages are answered with a pointer to the Mini App. `/start` and `/help` include
+         *     an Open App button. Group messages and non-message updates are acknowledged and ignored.
+         *     The chat does not take orders or change data.
+         */
+        post: operations["telegramWebhook"];
         delete?: never;
         options?: never;
         head?: never;
@@ -260,6 +329,10 @@ export interface components {
         RefreshRequest: {
             refreshToken: string;
         };
+        TelegramLoginRequest: {
+            /** @description Raw Telegram.WebApp.initData. Do not send a user id by itself. */
+            initData: string;
+        };
         TokenPair: {
             accessToken: string;
             refreshToken: string;
@@ -273,18 +346,35 @@ export interface components {
             id: string;
             name: string;
             /** Format: email */
-            email: string;
+            email: string | null;
+            /** @description Decimal Telegram user id when the account is linked. */
+            telegramUserId?: string | null;
+            telegramUsername?: string | null;
         };
         AuthResult: {
             user: components["schemas"]["UserSummary"];
             tokens: components["schemas"]["TokenPair"];
+        };
+        TelegramAuthResult: {
+            user: components["schemas"]["UserSummary"];
+            tokens: components["schemas"]["TokenPair"];
+            /** @enum {string} */
+            provisioning: "not_bootstrap_admin" | "created_organization" | "joined_organization" | "already_member" | "skipped_other_organization";
+        };
+        TelegramWebhookResult: {
+            /** @constant */
+            ok: true;
+            ignored?: boolean;
+            delivered?: boolean;
         };
         Me: {
             /** Format: uuid */
             id: string;
             name: string;
             /** Format: email */
-            email: string;
+            email: string | null;
+            telegramUserId: string | null;
+            telegramUsername: string | null;
             /** @enum {string} */
             locale: "en" | "ko" | "uz";
             /** @description Newest first; includes pending and rejected applications. */
@@ -301,7 +391,7 @@ export interface components {
             /** Format: email */
             email?: string;
             password?: string;
-            /** @description Required when changing email or password. */
+            /** @description Required when the account already has a password and email or password is changing. A Telegram-only account can set them once without it. */
             currentPassword?: string;
             /** @enum {string} */
             locale?: "en" | "ko" | "uz";
@@ -465,6 +555,15 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
+        /** @description A required dependency or server setting is missing. */
+        ServiceUnavailable: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
     };
     parameters: {
         IdPath: string;
@@ -504,6 +603,30 @@ export interface operations {
                     };
                 };
             };
+        };
+    };
+    getReady: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The API can reach the database. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        status: "ok";
+                    };
+                };
+            };
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     register: {
@@ -587,6 +710,64 @@ export interface operations {
             400: components["responses"]["ValidationFailed"];
             401: components["responses"]["Unauthenticated"];
             429: components["responses"]["RateLimited"];
+        };
+    };
+    loginWithTelegram: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TelegramLoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Signed in. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelegramAuthResult"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    telegramWebhook: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Telegram-Bot-Api-Secret-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description Accepted. `ignored` means nothing was sent back to the chat. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelegramWebhookResult"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getMe: {

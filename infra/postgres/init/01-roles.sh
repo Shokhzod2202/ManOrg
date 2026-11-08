@@ -8,6 +8,10 @@
 #   manorg_app    the API's runtime role: no ownership, no BYPASSRLS, so RLS filters every query.
 set -eu
 
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
+# Production compose sets MANORG_REQUIRE_STRONG_PASSWORDS=1. Development keeps the defaults below.
+sh "$SCRIPT_DIR/check-passwords.sh"
+
 : "${POSTGRES_USER:=postgres}"
 : "${MANORG_OWNER_PASSWORD:=manorg_owner_dev}"
 : "${MANORG_APP_PASSWORD:=manorg_app_dev}"

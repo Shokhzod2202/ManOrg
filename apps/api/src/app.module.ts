@@ -16,6 +16,7 @@ import { MembersService } from './members/members.service';
 import { OrganizationsController } from './organizations/organizations.controller';
 import { OrganizationsService } from './organizations/organizations.service';
 import { OrgContextGuard } from './permissions/org-context.guard';
+import { TelegramModule } from './telegram/telegram.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { OrgContextGuard } from './permissions/org-context.guard';
     DatabaseModule,
     AuditModule,
     AuthModule,
+    TelegramModule,
   ],
   controllers: [
     HealthController,

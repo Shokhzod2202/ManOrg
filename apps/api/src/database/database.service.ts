@@ -15,6 +15,16 @@ export class DatabaseService implements OnModuleDestroy {
     return withDbContext(this.client, ctx, fn);
   }
 
+  /** Readiness probe. Does not read organization data. */
+  async ping(): Promise<boolean> {
+    try {
+      await this.client.$queryRaw`SELECT 1`;
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async onModuleDestroy(): Promise<void> {
     await this.client.$disconnect();
   }
