@@ -19,10 +19,45 @@ photo-proof tasks, ingredient ordering, next-day contractor orders and deliverie
 | `packages/config`    | Shared TypeScript, ESLint and Prettier config                     |
 | `infra`              | Docker Compose for PostgreSQL 16 and Redis                        |
 
-## Commands
+## Run it locally
+
+Needs Node 22, pnpm 10 and Docker.
 
 ```bash
-pnpm install
-pnpm lint && pnpm typecheck && pnpm test
-pnpm contracts:gen   # regenerate types after editing packages/contracts/openapi.yaml
+pnpm install                      # also generates the Prisma client
+cp .env.example .env              # then set JWT_ACCESS_SECRET and JWT_REFRESH_SECRET:
+                                  #   openssl rand -hex 32
+pnpm infra:up                     # PostgreSQL 16 and Redis (infra/docker-compose.yml)
+pnpm db:migrate                   # apply migrations
+pnpm db:seed                      # Sunrise Bakery + City Cafe, password Password123!
+pnpm dev                          # API :3001, web :3000, Expo dev server
+pnpm test                         # unit, integration and tenant-isolation suites
 ```
+
+Seed accounts: `admin@sunrise.test` (bakery admin), `mina@sunrise.test` and `joon@sunrise.test`
+(employees), `admin@citycafe.test` (contractor admin).
+
+Try the API:
+
+```bash
+curl -s localhost:3001/api/v1/auth/login -H 'content-type: application/json' \
+  -d '{"email":"admin@sunrise.test","password":"Password123!"}'
+# then send Authorization: Bearer <accessToken> and X-Organization-Id: <organization id from GET /me>
+```
+
+Tests use a separate database, `manorg_test`, created and migrated automatically.
+
+## Other commands
+
+```bash
+pnpm lint && pnpm typecheck && pnpm format:check
+pnpm contracts:gen   # regenerate types after editing packages/contracts/openapi.yaml
+pnpm build
+```
+
+## Status
+
+Phase 0 (spec section 14) is done: monorepo, CI, database with row-level security, auth,
+organizations, applications, members and roles, and the audit log. Phase 1 features have not
+started; the web and mobile apps are shells. See `docs/DECISIONS.md` for every default and
+choice the code relies on.
