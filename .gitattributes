@@ -1,0 +1,14 @@
+# Store and check out text as LF, including when core.autocrlf=true.
+# A CRLF shell script is executed by the Postgres image as /bin/sh^M and exits 126.
+* text=auto eol=lf
+
+*.sh text eol=lf
+*.conf text eol=lf
+Dockerfile text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.sql text eol=lf
+*.mjs text eol=lf
+*.ps1 text eol=lf
+*.env text eol=lf
+*.example text eol=lf

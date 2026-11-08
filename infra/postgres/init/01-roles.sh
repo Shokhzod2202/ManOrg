@@ -1,12 +1,18 @@
 #!/bin/sh
-# Creates the app's two roles and its database. Runs once when the Docker volume is first created
-# (docker-entrypoint-initdb.d), and from CI against a service container. Safe to run again.
+# Creates the app's two roles and its database. Safe to run again.
+# Development compose and CI run it on first start. Production runs it from
+# infra/production/scripts/db-init.sh on every start, including when the data
+# directory already exists because an earlier init script exited.
 #
 #   manorg_owner  owns the tables; runs migrations and the seed. Not a superuser, so FORCE ROW
 #                 LEVEL SECURITY applies to it too. CREATEDB lets Prisma make its shadow database
 #                 and the tests make manorg_test.
 #   manorg_app    the API's runtime role: no ownership, no BYPASSRLS, so RLS filters every query.
 set -eu
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
+# Production compose sets MANORG_REQUIRE_STRONG_PASSWORDS=1. Development keeps the defaults below.
+sh "$SCRIPT_DIR/check-passwords.sh"
 
 : "${POSTGRES_USER:=postgres}"
 : "${MANORG_OWNER_PASSWORD:=manorg_owner_dev}"

@@ -146,15 +146,19 @@ enum DevicePlatform {
 // ---------------------------------------------------------------------------
 
 /// One row per person. No role here: roles live on memberships.
+/// Email and password are empty for a Telegram-only account until the person sets them.
+/// `telegram_user_id` is the Mini App identity after the server checks initData.
 model User {
-  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name         String
-  email        String    @unique
-  passwordHash String    @map("password_hash")
-  locale       String    @default("en")
-  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(3)
-  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name             String
+  email            String?   @unique
+  passwordHash     String?   @map("password_hash")
+  telegramUserId   BigInt?   @unique @map("telegram_user_id")
+  telegramUsername String?   @map("telegram_username") @db.VarChar(32)
+  locale           String    @default("en")
+  deletedAt        DateTime? @map("deleted_at") @db.Timestamptz(3)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   memberships   Membership[]
   refreshTokens RefreshToken[]
@@ -180,6 +184,16 @@ model RefreshToken {
   @@index([familyId])
   @@index([userId])
   @@map("refresh_tokens")
+}
+
+/// Process-wide key/value row. Not organization data. The Telegram bootstrap
+/// stores the bakery organization id here so a later admin is not created twice.
+model PlatformSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("platform_settings")
 }
 
 model Organization {

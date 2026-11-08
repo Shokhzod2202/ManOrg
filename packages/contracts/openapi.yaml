@@ -6,7 +6,10 @@ info:
     Single contract for the web app, the mobile app and the AI bot (docs/SPEC.md section 8).
 
     Conventions
-    - Every request except /health and /auth/* carries `Authorization: Bearer <access token>`.
+    - Every request except /health, /auth/* and /telegram/webhook carries `Authorization: Bearer <access token>`.
+    - `POST /telegram/webhook` is the Telegram bot webhook. On the public host the proxy also
+      serves it at `/api/telegram/webhook`. It is authenticated with the header
+      `X-Telegram-Bot-Api-Secret-Token`, not a bearer token.
     - Routes that act inside an organization also carry `X-Organization-Id`. The server checks it
       against the caller's active memberships: no membership there answers 404, a role without
       the permission answers 403.
@@ -48,6 +51,27 @@ paths:
                   status:
                     type: string
                     const: ok
+
+  /health/ready:
+    get:
+      operationId: getReady
+      tags: [system]
+      summary: Readiness, including the database
+      security: []
+      x-tenant-scoped: false
+      responses:
+        '200':
+          description: The API can reach the database.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    const: ok
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
 
   /auth/register:
     post:
@@ -115,6 +139,74 @@ paths:
         '400': { $ref: '#/components/responses/ValidationFailed' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '429': { $ref: '#/components/responses/RateLimited' }
+
+  /auth/telegram:
+    post:
+      operationId: loginWithTelegram
+      summary: Sign in with Telegram Mini App initData
+      description: |
+        Send the raw `Telegram.WebApp.initData` string. The server checks the HMAC with the bot
+        token and the auth_date. A user id, username, or forged initData is not accepted, and there
+        is no development bypass. The account is keyed by the Telegram user id. Email and password
+        stay empty until the person sets them in Settings.
+
+        Only Telegram user ids listed in the server's bootstrap admin list become admin of the one
+        bootstrap bakery. A pending or active employee membership in that bakery is promoted to
+        active admin. A pending or active membership in a different organization is left unchanged.
+        Removing that admin in the app is sticky: a later sign-in does not grant the role again.
+        Email and display name are not accepted as proof. Every other Telegram user gets an
+        ordinary account with no membership.
+      tags: [auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TelegramLoginRequest' }
+      responses:
+        '200':
+          description: Signed in.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TelegramAuthResult' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /telegram/webhook:
+    post:
+      operationId: telegramWebhook
+      summary: Telegram bot webhook (messages only)
+      description: |
+        Telegram calls this with header `X-Telegram-Bot-Api-Secret-Token`. The proxy exposes the
+        same handler at `/api/telegram/webhook` so the existing bot URL can stay.
+        Private messages are answered with a pointer to the Mini App. `/start` and `/help` include
+        an Open App button. Group messages and non-message updates are acknowledged and ignored.
+        The chat does not take orders or change data.
+      tags: [system]
+      security: []
+      parameters:
+        - name: X-Telegram-Bot-Api-Secret-Token
+          in: header
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: A Telegram Update. Unknown fields are ignored.
+              additionalProperties: true
+      responses:
+        '200':
+          description: Accepted. `ignored` means nothing was sent back to the chat.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TelegramWebhookResult' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
 
   /me:
     get:
@@ -448,6 +540,11 @@ components:
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
+    ServiceUnavailable:
+      description: A required dependency or server setting is missing.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
 
   schemas:
     Error:
@@ -501,6 +598,16 @@ components:
       required: [refreshToken]
       properties:
         refreshToken: { type: string }
+    TelegramLoginRequest:
+      type: object
+      additionalProperties: false
+      required: [initData]
+      properties:
+        initData:
+          type: string
+          minLength: 1
+          maxLength: 8192
+          description: Raw Telegram.WebApp.initData. Do not send a user id by itself.
     TokenPair:
       type: object
       required: [accessToken, refreshToken, tokenType, expiresIn]
@@ -517,21 +624,57 @@ components:
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
-        email: { type: string, format: email }
+        email:
+          type: [string, 'null']
+          format: email
+        telegramUserId:
+          type: [string, 'null']
+          description: Decimal Telegram user id when the account is linked.
+          pattern: '^[1-9][0-9]{0,18}$'
+        telegramUsername:
+          type: [string, 'null']
     AuthResult:
       type: object
       required: [user, tokens]
       properties:
         user: { $ref: '#/components/schemas/UserSummary' }
         tokens: { $ref: '#/components/schemas/TokenPair' }
+    TelegramAuthResult:
+      type: object
+      required: [user, tokens, provisioning]
+      properties:
+        user: { $ref: '#/components/schemas/UserSummary' }
+        tokens: { $ref: '#/components/schemas/TokenPair' }
+        provisioning:
+          type: string
+          enum:
+            - not_bootstrap_admin
+            - created_organization
+            - joined_organization
+            - already_member
+            - promoted_admin
+            - skipped_other_organization
+    TelegramWebhookResult:
+      type: object
+      required: [ok]
+      properties:
+        ok: { type: boolean, const: true }
+        ignored: { type: boolean }
+        delivered: { type: boolean }
 
     Me:
       type: object
-      required: [id, name, email, locale, memberships]
+      required: [id, name, email, telegramUserId, telegramUsername, locale, memberships]
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
-        email: { type: string, format: email }
+        email:
+          type: [string, 'null']
+          format: email
+        telegramUserId:
+          type: [string, 'null']
+        telegramUsername:
+          type: [string, 'null']
         locale: { type: string, enum: [en, ko, uz] }
         memberships:
           type: array
@@ -554,7 +697,7 @@ components:
         password: { type: string, minLength: 10, maxLength: 200 }
         currentPassword:
           type: string
-          description: Required when changing email or password.
+          description: Required when the account already has a password and email or password is changing. A Telegram-only account can set them once without it.
         locale: { type: string, enum: [en, ko, uz] }
 
     OrganizationSummary:

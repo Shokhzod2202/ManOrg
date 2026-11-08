@@ -29,7 +29,7 @@ cp .env.example .env              # then set JWT_ACCESS_SECRET and JWT_REFRESH_S
                                   #   openssl rand -hex 32
 pnpm infra:up                     # PostgreSQL 16 and Redis (infra/docker-compose.yml)
 pnpm db:migrate                   # apply migrations
-pnpm db:seed                      # Sunrise Bakery + City Cafe, password Password123!
+pnpm db:seed                      # development only: Sunrise Bakery + City Cafe, password Password123!
 pnpm dev                          # API :3001, web :3000, Expo dev server
 pnpm test                         # unit, integration and tenant-isolation suites
 ```
@@ -55,9 +55,15 @@ pnpm contracts:gen   # regenerate types after editing packages/contracts/openapi
 pnpm build
 ```
 
+## Production on Windows
+
+The public Mini App is the Docker stack in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). It listens
+on `127.0.0.1:4317` only. PostgreSQL and Redis stay on the compose network and are not published
+on the host.
+
 ## Status
 
 Phase 0 (spec section 14) is done: monorepo, CI, database with row-level security, auth,
-organizations, applications, members and roles, and the audit log. Phase 1 features have not
-started; the web and mobile apps are shells. See `docs/DECISIONS.md` for every default and
-choice the code relies on.
+organizations, applications, members and roles, and the audit log. The web app signs in with
+Telegram or email. Phase 1 features have not started. See `docs/DECISIONS.md` for every default
+and choice the code relies on.

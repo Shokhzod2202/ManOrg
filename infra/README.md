@@ -1,6 +1,7 @@
 # Infra
 
-`docker-compose.yml` runs PostgreSQL 16 and Redis 7 for local development.
+`docker-compose.yml` runs PostgreSQL 16 and Redis 7 for local development. Production packaging
+is `production/` and the Windows steps are [`docs/DEPLOYMENT.md`](../docs/DEPLOYMENT.md).
 
 ```bash
 pnpm infra:up      # from the repo root

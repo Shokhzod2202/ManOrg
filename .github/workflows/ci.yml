@@ -38,12 +38,38 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Linux scripts are stored as LF
+        run: |
+          set -eu
+          if git grep -I -l -e "$(printf '\r')" -- '*.sh' '*.conf' '**/Dockerfile' '*.yml' '*.yaml'; then
+            echo 'CRLF bytes are committed in a Linux script or config'
+            exit 1
+          fi
+          for path in infra/postgres/init/01-roles.sh infra/postgres/init/check-passwords.sh infra/production/scripts/db-init.sh infra/production/nginx.conf infra/production/docker-compose.yml; do
+            value=$(git check-attr eol -- "$path" | awk '{print $NF}')
+            test "$value" = "lf"
+          done
+
       - uses: pnpm/action-setup@v4
 
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
           cache: pnpm
+
+      - name: Production password check rejects development defaults
+        run: |
+          set -eu
+          if MANORG_REQUIRE_STRONG_PASSWORDS=1 POSTGRES_PASSWORD=postgres_dev MANORG_OWNER_PASSWORD=aaaaaaaaaaaaaaaaaaaaaaaa MANORG_APP_PASSWORD=bbbbbbbbbbbbbbbbbbbbbbbb sh infra/postgres/init/check-passwords.sh; then
+            echo "expected the development password to be rejected"
+            exit 1
+          fi
+          MANORG_REQUIRE_STRONG_PASSWORDS=1 \
+            POSTGRES_PASSWORD=aaaaaaaaaaaaaaaaaaaaaaaa \
+            MANORG_OWNER_PASSWORD=bbbbbbbbbbbbbbbbbbbbbbbb \
+            MANORG_APP_PASSWORD=cccccccccccccccccccccccc \
+            sh infra/postgres/init/check-passwords.sh
+          sh infra/postgres/init/check-passwords.sh
 
       - name: Install
         run: pnpm install --frozen-lockfile

@@ -1,0 +1,213 @@
+# Isolated production stack. Own volumes, own network.
+# PostgreSQL and Redis have no host ports. Do not add any: host port 5432 is another
+# Postgres process and must keep running. The only published port is 127.0.0.1:4317.
+
+name: shohona_prod
+
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: '10m'
+      max-file: '3'
+
+x-api-image: &api-image
+  image: shohona-prod-api:local
+  build:
+    context: ../..
+    dockerfile: infra/production/Dockerfile
+    target: api
+
+services:
+  db:
+    <<: *logging
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      MANORG_OWNER_PASSWORD: ${MANORG_OWNER_PASSWORD:?set MANORG_OWNER_PASSWORD}
+      MANORG_APP_PASSWORD: ${MANORG_APP_PASSWORD:?set MANORG_APP_PASSWORD}
+      MANORG_REQUIRE_STRONG_PASSWORDS: '1'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    command:
+      - postgres
+      - -c
+      - shared_buffers=128MB
+      - -c
+      - max_connections=40
+      - -c
+      - password_encryption=scram-sha-256
+    shm_size: 128mb
+    mem_limit: 512m
+    # TCP, not the init socket. Do not require the manorg database: db-init creates it,
+    # including on a volume whose first init script exited before creating roles.
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -p 5432 -U postgres -d postgres']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 20s
+
+  redis:
+    <<: *logging
+    image: redis:7-alpine
+    command:
+      - redis-server
+      - --appendonly
+      - 'yes'
+      - --requirepass
+      - ${REDIS_PASSWORD:?set REDIS_PASSWORD}
+      - --maxmemory
+      - 64mb
+      - --maxmemory-policy
+      - noeviction
+    volumes:
+      - redis-data:/data
+    mem_limit: 96m
+    healthcheck:
+      test: ['CMD', 'redis-cli', '-a', '${REDIS_PASSWORD}', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  db-init:
+    <<: *logging
+    image: postgres:16-alpine
+    environment:
+      PGHOST: db
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      MANORG_OWNER_PASSWORD: ${MANORG_OWNER_PASSWORD:?set MANORG_OWNER_PASSWORD}
+      MANORG_APP_PASSWORD: ${MANORG_APP_PASSWORD:?set MANORG_APP_PASSWORD}
+      MANORG_REQUIRE_STRONG_PASSWORDS: '1'
+    volumes:
+      - ../postgres/init:/roles:ro
+      - ./scripts/db-init.sh:/bootstrap/db-init.sh:ro
+    # Strip CR before sh reads the file. A CRLF checkout must not be executed
+    # through its shebang (/bin/sh^M exits 126).
+    entrypoint: ['sh', '-c']
+    command: ['sed "s/\r$$//" /bootstrap/db-init.sh | sh']
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: 'no'
+    mem_limit: 128m
+
+  migrate:
+    <<: [*logging, *api-image]
+    working_dir: /app/apps/api
+    command:
+      - sh
+      - -c
+      - |
+        i=0
+        while [ "$$i" -lt 15 ]; do
+          if ./node_modules/.bin/prisma migrate deploy; then
+            exit 0
+          fi
+          i=$$((i + 1))
+          sleep 2
+        done
+        exit 1
+    environment:
+      NODE_ENV: production
+      DATABASE_MIGRATION_URL: postgresql://manorg_owner:${MANORG_OWNER_PASSWORD}@db:5432/manorg
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    restart: 'no'
+    mem_limit: 512m
+
+  api:
+    <<: [*logging, *api-image]
+    environment:
+      NODE_ENV: production
+      MANORG_ENV: production
+      PORT: '3001'
+      DATABASE_URL: postgresql://manorg_app:${MANORG_APP_PASSWORD}@db:5432/manorg
+      DATABASE_MIGRATION_URL: postgresql://manorg_owner:${MANORG_OWNER_PASSWORD}@db:5432/manorg
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?set JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?set JWT_REFRESH_SECRET}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?set TELEGRAM_BOT_TOKEN}
+      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:?set TELEGRAM_WEBHOOK_SECRET}
+      TELEGRAM_BOOTSTRAP_ADMIN_IDS: ${TELEGRAM_BOOTSTRAP_ADMIN_IDS:?set TELEGRAM_BOOTSTRAP_ADMIN_IDS}
+      TELEGRAM_BOOTSTRAP_ORG_NAME: ${TELEGRAM_BOOTSTRAP_ORG_NAME:-Shohona Bakery}
+      TELEGRAM_BOOTSTRAP_TIMEZONE: ${TELEGRAM_BOOTSTRAP_TIMEZONE:-Asia/Tashkent}
+      TELEGRAM_WEBAPP_URL: ${TELEGRAM_WEBAPP_URL:?set TELEGRAM_WEBAPP_URL}
+      TELEGRAM_INIT_DATA_MAX_AGE_SECONDS: ${TELEGRAM_INIT_DATA_MAX_AGE_SECONDS:-900}
+      APP_TIMEZONE_DEFAULT: ${APP_TIMEZONE_DEFAULT:-Asia/Seoul}
+      CORS_ORIGIN: ${CORS_ORIGIN:?set CORS_ORIGIN}
+      AUTH_RATE_LIMIT_PER_MINUTE: '10'
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    mem_limit: 640m
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3001/api/v1/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  web:
+    <<: *logging
+    image: shohona-prod-web:local
+    build:
+      context: ../..
+      dockerfile: infra/production/Dockerfile
+      target: web
+      args:
+        NEXT_PUBLIC_API_URL: ''
+    environment:
+      NODE_ENV: production
+      PORT: '3000'
+      HOSTNAME: 0.0.0.0
+    mem_limit: 512m
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 15s
+
+  proxy:
+    <<: *logging
+    image: nginx:1.27-alpine
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - '127.0.0.1:${EDGE_PORT:-4317}:8080'
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    mem_limit: 64m
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:8080/api/v1/health/ready']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
+volumes:
+  postgres-data:
+    name: shohona_prod_postgres
+  redis-data:
+    name: shohona_prod_redis

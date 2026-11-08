@@ -5,7 +5,11 @@ export function hashPassword(password: string): Promise<string> {
   return hash(password);
 }
 
-export async function verifyPassword(passwordHash: string, password: string): Promise<boolean> {
+export async function verifyPassword(
+  passwordHash: string | null,
+  password: string,
+): Promise<boolean> {
+  if (!passwordHash) return verifyAgainstDummy(password);
   try {
     return await verify(passwordHash, password);
   } catch {
