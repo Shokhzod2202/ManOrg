@@ -53,6 +53,9 @@ curl.exe http://127.0.0.1:4317/api/v1/health/ready
 node .\infra\production\scripts\smoke.mjs
 ```
 
+`smoke.mjs` checks health, the web page, a rejected demo login, and rejected webhook and Telegram
+payloads. It does not sign anyone in. Do not add `--synthetic` on this machine.
+
 `/api/v1/health/ready` returns 200 when the roles exist and migrations have been applied. Then:
 
 ```powershell
@@ -196,6 +199,7 @@ node .\infra\production\scripts\smoke.mjs
 ```
 
 `/api/v1/health/ready` means the API reached its own database. Demo login returns `401`.
+`smoke.mjs` does not call Telegram and does not create accounts. `--synthetic` is refused here.
 `docker compose ps` shows `127.0.0.1:4317->8080` on the proxy and no `5432` or `6379`.
 
 Open `https://bakery.haydar.store` from outside the machine. Then:
@@ -244,5 +248,6 @@ Changing `JWT_ACCESS_SECRET` or `JWT_REFRESH_SECRET` signs everyone out. Changin
 | `infra/production/scripts/generate-env.ps1`  | Local secrets                                                |
 | `infra/production/scripts/deploy.ps1`        | Build and start on `127.0.0.1:4317`. No NetTCPIP module      |
 | `infra/production/scripts/telegram-sync.mjs` | Menu and webhook. Live call needs `--confirm-cutover`        |
-| `infra/production/scripts/smoke.mjs`         | Health, auth, proxy, and port checks                         |
+| `infra/production/scripts/smoke.mjs`         | Live health checks. Does not sign in                         |
+| `infra/production/scripts/smoke-policy.mjs`  | Refuses synthetic sign-in against the live bot               |
 | `infra/production/SHA256SUMS`                | Checksums of the packaging files above                       |

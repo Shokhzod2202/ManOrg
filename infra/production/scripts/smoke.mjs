@@ -1,14 +1,19 @@
 /**
- * Checks a running production proxy: health, same-origin routes, Telegram auth, and
- * that this compose project does not publish PostgreSQL or Redis.
- * Usage: node infra/production/scripts/smoke.mjs
- * Reads infra/production/.env. Does not print secrets.
+ * Live checks for a running proxy. They do not sign in and do not create accounts.
+ *
+ *   node infra/production/scripts/smoke.mjs
+ *
+ * Synthetic Telegram identities run only with --synthetic, SMOKE_TEST_BOT_TOKEN set to a
+ * token that is not the live bot token, and BASE_URL pointed at an isolated server.
+ * That mode refuses the public bakery, the live edge port, Telegram id 5220814834, and
+ * Telegram id 4242424242.
  */
 import { createHmac } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { forbiddenSyntheticId, syntheticBlockReason } from './smoke-policy.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const envFile = resolve(root, 'infra/production/.env');
@@ -26,8 +31,7 @@ const env = Object.fromEntries(
 
 const port = env.EDGE_PORT || '4317';
 const base = process.env.BASE_URL || `http://127.0.0.1:${port}`;
-const adminId = Number((env.TELEGRAM_BOOTSTRAP_ADMIN_IDS || '').split(',')[0]);
-const employeeId = 4242424242;
+const synthetic = process.argv.includes('--synthetic');
 const failures = [];
 
 function fail(message) {
@@ -50,21 +54,6 @@ async function text(path, init) {
   return { response, body };
 }
 
-function sign(id) {
-  const fields = {
-    auth_date: String(Math.floor(Date.now() / 1000)),
-    query_id: 'AAE',
-    user: JSON.stringify({ id, first_name: 'Smoke', username: 'smoke' }),
-  };
-  const keys = Object.keys(fields).sort();
-  const dataCheckString = keys.map((key) => `${key}=${fields[key]}`).join('\n');
-  const secretKey = createHmac('sha256', 'WebAppData').update(env.TELEGRAM_BOT_TOKEN).digest();
-  const hash = createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
-  return [...keys, 'hash']
-    .map((key) => `${key}=${encodeURIComponent(key === 'hash' ? hash : fields[key])}`)
-    .join('&');
-}
-
 function assertNotPublished(service, containerPort) {
   let published = '';
   try {
@@ -80,10 +69,22 @@ function assertNotPublished(service, containerPort) {
     if (status === 1 || /no container|not published|no such/i.test(stderr)) return;
     throw error;
   }
-  // An exposed container port with no host binding is reported as ":0".
   const hostPort = published.slice(published.lastIndexOf(':') + 1);
   if (hostPort && hostPort !== '0') {
     throw new Error(`${service} publishes ${containerPort} at ${published}`);
+  }
+}
+
+if (synthetic) {
+  const reason = syntheticBlockReason({
+    liveBotToken: env.TELEGRAM_BOT_TOKEN || '',
+    testBotToken: process.env.SMOKE_TEST_BOT_TOKEN || '',
+    baseUrl: base,
+    liveEdgePort: port,
+  });
+  if (reason) {
+    console.error(`FAIL ${reason}`);
+    process.exit(1);
   }
 }
 
@@ -94,11 +95,11 @@ await must('database and redis are not published', async () => {
 
 await must('proxy health', async () => {
   const ready = await text('/api/v1/health/ready');
-  if (!ready.response.ok) throw new Error(ready.body);
+  if (!ready.response.ok) throw new Error(`ready returned ${ready.response.status}`);
   const health = await text('/api/v1/health');
-  if (!health.body.includes('"ok"')) throw new Error(health.body);
+  if (!health.body.includes('"ok"')) throw new Error(`health returned ${health.response.status}`);
   const edge = await text('/healthz');
-  if (!edge.body.includes('ok')) throw new Error(edge.body);
+  if (!edge.body.includes('ok')) throw new Error(`edge returned ${edge.response.status}`);
 });
 
 await must('web is served on the same origin', async () => {
@@ -117,74 +118,83 @@ await must('demo seed accounts are absent', async () => {
   if (login.response.status !== 401) throw new Error(`expected 401, got ${login.response.status}`);
 });
 
-await must('webhook secret and private /start', async () => {
+await must('webhook and forged Telegram sign-in are rejected', async () => {
   const missing = await text('/api/telegram/webhook', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ update_id: 1 }),
   });
-  if (missing.response.status !== 401)
-    throw new Error(`expected 401, got ${missing.response.status}`);
-  const start = await text('/api/telegram/webhook', {
+  if (missing.response.status !== 401) throw new Error(`webhook status ${missing.response.status}`);
+  const wrong = await text('/api/telegram/webhook', {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
-      'x-telegram-bot-api-secret-token': env.TELEGRAM_WEBHOOK_SECRET,
+      'x-telegram-bot-api-secret-token': 'wrong-secret',
     },
-    body: JSON.stringify({
-      update_id: 2,
-      message: { message_id: 1, chat: { id: 1, type: 'private' }, text: '/start' },
-    }),
+    body: JSON.stringify({ update_id: 2 }),
   });
-  if (!start.response.ok) throw new Error(start.body);
-  const body = JSON.parse(start.body);
-  if (body.ok !== true) throw new Error(start.body);
-});
-
-await must('telegram admin provisioning and non-admin rejection of forged data', async () => {
-  if (!Number.isSafeInteger(adminId) || adminId <= 0) throw new Error('admin id missing');
+  if (wrong.response.status !== 401) throw new Error(`webhook status ${wrong.response.status}`);
   const forged = await text('/api/v1/auth/telegram', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ initData: 'user=%7B%22id%22%3A1%7D&auth_date=1&hash=00' }),
   });
   if (forged.response.status !== 401) throw new Error(`forged status ${forged.response.status}`);
-
-  const employee = await text('/api/v1/auth/telegram', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ initData: sign(employeeId) }),
-  });
-  if (!employee.response.ok) throw new Error(employee.body);
-  const employeeBody = JSON.parse(employee.body);
-  if (employeeBody.provisioning !== 'not_bootstrap_admin') throw new Error(employee.body);
-  const employeeMe = await text('/api/v1/me', {
-    headers: { authorization: `Bearer ${employeeBody.tokens.accessToken}` },
-  });
-  const employeeAccount = JSON.parse(employeeMe.body);
-  if (employeeAccount.memberships.length !== 0) throw new Error('employee was provisioned');
-
-  const admin = await text('/api/v1/auth/telegram', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ initData: sign(adminId) }),
-  });
-  if (!admin.response.ok) throw new Error(admin.body);
-  const adminBody = JSON.parse(admin.body);
-  if (
-    !['created_organization', 'already_member', 'joined_organization'].includes(
-      adminBody.provisioning,
-    )
-  ) {
-    throw new Error(admin.body);
-  }
-  const me = await text('/api/v1/me', {
-    headers: { authorization: `Bearer ${adminBody.tokens.accessToken}` },
-  });
-  const account = JSON.parse(me.body);
-  const bakery = account.memberships.find((item) => item.organization?.name === 'Shohona Bakery');
-  if (!bakery || bakery.role !== 'admin') throw new Error(me.body);
 });
+
+if (synthetic) {
+  const testToken = process.env.SMOKE_TEST_BOT_TOKEN;
+  const liveAdmins = (env.TELEGRAM_BOOTSTRAP_ADMIN_IDS || '').split(',');
+  for (const id of [9100000001, 9100000002]) {
+    const blocked = forbiddenSyntheticId(id, liveAdmins);
+    if (blocked) {
+      console.error(`FAIL ${blocked}`);
+      process.exit(1);
+    }
+  }
+  await must('isolated synthetic identities are not live ids', async () => {
+    const employee = await syntheticLogin(testToken, 9100000001);
+    if (employee.provisioning !== 'not_bootstrap_admin') {
+      throw new Error(`unexpected provisioning ${employee.provisioning}`);
+    }
+    const admin = await syntheticLogin(testToken, 9100000002);
+    if (
+      !['created_organization', 'already_member', 'joined_organization', 'promoted_admin'].includes(
+        admin.provisioning,
+      )
+    ) {
+      throw new Error(`unexpected provisioning ${admin.provisioning}`);
+    }
+  });
+}
+
+function sign(token, id) {
+  const fields = {
+    auth_date: String(Math.floor(Date.now() / 1000)),
+    query_id: 'AAE',
+    user: JSON.stringify({ id, first_name: 'Smoke', username: 'smoke' }),
+  };
+  const keys = Object.keys(fields).sort();
+  const dataCheckString = keys.map((key) => `${key}=${fields[key]}`).join('\n');
+  const secretKey = createHmac('sha256', 'WebAppData').update(token).digest();
+  const hash = createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
+  return [...keys, 'hash']
+    .map((key) => `${key}=${encodeURIComponent(key === 'hash' ? hash : fields[key])}`)
+    .join('&');
+}
+
+async function syntheticLogin(token, id) {
+  const blocked = forbiddenSyntheticId(id, (env.TELEGRAM_BOOTSTRAP_ADMIN_IDS || '').split(','));
+  if (blocked) throw new Error(blocked);
+  const response = await text('/api/v1/auth/telegram', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ initData: sign(token, id) }),
+  });
+  if (!response.response.ok) throw new Error(`sign-in status ${response.response.status}`);
+  const body = JSON.parse(response.body);
+  return { provisioning: body.provisioning };
+}
 
 if (failures.length > 0) {
   console.error(`${failures.length} check(s) failed`);
