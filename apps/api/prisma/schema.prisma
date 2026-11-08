@@ -1,0 +1,755 @@
+// Data model from docs/SPEC.md section 7.
+//
+// Conventions
+// - Every business table carries organization_id (CLAUDE.md rule 1). Row-level security policies
+//   live in the migrations (prisma/migrations/*/migration.sql), not here.
+// - Child rows point at their parent with a composite key that includes organization_id, so a row
+//   can never reference a parent in another organization (foreign-key checks bypass RLS).
+// - Primary keys are UUIDs; every table has created_at and updated_at.
+// - Tables that admins edit carry `version` for If-Match / 409 conflict checks (spec section 8).
+// - Global, non-business tables (users, refresh_tokens, device_tokens) have no organization_id.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum OrganizationType {
+  bakery
+  contractor
+
+  @@map("organization_type")
+}
+
+enum MembershipRole {
+  admin
+  employee
+
+  @@map("membership_role")
+}
+
+enum MembershipStatus {
+  pending
+  active
+  rejected
+  removed
+
+  @@map("membership_status")
+}
+
+enum LinkStatus {
+  pending
+  approved
+  rejected
+
+  @@map("link_status")
+}
+
+enum PunchEventType {
+  start
+  pause
+  end
+
+  @@map("punch_event_type")
+}
+
+enum PunchSource {
+  self
+  admin
+
+  @@map("punch_source")
+}
+
+enum DecisionStatus {
+  pending
+  approved
+  rejected
+
+  @@map("decision_status")
+}
+
+enum TaskType {
+  general
+  ingredient_order
+
+  @@map("task_type")
+}
+
+enum TaskStatus {
+  open
+  done
+
+  @@map("task_status")
+}
+
+enum OrderStatus {
+  placed
+  cancelled
+
+  @@map("order_status")
+}
+
+enum DeliveryStatus {
+  draft
+  completed
+  confirmed
+  change_requested
+
+  @@map("delivery_status")
+}
+
+enum IngredientOrderStatus {
+  requested
+  fulfilled
+  checked
+
+  @@map("ingredient_order_status")
+}
+
+enum PackUnit {
+  g
+  kg
+  pc
+  L
+  mL
+
+  @@map("pack_unit")
+}
+
+enum ActorType {
+  user
+  bot
+
+  @@map("actor_type")
+}
+
+enum DevicePlatform {
+  ios
+  android
+  web
+
+  @@map("device_platform")
+}
+
+// ---------------------------------------------------------------------------
+// Accounts and organizations (spec 3.1)
+// ---------------------------------------------------------------------------
+
+/// One row per person. No role here: roles live on memberships.
+model User {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  locale       String    @default("en")
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(3)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  memberships   Membership[]
+  refreshTokens RefreshToken[]
+  deviceTokens  DeviceToken[]
+
+  @@map("users")
+}
+
+/// Refresh tokens are stored hashed and rotated on every use; a reused token revokes its family.
+model RefreshToken {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  familyId   String    @map("family_id") @db.Uuid
+  tokenHash  String    @unique @map("token_hash")
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(3)
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(3)
+  replacedBy String?   @map("replaced_by") @db.Uuid
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model Organization {
+  id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name              String
+  type              OrganizationType
+  timezone          String           @default("Asia/Seoul")
+  latitude          Decimal?         @db.Decimal(9, 6)
+  longitude         Decimal?         @db.Decimal(9, 6)
+  geofenceRadiusM   Int              @default(100) @map("geofence_radius_m")
+  /// Open question 2: minutes before a punch difference turns red.
+  punchToleranceMin Int              @default(10) @map("punch_tolerance_min")
+  /// Open question 1: order cut-off on the day before delivery, organization time (HH:MM).
+  orderCutoffTime   String           @default("20:00") @map("order_cutoff_time")
+  createdById       String           @map("created_by") @db.Uuid
+  version           Int              @default(1)
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  memberships             Membership[]
+  contractorLinksAsBakery ContractorLink[]        @relation("bakery")
+  contractorLinksAsBuyer  ContractorLink[]        @relation("contractor")
+  shifts                  Shift[]
+  punchEvents             PunchEvent[]
+  punchChangeRequests     PunchChangeRequest[]
+  products                Product[]
+  ingredients             Ingredient[]
+  productIngredients      ProductIngredient[]
+  employeeProducts        EmployeeProduct[]
+  outputEntries           OutputEntry[]
+  dailyLogs               DailyLog[]
+  tasks                   Task[]
+  taskPhotos              TaskPhoto[]
+  ordersAsBakery          Order[]                 @relation("orderBakery")
+  ordersAsBuyer           Order[]                 @relation("orderContractor")
+  orderLines              OrderLine[]
+  deliveriesAsBakery      Delivery[]              @relation("deliveryBakery")
+  deliveriesAsBuyer       Delivery[]              @relation("deliveryContractor")
+  deliveryLines           DeliveryLine[]
+  deliveryChangeRequests  DeliveryChangeRequest[]
+  notifications           Notification[]
+  auditLog                AuditLog[]
+  teams                   Team[]
+  teamMembers             TeamMember[]
+  ingredientAssignments   IngredientAssignment[]
+  ingredientOrders        IngredientOrder[]
+
+  @@index([name])
+  @@map("organizations")
+}
+
+/// A user's place in an organization. Role lives here, so approval is one status change.
+/// One pending-or-active membership per user (open question 3) is a partial unique index in SQL.
+model Membership {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  userId         String           @map("user_id") @db.Uuid
+  role           MembershipRole
+  status         MembershipStatus
+  decidedById    String?          @map("decided_by") @db.Uuid
+  decidedAt      DateTime?        @map("decided_at") @db.Timestamptz(3)
+  version        Int              @default(1)
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, status])
+  @@index([userId, status])
+  @@map("memberships")
+}
+
+/// A contractor organization approved to buy from a bakery (ACC-6).
+/// organization_id is the bakery; the contractor reads the row through contractor_org_id.
+model ContractorLink {
+  id              String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId  String     @map("organization_id") @db.Uuid
+  contractorOrgId String     @map("contractor_org_id") @db.Uuid
+  status          LinkStatus
+  requestedById   String     @map("requested_by") @db.Uuid
+  decidedById     String?    @map("decided_by") @db.Uuid
+  decidedAt       DateTime?  @map("decided_at") @db.Timestamptz(3)
+  version         Int        @default(1)
+  createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  bakery     Organization @relation("bakery", fields: [organizationId], references: [id], onDelete: Restrict)
+  contractor Organization @relation("contractor", fields: [contractorOrgId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, status])
+  @@index([contractorOrgId, status])
+  @@map("contractor_links")
+}
+
+// ---------------------------------------------------------------------------
+// Shifts and punch cards (spec 3.2)
+// ---------------------------------------------------------------------------
+
+/// Weekly planned shift per employee per weekday (0 = Sunday ... 6 = Saturday).
+model Shift {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  employeeId     String   @map("employee_id") @db.Uuid
+  weekday        Int      @db.SmallInt
+  startTime      DateTime @map("start_time") @db.Time(0)
+  endTime        DateTime @map("end_time") @db.Time(0)
+  version        Int      @default(1)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, employeeId, weekday])
+  @@map("shifts")
+}
+
+/// A start after a pause resumes the shift. occurred_at is always set by the server.
+model PunchEvent {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String         @map("organization_id") @db.Uuid
+  employeeId     String         @map("employee_id") @db.Uuid
+  eventType      PunchEventType @map("event_type")
+  occurredAt     DateTime       @default(now()) @map("occurred_at") @db.Timestamptz(3)
+  source         PunchSource
+  version        Int            @default(1)
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, employeeId, occurredAt])
+  @@map("punch_events")
+}
+
+model PunchChangeRequest {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String         @map("organization_id") @db.Uuid
+  employeeId     String         @map("employee_id") @db.Uuid
+  shiftDate      DateTime       @map("shift_date") @db.Date
+  requestedStart DateTime?      @map("requested_start") @db.Timestamptz(3)
+  requestedEnd   DateTime?      @map("requested_end") @db.Timestamptz(3)
+  reason         String?
+  status         DecisionStatus @default(pending)
+  decidedById    String?        @map("decided_by") @db.Uuid
+  decidedAt      DateTime?      @map("decided_at") @db.Timestamptz(3)
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, status])
+  @@map("punch_change_requests")
+}
+
+// ---------------------------------------------------------------------------
+// Products and ingredients (spec 3.5, 3.10)
+// ---------------------------------------------------------------------------
+
+model Product {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  name           String
+  imageUrl       String    @map("image_url")
+  /// Minutes an employee needs to prepare 10 units.
+  minutesPer10   Int       @map("minutes_per_10")
+  available      Boolean   @default(true)
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz(3)
+  version        Int       @default(1)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization     Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  ingredients      ProductIngredient[]
+  employeeProducts EmployeeProduct[]
+  outputEntries    OutputEntry[]
+
+  @@unique([id, organizationId])
+  @@map("products")
+}
+
+/// Ordering time schedule: weekly day and time (open question 14), e.g. Tuesday 18:00.
+model Ingredient {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId    String    @map("organization_id") @db.Uuid
+  name              String
+  source            String
+  orderScheduleDay  Int?      @map("order_schedule_weekday") @db.SmallInt
+  orderScheduleTime DateTime? @map("order_schedule_time") @db.Time(0)
+  packPrice         Decimal?  @map("pack_price") @db.Decimal(12, 2)
+  packQuantity      Decimal   @map("pack_quantity") @db.Decimal(12, 3)
+  packUnit          PackUnit  @map("pack_unit")
+  deletedAt         DateTime? @map("deleted_at") @db.Timestamptz(3)
+  version           Int       @default(1)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  products     ProductIngredient[]
+  assignments  IngredientAssignment[]
+  orders       IngredientOrder[]
+
+  @@unique([id, organizationId])
+  @@map("ingredients")
+}
+
+/// quantity_per_10 is an assumption: the notebook lists ingredients without amounts.
+model ProductIngredient {
+  organizationId String   @map("organization_id") @db.Uuid
+  productId      String   @map("product_id") @db.Uuid
+  ingredientId   String   @map("ingredient_id") @db.Uuid
+  quantityPer10  Decimal? @map("quantity_per_10") @db.Decimal(12, 3)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  product      Product      @relation(fields: [productId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  ingredient   Ingredient   @relation(fields: [ingredientId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@id([productId, ingredientId])
+  @@map("product_ingredients")
+}
+
+/// Products assigned to an employee (PRD-3).
+model EmployeeProduct {
+  organizationId String   @map("organization_id") @db.Uuid
+  employeeId     String   @map("employee_id") @db.Uuid
+  productId      String   @map("product_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  product      Product      @relation(fields: [productId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@id([employeeId, productId])
+  @@map("employee_products")
+}
+
+/// Ordering responsibility; several employees per ingredient (ING-4 / ING-7).
+model IngredientAssignment {
+  organizationId String   @map("organization_id") @db.Uuid
+  ingredientId   String   @map("ingredient_id") @db.Uuid
+  employeeId     String   @map("employee_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  ingredient   Ingredient   @relation(fields: [ingredientId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@id([ingredientId, employeeId])
+  @@map("ingredient_assignments")
+}
+
+/// Each order creates one task for the admin; each status change records who and when (ING-6).
+model IngredientOrder {
+  id             String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String                @map("organization_id") @db.Uuid
+  ingredientId   String                @map("ingredient_id") @db.Uuid
+  orderedById    String                @map("ordered_by") @db.Uuid
+  packs          Int
+  note           String?
+  status         IngredientOrderStatus @default(requested)
+  taskId         String?               @map("task_id") @db.Uuid
+  fulfilledById  String?               @map("fulfilled_by") @db.Uuid
+  fulfilledAt    DateTime?             @map("fulfilled_at") @db.Timestamptz(3)
+  checkedById    String?               @map("checked_by") @db.Uuid
+  checkedAt      DateTime?             @map("checked_at") @db.Timestamptz(3)
+  version        Int                   @default(1)
+  createdAt      DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  ingredient   Ingredient   @relation(fields: [ingredientId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  task         Task?        @relation(fields: [taskId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@index([organizationId, status])
+  @@map("ingredient_orders")
+}
+
+// ---------------------------------------------------------------------------
+// Output and teams (spec 3.3, 3.9)
+// ---------------------------------------------------------------------------
+
+/// Saved on the owner's page; the owner is always a member.
+model Team {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  ownerId        String    @map("owner_id") @db.Uuid
+  name           String
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz(3)
+  version        Int       @default(1)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  members       TeamMember[]
+  outputEntries OutputEntry[]
+
+  @@unique([id, organizationId])
+  @@map("teams")
+}
+
+model TeamMember {
+  organizationId String   @map("organization_id") @db.Uuid
+  teamId         String   @map("team_id") @db.Uuid
+  employeeId     String   @map("employee_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  team         Team         @relation(fields: [teamId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@id([teamId, employeeId])
+  @@map("team_members")
+}
+
+/// A team line is one row (team_id set), not one per member. Uniqueness is two partial indexes
+/// in SQL: personal lines on (employee, date, product), team lines on (team, date, product).
+model OutputEntry {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  employeeId     String   @map("employee_id") @db.Uuid
+  workDate       DateTime @map("work_date") @db.Date
+  productId      String   @map("product_id") @db.Uuid
+  quantity       Int
+  teamId         String?  @map("team_id") @db.Uuid
+  version        Int      @default(1)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  product      Product      @relation(fields: [productId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  team         Team?        @relation(fields: [teamId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@index([organizationId, workDate])
+  @@map("output_entries")
+}
+
+/// One row per employee per day.
+model DailyLog {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  employeeId     String   @map("employee_id") @db.Uuid
+  workDate       DateTime @map("work_date") @db.Date
+  cleaningHours  Decimal  @default(0) @map("cleaning_hours") @db.Decimal(4, 2)
+  version        Int      @default(1)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, employeeId, workDate])
+  @@map("daily_logs")
+}
+
+// ---------------------------------------------------------------------------
+// Tasks (spec 3.4)
+// ---------------------------------------------------------------------------
+
+/// assignee_id is empty for ingredient-order tasks, which go to the organization's admins.
+model Task {
+  id             String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String     @map("organization_id") @db.Uuid
+  assigneeId     String?    @map("assignee_id") @db.Uuid
+  createdById    String     @map("created_by") @db.Uuid
+  taskType       TaskType   @default(general) @map("task_type")
+  title          String
+  description    String?
+  dueDate        DateTime?  @map("due_date") @db.Date
+  status         TaskStatus @default(open)
+  completedAt    DateTime?  @map("completed_at") @db.Timestamptz(3)
+  version        Int        @default(1)
+  createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  photos           TaskPhoto[]
+  ingredientOrders IngredientOrder[]
+
+  @@unique([id, organizationId])
+  @@index([organizationId, assigneeId, status])
+  @@map("tasks")
+}
+
+/// Camera capture only (TSK-2). taken_at is recorded by the server.
+model TaskPhoto {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  taskId         String   @map("task_id") @db.Uuid
+  fileUrl        String   @map("file_url")
+  contentType    String   @map("content_type")
+  sizeBytes      Int      @map("size_bytes")
+  takenAt        DateTime @default(now()) @map("taken_at") @db.Timestamptz(3)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  task         Task         @relation(fields: [taskId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@map("task_photos")
+}
+
+// ---------------------------------------------------------------------------
+// Orders and deliveries (spec 3.6, 3.7)
+// organization_id is the bakery; contractor_org_id lets the contractor read its own rows.
+// ---------------------------------------------------------------------------
+
+/// One active order per contractor per delivery date (partial unique index in SQL).
+model Order {
+  id              String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId  String      @map("organization_id") @db.Uuid
+  contractorOrgId String      @map("contractor_org_id") @db.Uuid
+  deliveryDate    DateTime    @map("delivery_date") @db.Date
+  placedById      String      @map("placed_by") @db.Uuid
+  placedAt        DateTime    @default(now()) @map("placed_at") @db.Timestamptz(3)
+  status          OrderStatus @default(placed)
+  version         Int         @default(1)
+  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  bakery     Organization @relation("orderBakery", fields: [organizationId], references: [id], onDelete: Restrict)
+  contractor Organization @relation("orderContractor", fields: [contractorOrgId], references: [id], onDelete: Restrict)
+  lines      OrderLine[]
+  deliveries Delivery[]
+
+  @@unique([id, organizationId, contractorOrgId])
+  @@index([organizationId, deliveryDate])
+  @@map("orders")
+}
+
+/// Product name is copied at order time so later product edits never rewrite history.
+model OrderLine {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  contractorOrgId String   @map("contractor_org_id") @db.Uuid
+  orderId         String   @map("order_id") @db.Uuid
+  productId       String   @map("product_id") @db.Uuid
+  productName     String   @map("product_name")
+  quantity        Int
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  order        Order        @relation(fields: [orderId, organizationId, contractorOrgId], references: [id, organizationId, contractorOrgId], onDelete: Cascade)
+
+  @@map("order_lines")
+}
+
+/// One delivery per contractor per day. A confirmed delivery is locked.
+model Delivery {
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId  String         @map("organization_id") @db.Uuid
+  contractorOrgId String         @map("contractor_org_id") @db.Uuid
+  orderId         String?        @map("order_id") @db.Uuid
+  deliveryDate    DateTime       @map("delivery_date") @db.Date
+  windowStart     DateTime?      @map("window_start") @db.Timestamptz(3)
+  windowEnd       DateTime?      @map("window_end") @db.Timestamptz(3)
+  status          DeliveryStatus @default(draft)
+  completedAt     DateTime?      @map("completed_at") @db.Timestamptz(3)
+  confirmedAt     DateTime?      @map("confirmed_at") @db.Timestamptz(3)
+  version         Int            @default(1)
+  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  bakery         Organization            @relation("deliveryBakery", fields: [organizationId], references: [id], onDelete: Restrict)
+  contractor     Organization            @relation("deliveryContractor", fields: [contractorOrgId], references: [id], onDelete: Restrict)
+  order          Order?                  @relation(fields: [orderId, organizationId, contractorOrgId], references: [id, organizationId, contractorOrgId], onDelete: Restrict)
+  lines          DeliveryLine[]
+  changeRequests DeliveryChangeRequest[]
+
+  @@unique([id, organizationId, contractorOrgId])
+  @@unique([organizationId, contractorOrgId, deliveryDate])
+  @@map("deliveries")
+}
+
+/// Ordered and delivered quantities are stored separately; the difference is derived.
+model DeliveryLine {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId    String   @map("organization_id") @db.Uuid
+  contractorOrgId   String   @map("contractor_org_id") @db.Uuid
+  deliveryId        String   @map("delivery_id") @db.Uuid
+  productId         String   @map("product_id") @db.Uuid
+  productName       String   @map("product_name")
+  orderedQuantity   Int      @default(0) @map("ordered_quantity")
+  deliveredQuantity Int      @map("delivered_quantity")
+  isUnordered       Boolean  @default(false) @map("is_unordered")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  delivery     Delivery     @relation(fields: [deliveryId, organizationId, contractorOrgId], references: [id, organizationId, contractorOrgId], onDelete: Cascade)
+
+  @@map("delivery_lines")
+}
+
+/// The delivery stays unchanged while a request is pending (DEL-6).
+model DeliveryChangeRequest {
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId  String         @map("organization_id") @db.Uuid
+  contractorOrgId String         @map("contractor_org_id") @db.Uuid
+  deliveryId      String         @map("delivery_id") @db.Uuid
+  requestedById   String         @map("requested_by") @db.Uuid
+  payload         Json
+  reason          String?
+  status          DecisionStatus @default(pending)
+  decidedById     String?        @map("decided_by") @db.Uuid
+  decidedAt       DateTime?      @map("decided_at") @db.Timestamptz(3)
+  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  delivery     Delivery     @relation(fields: [deliveryId, organizationId, contractorOrgId], references: [id, organizationId, contractorOrgId], onDelete: Cascade)
+
+  @@map("delivery_change_requests")
+}
+
+// ---------------------------------------------------------------------------
+// Notifications and audit (spec 7, 9)
+// ---------------------------------------------------------------------------
+
+/// organization_id is empty only for account-level notices sent before a user joins.
+model Notification {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String?   @map("organization_id") @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  type           String
+  payload        Json      @default("{}")
+  sentAt         DateTime? @map("sent_at") @db.Timestamptz(3)
+  readAt         DateTime? @map("read_at") @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@index([userId, readAt])
+  @@map("notifications")
+}
+
+model DeviceToken {
+  id        String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String         @map("user_id") @db.Uuid
+  token     String         @unique
+  platform  DevicePlatform
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("device_tokens")
+}
+
+/// Append-only: the runtime role may insert and read, never update or delete.
+/// organization_id is empty only for account-level edits (a user editing their own account).
+model AuditLog {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String?   @map("organization_id") @db.Uuid
+  actorType      ActorType @map("actor_type")
+  actorId        String    @map("actor_id") @db.Uuid
+  onBehalfOf     String?   @map("on_behalf_of") @db.Uuid
+  action         String
+  entity         String
+  entityId       String    @map("entity_id") @db.Uuid
+  before         Json?
+  after          Json?
+  at             DateTime  @default(now()) @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, at])
+  @@index([entity, entityId])
+  @@map("audit_log")
+}
