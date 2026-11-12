@@ -226,6 +226,26 @@ describe('writes are confined to the current organization', () => {
     ).rejects.toThrow(/permission denied/i);
   });
 
+  it('keeps ingredient price history append-only, so a price edit cannot rewrite the past', async () => {
+    await expect(
+      asApp(ctxA(), (tx) => tx.ingredientPrice.updateMany({ data: { packPrice: 1 } })),
+    ).rejects.toThrow(/permission denied/i);
+    await expect(asApp(ctxA(), (tx) => tx.ingredientPrice.deleteMany({}))).rejects.toThrow(
+      /permission denied/i,
+    );
+    const added = await asApp(ctxA(), (tx) =>
+      tx.ingredientPrice.create({
+        data: {
+          organizationId: a.bakeryId,
+          ingredientId: a.ingredientId,
+          packPrice: 32_000,
+          createdById: a.adminId,
+        },
+      }),
+    );
+    expect(added.packPrice).toBe(32_000);
+  });
+
   it('keeps the audit log append-only', async () => {
     await expect(
       asApp(ctxA(), (tx) => tx.auditLog.updateMany({ data: { action: 'tampered' } })),

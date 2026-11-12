@@ -79,6 +79,9 @@ export async function createTenantWithEveryTable(label: string): Promise<TenantF
     const ingredient = await tx.ingredient.create({
       data: { ...org, name: 'Flour', source: 'Mill', packQuantity: 20, packUnit: 'kg' },
     });
+    await tx.ingredientPrice.create({
+      data: { ...org, ingredientId: ingredient.id, packPrice: 30_000, createdById: admin!.id },
+    });
     await tx.productIngredient.create({
       data: { ...org, productId: product.id, ingredientId: ingredient.id },
     });
@@ -106,6 +109,7 @@ export async function createTenantWithEveryTable(label: string): Promise<TenantF
         ingredientId: ingredient.id,
         orderedById: employee!.id,
         packs: 2,
+        packPrice: 30_000,
         taskId: task.id,
       },
     });

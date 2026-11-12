@@ -68,6 +68,20 @@ export const CAPABILITIES = {
   'teams.manage': { employee: 'own', org_admin: false, contractor_admin: false, bot: false },
   // Section 2, "Added capabilities"
   'output.logTeam': { employee: 'own', org_admin: 'any', contractor_admin: false, bot: 'any' },
+  // Decided 2026-11-12 (docs/DECISIONS.md): employees read the orders due next (TOD-1 to TOD-7)
+  // but never edit them; the monthly orders list is for admins and each contractor's own admin.
+  'orders.readDueNext': { employee: 'any', org_admin: 'any', contractor_admin: false, bot: 'any' },
+  'orders.readHistory': { employee: false, org_admin: 'any', contractor_admin: 'own', bot: false },
+  // docs/F-001.md section 3 (built after the MVP gate). Employees and the bot have no access to
+  // financial data; payment confirmations are seen by the bakery admin and the contractor's own admin.
+  'prices.manage': { employee: false, org_admin: 'any', contractor_admin: false, bot: false },
+  'finance.view': { employee: false, org_admin: 'any', contractor_admin: 'own', bot: false },
+  'payments.submit': { employee: false, org_admin: false, contractor_admin: 'own', bot: false },
+  'payments.view': { employee: false, org_admin: 'any', contractor_admin: 'own', bot: false },
+  'payments.review': { employee: false, org_admin: 'any', contractor_admin: false, bot: false },
+  'settlement.edit': { employee: false, org_admin: 'any', contractor_admin: false, bot: false },
+  'settlement.view': { employee: false, org_admin: 'any', contractor_admin: 'own', bot: false },
+  'settlement.close': { employee: false, org_admin: 'any', contractor_admin: false, bot: false },
 } as const satisfies Record<string, Record<Actor, Grant>>;
 
 export type Capability = keyof typeof CAPABILITIES;

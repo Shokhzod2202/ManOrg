@@ -66,6 +66,53 @@ describe('permission matrix (spec section 2)', () => {
     expect(can('contractor_admin', 'shifts.read')).toBe(false);
   });
 
+  it('lets employees read the orders due next but never edit or place orders', () => {
+    expect(grantFor('employee', 'orders.readDueNext')).toBe('any');
+    expect(can('employee', 'orders.edit')).toBe(false);
+    expect(can('employee', 'orders.place')).toBe(false);
+  });
+
+  it('shows the monthly orders list only to the bakery admin and the contractor’s own admin', () => {
+    expect(ACTORS.filter((a) => can(a, 'orders.readHistory'))).toEqual([
+      'org_admin',
+      'contractor_admin',
+    ]);
+    expect(grantFor('contractor_admin', 'orders.readHistory')).toBe('own');
+  });
+
+  it('shows payment confirmations only to the bakery admin and the contractor’s own admin', () => {
+    expect(ACTORS.filter((a) => can(a, 'payments.view'))).toEqual([
+      'org_admin',
+      'contractor_admin',
+    ]);
+    expect(grantFor('contractor_admin', 'payments.view')).toBe('own');
+    expect(ACTORS.filter((a) => can(a, 'payments.submit'))).toEqual(['contractor_admin']);
+    expect(ACTORS.filter((a) => can(a, 'payments.review'))).toEqual(['org_admin']);
+  });
+
+  it('gives employees and the bot no access to financial data (F-001)', () => {
+    for (const capability of [
+      'prices.manage',
+      'finance.view',
+      'payments.submit',
+      'payments.view',
+      'payments.review',
+      'settlement.edit',
+      'settlement.view',
+      'settlement.close',
+    ] as const) {
+      expect({
+        capability,
+        employee: can('employee', capability),
+        bot: can('bot', capability),
+      }).toEqual({
+        capability,
+        employee: false,
+        bot: false,
+      });
+    }
+  });
+
   it('lists every actor for every capability', () => {
     for (const [capability, grants] of Object.entries(CAPABILITIES)) {
       expect({ capability, actors: Object.keys(grants).sort() }).toEqual({

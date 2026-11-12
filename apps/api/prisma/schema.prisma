@@ -226,6 +226,7 @@ model Organization {
   teamMembers             TeamMember[]
   ingredientAssignments   IngredientAssignment[]
   ingredientOrders        IngredientOrder[]
+  ingredientPrices        IngredientPrice[]
 
   @@index([name])
   @@map("organizations")
@@ -362,6 +363,7 @@ model Product {
 }
 
 /// Ordering time schedule: weekly day and time (open question 14), e.g. Tuesday 18:00.
+/// The price per pack lives in ingredient_prices, so a price change never rewrites the past.
 model Ingredient {
   id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId    String    @map("organization_id") @db.Uuid
@@ -369,7 +371,6 @@ model Ingredient {
   source            String
   orderScheduleDay  Int?      @map("order_schedule_weekday") @db.SmallInt
   orderScheduleTime DateTime? @map("order_schedule_time") @db.Time(0)
-  packPrice         Decimal?  @map("pack_price") @db.Decimal(12, 2)
   packQuantity      Decimal   @map("pack_quantity") @db.Decimal(12, 3)
   packUnit          PackUnit  @map("pack_unit")
   deletedAt         DateTime? @map("deleted_at") @db.Timestamptz(3)
@@ -381,9 +382,30 @@ model Ingredient {
   products     ProductIngredient[]
   assignments  IngredientAssignment[]
   orders       IngredientOrder[]
+  prices       IngredientPrice[]
 
   @@unique([id, organizationId])
   @@map("ingredients")
+}
+
+/// Price history for one pack of an ingredient, in whole won. Rows are never edited: a new
+/// price is a new row, effective from the moment it is saved. The current price is the latest
+/// row with effective_from at or before now; past calculations use the row in force at their time.
+model IngredientPrice {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  ingredientId   String   @map("ingredient_id") @db.Uuid
+  packPrice      Int      @map("pack_price")
+  effectiveFrom  DateTime @default(now()) @map("effective_from") @db.Timestamptz(3)
+  createdById    String   @map("created_by") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  ingredient   Ingredient   @relation(fields: [ingredientId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@index([ingredientId, effectiveFrom])
+  @@map("ingredient_prices")
 }
 
 /// quantity_per_10 is an assumption: the notebook lists ingredients without amounts.
@@ -440,6 +462,8 @@ model IngredientOrder {
   ingredientId   String                @map("ingredient_id") @db.Uuid
   orderedById    String                @map("ordered_by") @db.Uuid
   packs          Int
+  /// Price per pack in won when the order was placed; empty if the ingredient had no price.
+  packPrice      Int?                  @map("pack_price")
   note           String?
   status         IngredientOrderStatus @default(requested)
   taskId         String?               @map("task_id") @db.Uuid
