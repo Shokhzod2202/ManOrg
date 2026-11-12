@@ -1,6 +1,6 @@
 # Organization Management App — Development Documentation Pack
 
-Source: Claude Docs "Organization Management App — Development Documentation Pack", as of 2026-11-08 · Shokhzod Khaydarov
+Source: Claude Docs "Organization Management App — Development Documentation Pack", as of 2026-11-08 (received again with sections 3.7a and 3.10a on 2026-11-12) · Shokhzod Khaydarov
 
 ## 1. Product requirements
 
@@ -158,6 +158,21 @@ IDs are stable references for tickets and tests. Where the notebook is silent, t
 | DEL-5 | The contractor admin approves the delivery after it is completed. | Status moves to confirmed. |
 | DEL-6 | After confirming, the contractor admin can apply to edit the delivery; the bakery admin must approve before the delivery info changes. | The delivery info stays unchanged while the request is pending. |
 
+### 3.7a Approximate delivery time (revised)
+
+The approximate delivery time is a standing daily time per contractor that everyone involved sees. The admin sets it once and it repeats every day until changed.
+
+| ID    | Requirement                                                                                                                                               | Acceptance criteria                                                                                                                                                                              |
+|-------|-----------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| DTM-1 | The admin sets an approximate delivery time for each contractor, as a start and end time (for example 14:00 to 15:00). It applies every day at that time. | Saved on the contractor link; each new delivery is created with this time automatically; end must be after start.                                                                                |
+| DTM-2 | The admin can edit the standing time at any time.                                                                                                         | The change applies to deliveries from the next day on, and to today's delivery if it is not yet completed; each edit is audited.                                                                 |
+| DTM-3 | A new time stays in effect every day until the admin changes it again.                                                                                    | Example: the time is 14:00 to 15:00 every day; the shift moves earlier and the admin sets 11:00 to 12:00, which then applies every day until it is changed again. There is no one-day exception. |
+| DTM-4 | The approximate time is shown to employees, to contractor admins, and to the organization's admins.                                                       | Employees see it on Today's Orders and My Orders; contractor admins see it on their orders and deliveries; admins see it on Orders and Delivery management.                                      |
+| DTM-5 | Today's Orders and the admin's Orders dashboard sort by this time, earliest first.                                                                        | Editing the time re-sorts the lists immediately.                                                                                                                                                 |
+| DTM-6 | Contractor admins and employees are notified when the time changes.                                                                                       | Push and in-app notification on every change.                                                                                                                                                    |
+
+Decided: the time is set per contractor, and "every day" means every day that contractor has a delivery. The contractor's own requested window from the order (the notebook example is 2 to 3 pm) does not override the admin's time. Data model: add approx_start and approx_end to contractor_links; each delivery copies the current time when it is created, so history keeps what was shown that day. API: PUT /contractors/{id}/approx-time (Admin).
+
 ### 3.8 Admin dashboards
 
 | ID | Requirement | Acceptance criteria |
@@ -174,6 +189,22 @@ IDs are stable references for tickets and tests. Where the notebook is silent, t
 | TEAM-3 | The employee who logs a team line must be a member of that team. | Saving a line for a team the user is not in is rejected ("Self should be in Team A"). |
 | TEAM-4 | A team line is logged once and then appears in every member's output for that day. | No double counting: team totals count the quantity once; each member sees the line on their own dashboard. |
 | TEAM-5 | Team output is for products that members worked on together to produce that number. | The line shows the member list so the admin can verify who worked on it. |
+
+### 3.10a Today's Orders and My Orders (added later)
+
+"Next" always means the order due for delivery next, never the order dated tomorrow. Night shifts must work from the same list for the whole shift.
+
+| ID    | Requirement                                                                                                                                                                   | Acceptance criteria                                                                                                                                                                                                      |
+|-------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| TOD-1 | A Today's Orders tab shows the employee the orders they must make in the current shift: the contractor orders whose delivery is due next.                                     | The list is selected by delivery due, not by calendar date, and does not change at midnight.                                                                                                                             |
+| TOD-2 | Orders are listed by delivery date and time window, earliest first; an order leaves the list when its delivery is marked completed and the next due delivery takes its place. | Example: a shift from Nov 1 22:00 to Nov 2 06:00 sees the order placed Nov 1 8 pm for delivery Nov 2 2-3 pm the whole shift, including after midnight. A day-shift employee on the morning of Nov 2 sees the same order. |
+| TOD-3 | If several deliveries are due in one day, all are shown in delivery-time order and the employee can filter by contractor.                                                     | Filter by contractor works; the default shows all.                                                                                                                                                                       |
+| TOD-4 | Orders stays the main dashboard for the admin: all contractors' orders and production totals per product.                                                                     | Totals match the sum of the orders due next.                                                                                                                                                                             |
+| TOD-5 | Each employee has a My Orders page listing only the products assigned to them, with the quantities to make for the delivery due next.                                         | Products not assigned to the employee never appear.                                                                                                                                                                      |
+| TOD-6 | The admin has the same per-employee view, opened separately for each employee.                                                                                                | The admin can open any employee and see their assigned products and quantities.                                                                                                                                          |
+| TOD-7 | If several employees are assigned the same product, each sees the full quantity; the admin splits the work manually.                                                          | No automatic division of quantities.                                                                                                                                                                                     |
+
+New screens: Today's Orders and My Orders (Employee), Employee orders (Admin, one employee at a time). New endpoints: GET /orders/due-next?contractor_id= (Employee, Admin) and GET /employees/{id}/orders/due-next (Admin).
 
 ### 3.10 Ingredient ordering (added from notebook page "Ingredient Management")
 

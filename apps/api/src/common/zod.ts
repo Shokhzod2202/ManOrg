@@ -28,6 +28,6 @@ export class ZodValidationPipe<S extends z.ZodType> implements PipeTransform<unk
   }
 }
 
-/** Request body validated by a schema (CLAUDE.md rule 8). */
+/** Request body validated by a schema (CLAUDE.md rule 9). */
 export const ZodBody = (schema: z.ZodType) => Body(new ZodValidationPipe(schema));
 export const ZodQuery = (schema: z.ZodType) => Query(new ZodValidationPipe(schema));
