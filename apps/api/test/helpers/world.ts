@@ -38,7 +38,7 @@ async function bakery(api: Api, label: string): Promise<Bakery> {
     .expect(201);
   await api
     .as(admin, id)
-    .put(`/ingredients/${ingredient.body.id}/assignees`)
+    .put(`/ingredients/${ingredient.body.id}/responsible`)
     .send({ employeeIds: [employee.userId] })
     .expect(200);
   const productId = await createProduct(api, admin, id, ingredient.body.id, `${label} Bread`);

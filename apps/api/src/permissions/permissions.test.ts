@@ -1,30 +1,39 @@
 import { describe, expect, it } from 'vitest';
-import {
-  EMPLOYEE_ACCESS_AREAS,
-  type EmployeeAccess,
-  resolveEmployeeAccess,
-} from './employee-access';
+import { resolveBotAccess } from './bot-access';
+import { EMPLOYEE_ACCESS_KEYS, resolveEmployeeAccess } from './employee-access';
 import {
   type Actor,
   actorFor,
-  BOT_EXCLUDED,
+  BOT_BY_SETTING,
+  BOT_NEVER,
   CAPABILITIES,
   can,
   type Capability,
   grantFor,
+  type OrgSettings,
 } from './permissions';
 
 const ACTORS: Actor[] = ['employee', 'org_admin', 'contractor_admin', 'bot'];
 const ALL = Object.keys(CAPABILITIES) as Capability[];
-const defaults = resolveEmployeeAccess({});
-const allOpen = Object.fromEntries(
-  Object.keys(EMPLOYEE_ACCESS_AREAS).map((k) => [k, true]),
-) as EmployeeAccess;
+const defaults: OrgSettings = {
+  employeeAccess: resolveEmployeeAccess({}),
+  botAccess: resolveBotAccess({}),
+};
+const allOpen: OrgSettings = {
+  employeeAccess: Object.fromEntries(
+    EMPLOYEE_ACCESS_KEYS.map((k) => [k, true]),
+  ) as OrgSettings['employeeAccess'],
+  botAccess: { decideApplications: true, manageMembers: true, manageEmployeeAccess: true },
+};
+const withEmployee = (patch: Partial<OrgSettings['employeeAccess']>): OrgSettings => ({
+  ...defaults,
+  employeeAccess: { ...defaults.employeeAccess, ...patch },
+});
 
 describe('actorFor', () => {
   it('maps organization type and role to the matrix actor', () => {
-    expect(actorFor('bakery', 'admin')).toBe('org_admin');
-    expect(actorFor('bakery', 'employee')).toBe('employee');
+    expect(actorFor('provider', 'admin')).toBe('org_admin');
+    expect(actorFor('provider', 'employee')).toBe('employee');
     expect(actorFor('contractor', 'admin')).toBe('contractor_admin');
     // Contractor organizations have admins only in v1 (open question 10).
     expect(actorFor('contractor', 'employee')).toBe('contractor_admin');
@@ -48,7 +57,7 @@ describe('permission matrix (spec section 2)', () => {
     ],
   ];
 
-  it.each(phase0)('%s is granted exactly as the spec says', (capability, expected) => {
+  it.each(phase0)('%s is granted exactly as the spec says, by default', (capability, expected) => {
     for (const actor of ACTORS) {
       expect({ actor, allowed: can(actor, capability, defaults) }).toEqual({
         actor,
@@ -63,7 +72,7 @@ describe('permission matrix (spec section 2)', () => {
 
   it('only employees punch and complete tasks, and only for themselves', () => {
     for (const capability of ['punch.self', 'tasks.complete', 'punch.requestChange'] as const) {
-      expect(ACTORS.filter((a) => can(a, capability))).toEqual(['employee']);
+      expect(ACTORS.filter((a) => can(a, capability, allOpen))).toEqual(['employee']);
       expect(grantFor('employee', capability)).toBe('own');
     }
   });
@@ -80,7 +89,7 @@ describe('permission matrix (spec section 2)', () => {
         grant: 'own',
       });
     }
-    expect(can('contractor_admin', 'shifts.read')).toBe(false);
+    expect(can('contractor_admin', 'shifts.read', allOpen)).toBe(false);
   });
 
   it('lists every actor for every capability', () => {
@@ -94,12 +103,12 @@ describe('permission matrix (spec section 2)', () => {
 });
 
 describe('AI bot (decided 2026-11-13)', () => {
-  it('can see and do everything the bakery admin can, except the listed exclusions', () => {
+  it('has the provider admin’s grants, except setting-dependent and never-allowed ones', () => {
     for (const capability of ALL) {
-      const expected = BOT_EXCLUDED.has(capability) ? false : grantFor('org_admin', capability);
+      if (BOT_NEVER.has(capability) || BOT_BY_SETTING[capability]) continue;
       expect({ capability, bot: grantFor('bot', capability) }).toEqual({
         capability,
-        bot: expected,
+        bot: grantFor('org_admin', capability),
       });
     }
   });
@@ -116,15 +125,30 @@ describe('AI bot (decided 2026-11-13)', () => {
       'prices.manage',
       'ingredients.readPrices',
     ] as const) {
-      expect({ capability, bot: can('bot', capability) }).toEqual({ capability, bot: true });
+      expect({ capability, bot: can('bot', capability, defaults) }).toEqual({
+        capability,
+        bot: true,
+      });
     }
   });
 
-  it('never manages admins, roles, applications or employee access', () => {
+  it('approves applications, manages admins or changes employee access only when switched on', () => {
+    const cases = [
+      ['applications.decide', 'decideApplications'],
+      ['members.manage', 'manageMembers'],
+      ['employeeAccess.manage', 'manageEmployeeAccess'],
+    ] as const;
+    for (const [capability, key] of cases) {
+      expect(can('bot', capability, defaults)).toBe(false);
+      expect(
+        can('bot', capability, { ...defaults, botAccess: { ...defaults.botAccess, [key]: true } }),
+      ).toBe(true);
+    }
+  });
+
+  it('can never change its own permissions or join organizations, whatever is switched on', () => {
     for (const capability of [
-      'applications.decide',
-      'members.manage',
-      'employeeAccess.manage',
+      'botAccess.manage',
       'organization.create',
       'organization.apply',
     ] as const) {
@@ -143,6 +167,12 @@ describe('AI bot (decided 2026-11-13)', () => {
       expect(can('bot', capability, allOpen)).toBe(false);
     }
   });
+
+  it('bot switches never give employees anything', () => {
+    for (const capability of Object.keys(BOT_BY_SETTING) as Capability[]) {
+      expect(can('employee', capability, allOpen)).toBe(false);
+    }
+  });
 });
 
 describe('employee access setting (decided 2026-11-12)', () => {
@@ -156,7 +186,7 @@ describe('employee access setting (decided 2026-11-12)', () => {
   });
 
   it('starts with everyone’s shifts and the orders due next open, everything else closed', () => {
-    expect(ALL.filter((c) => gated.includes(c) && can('employee', c, defaults)).sort()).toEqual([
+    expect(gated.filter((c) => can('employee', c, defaults)).sort()).toEqual([
       'orders.readDueNext',
       'shifts.read',
     ]);
@@ -164,18 +194,18 @@ describe('employee access setting (decided 2026-11-12)', () => {
 
   it('follows each switch', () => {
     expect(can('employee', 'orders.readHistory', defaults)).toBe(false);
-    expect(can('employee', 'orders.readHistory', { ...defaults, ordersHistory: true })).toBe(true);
-    expect(can('employee', 'payments.view', { ...defaults, finance: true })).toBe(true);
-    expect(can('employee', 'orders.readDueNext', { ...defaults, ordersDueNext: false })).toBe(
+    expect(can('employee', 'orders.readHistory', withEmployee({ ordersHistory: true }))).toBe(true);
+    expect(can('employee', 'payments.view', withEmployee({ finance: true }))).toBe(true);
+    expect(can('employee', 'orders.readDueNext', withEmployee({ ordersDueNext: false }))).toBe(
       false,
     );
   });
 
-  it('is denied when the setting is unknown', () => {
+  it('is denied when the settings are unknown', () => {
     expect(can('employee', 'shifts.read')).toBe(false);
   });
 
-  it('never lets employees edit orders or touch money, whatever is switched on', () => {
+  it('never lets employees edit orders, touch money or change settings, whatever is switched on', () => {
     for (const capability of [
       'orders.edit',
       'orders.place',
@@ -185,23 +215,19 @@ describe('employee access setting (decided 2026-11-12)', () => {
       'settlement.edit',
       'settlement.close',
       'employeeAccess.manage',
+      'botAccess.manage',
     ] as const) {
       expect(can('employee', capability, allOpen)).toBe(false);
     }
-  });
-
-  it('does not change admins or contractors', () => {
-    expect(can('org_admin', 'orders.readHistory')).toBe(true);
-    expect(can('contractor_admin', 'payments.view')).toBe(true);
   });
 });
 
 describe('resolveEmployeeAccess', () => {
   it('fills missing areas with defaults and ignores unknown or malformed values', () => {
     expect(resolveEmployeeAccess({ ordersHistory: true, finance: 'yes', bogus: true })).toEqual({
-      ...defaults,
+      ...defaults.employeeAccess,
       ordersHistory: true,
     });
-    expect(resolveEmployeeAccess(null)).toEqual(defaults);
+    expect(resolveEmployeeAccess(null)).toEqual(defaults.employeeAccess);
   });
 });

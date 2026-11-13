@@ -214,11 +214,11 @@ describe('GET /ingredients for employees (ING-3, ING-4, open question 17)', () =
   });
 });
 
-describe('PUT /ingredients/{id}/assignees (ING-4)', () => {
+describe('PUT /ingredients/{id}/responsible (ING-4)', () => {
   it('replaces the responsible employees, audited', async () => {
     const res = await api
       .as(w.a.admin, w.a.id)
-      .put(`/ingredients/${w.a.ingredientId}/assignees`)
+      .put(`/ingredients/${w.a.ingredientId}/responsible`)
       .send({ employeeIds: [w.a.employee.userId, w.a.admin.userId] })
       .expect(200);
     expect(res.body.responsibleEmployees.map((e: { id: string }) => e.id).sort()).toEqual(
@@ -228,7 +228,7 @@ describe('PUT /ingredients/{id}/assignees (ING-4)', () => {
       organizationId: w.a.id,
       userId: w.a.admin.userId,
     });
-    expect(audit.filter((a) => a.action === 'ingredient.assignees_set').at(-1)?.after).toEqual({
+    expect(audit.filter((a) => a.action === 'ingredient.responsible_set').at(-1)?.after).toEqual({
       employeeIds: [w.a.employee.userId, w.a.admin.userId].sort(),
     });
   });
@@ -236,7 +236,7 @@ describe('PUT /ingredients/{id}/assignees (ING-4)', () => {
   it('refuses people who are not active members of the organization', async () => {
     const res = await api
       .as(w.a.admin, w.a.id)
-      .put(`/ingredients/${w.a.ingredientId}/assignees`)
+      .put(`/ingredients/${w.a.ingredientId}/responsible`)
       .send({ employeeIds: [w.b.employee.userId] })
       .expect(400);
     expect(res.body.error.fields).toHaveProperty('employeeIds');
@@ -245,7 +245,7 @@ describe('PUT /ingredients/{id}/assignees (ING-4)', () => {
   it('is forbidden to employees', async () => {
     await api
       .as(w.a.employee, w.a.id)
-      .put(`/ingredients/${w.a.ingredientId}/assignees`)
+      .put(`/ingredients/${w.a.ingredientId}/responsible`)
       .send({ employeeIds: [] })
       .expect(403);
   });

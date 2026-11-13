@@ -9,7 +9,7 @@ import { type Tx } from '../database/prisma-client';
 import { type Prisma } from '../generated/prisma/client';
 import {
   type CreateIngredientInput,
-  type SetAssigneesInput,
+  type SetResponsibleInput,
   type SetPriceInput,
   type UpdateIngredientInput,
 } from './ingredients.schemas';
@@ -22,7 +22,7 @@ const include = (now: Date) =>
       take: 1,
       select: { packPrice: true, effectiveFrom: true },
     },
-    assignments: { select: { employeeId: true } },
+    responsibilities: { select: { employeeId: true } },
   }) satisfies Prisma.IngredientInclude;
 
 type Row = {
@@ -36,7 +36,7 @@ type Row = {
   version: number;
   createdAt: Date;
   prices: { packPrice: number; effectiveFrom: Date }[];
-  assignments: { employeeId: string }[];
+  responsibilities: { employeeId: string }[];
 };
 
 interface ViewContext {
@@ -59,7 +59,7 @@ export async function packPriceAt(tx: Tx, ingredientId: string, at: Date): Promi
 function present(row: Row, view: ViewContext) {
   const packQuantity = Number(row.packQuantity.toString());
   const current = row.prices[0];
-  const responsible = row.assignments.map((a) => ({
+  const responsible = row.responsibilities.map((a) => ({
     id: a.employeeId,
     name: view.names.get(a.employeeId) ?? '',
   }));
@@ -81,7 +81,7 @@ function present(row: Row, view: ViewContext) {
         }
       : {}),
     responsibleEmployees: responsible,
-    isMyResponsibility: row.assignments.some((a) => a.employeeId === view.me),
+    isMyResponsibility: row.responsibilities.some((a) => a.employeeId === view.me),
     dueToday: row.orderScheduleDay === view.todayWeekday,
     version: row.version,
     createdAt: row.createdAt,
@@ -189,8 +189,8 @@ export class IngredientsService {
         action: 'ingredient.update',
         entity: 'ingredient',
         entityId: id,
-        before: { ...before, prices: undefined, assignments: undefined },
-        after: { ...after, prices: undefined, assignments: undefined },
+        before: { ...before, prices: undefined, responsibilities: undefined },
+        after: { ...after, prices: undefined, responsibilities: undefined },
       });
       return present(after, await this.view(tx, user, org, [after]));
     });
@@ -223,14 +223,14 @@ export class IngredientsService {
   }
 
   /** ING-4: the employees responsible for ordering this ingredient; replaces the whole list. */
-  setAssignees(user: AuthUser, org: OrgContext, id: string, input: SetAssigneesInput) {
+  setResponsible(user: AuthUser, org: OrgContext, id: string, input: SetResponsibleInput) {
     return this.db.run(dbContext(user, org), async (tx) => {
       const before = await this.find(tx, org, id);
       await activeMembers(tx, org.organizationId, input.employeeIds);
       const wanted = [...new Set(input.employeeIds)];
-      await tx.ingredientAssignment.deleteMany({ where: { ingredientId: id } });
+      await tx.ingredientResponsibility.deleteMany({ where: { ingredientId: id } });
       if (wanted.length > 0) {
-        await tx.ingredientAssignment.createMany({
+        await tx.ingredientResponsibility.createMany({
           data: wanted.map((employeeId) => ({
             organizationId: org.organizationId,
             ingredientId: id,
@@ -241,10 +241,10 @@ export class IngredientsService {
       await this.audit.record(tx, {
         organizationId: org.organizationId,
         actor: userActor(user.userId),
-        action: 'ingredient.assignees_set',
+        action: 'ingredient.responsible_set',
         entity: 'ingredient',
         entityId: id,
-        before: { employeeIds: before.assignments.map((a) => a.employeeId).sort() },
+        before: { employeeIds: before.responsibilities.map((a) => a.employeeId).sort() },
         after: { employeeIds: [...wanted].sort() },
       });
       const row = await this.find(tx, org, id);
@@ -289,7 +289,7 @@ export class IngredientsService {
   }
 
   private async view(tx: Tx, user: AuthUser, org: OrgContext, rows: Row[]): Promise<ViewContext> {
-    const ids = [...new Set(rows.flatMap((r) => r.assignments.map((a) => a.employeeId)))];
+    const ids = [...new Set(rows.flatMap((r) => r.responsibilities.map((a) => a.employeeId)))];
     const [users, organization] = await Promise.all([
       ids.length > 0
         ? tx.user.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } })

@@ -33,11 +33,11 @@ export const updateIngredientSchema = z
 
 export const setPriceSchema = z.strictObject({ packPrice: won });
 
-export const setAssigneesSchema = z.strictObject({
+export const setResponsibleSchema = z.strictObject({
   employeeIds: z.array(z.uuid()).max(200),
 });
 
 export type CreateIngredientInput = z.infer<typeof createIngredientSchema>;
 export type UpdateIngredientInput = z.infer<typeof updateIngredientSchema>;
 export type SetPriceInput = z.infer<typeof setPriceSchema>;
-export type SetAssigneesInput = z.infer<typeof setAssigneesSchema>;
+export type SetResponsibleInput = z.infer<typeof setResponsibleSchema>;

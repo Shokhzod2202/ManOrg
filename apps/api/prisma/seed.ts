@@ -40,7 +40,7 @@ async function main(): Promise<void> {
       { organizationId: null, userId: bakeryAdmin!.id },
       (tx) =>
         tx.organization.create({
-          data: { name: 'Sunrise Bakery', type: 'bakery', createdById: bakeryAdmin!.id },
+          data: { name: 'Sunrise Bakery', type: 'provider', createdById: bakeryAdmin!.id },
         }),
     );
     await withDbContext(prisma, { organizationId: bakery.id, userId: bakeryAdmin!.id }, (tx) =>

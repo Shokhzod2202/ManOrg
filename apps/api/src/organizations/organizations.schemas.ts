@@ -13,7 +13,7 @@ const isTimeZone = (tz: string) => {
 /** ACC-4: a name and a type; location is optional and used by the phase 2 start-shift prompt. */
 export const createOrganizationSchema = z.strictObject({
   name: z.string().trim().min(1, 'Enter a name.').max(120, 'Use at most 120 characters.'),
-  type: z.enum(['bakery', 'contractor']),
+  type: z.enum(['provider', 'contractor']),
   timezone: z.string().refine(isTimeZone, 'Unknown time zone.').optional(),
   latitude: z.number().min(-90).max(90).optional(),
   longitude: z.number().min(-180).max(180).optional(),

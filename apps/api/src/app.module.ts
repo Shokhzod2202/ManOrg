@@ -15,8 +15,8 @@ import { StorageModule } from './storage/storage.module';
 import { IngredientsController } from './ingredients/ingredients.controller';
 import { IngredientsService } from './ingredients/ingredients.service';
 import { MeController } from './me/me.controller';
-import { EmployeeAccessController } from './organizations/employee-access.controller';
-import { EmployeeAccessService } from './organizations/employee-access.service';
+import { SettingsController } from './organizations/settings.controller';
+import { SettingsService } from './organizations/settings.service';
 import { MeService } from './me/me.service';
 import { MembersController } from './members/members.controller';
 import { MembersService } from './members/members.service';
@@ -41,7 +41,7 @@ import { OrgContextGuard } from './permissions/org-context.guard';
     OrganizationsController,
     ApplicationsController,
     MembersController,
-    EmployeeAccessController,
+    SettingsController,
     IngredientsController,
     ProductsController,
   ],
@@ -50,7 +50,7 @@ import { OrgContextGuard } from './permissions/org-context.guard';
     OrganizationsService,
     ApplicationsService,
     MembersService,
-    EmployeeAccessService,
+    SettingsService,
     IngredientsService,
     ProductsService,
     // Order matters: authenticate first, then resolve the organization and check permissions.

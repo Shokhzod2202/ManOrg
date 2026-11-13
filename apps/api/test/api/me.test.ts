@@ -31,7 +31,7 @@ describe('/me (ACC-8)', () => {
         {
           role: 'employee',
           status: 'active',
-          organization: { id: orgId, name: 'Settings Bakery', type: 'bakery' },
+          organization: { id: orgId, name: 'Settings Bakery', type: 'provider' },
         },
       ],
     });

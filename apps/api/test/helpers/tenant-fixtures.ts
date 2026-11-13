@@ -33,7 +33,7 @@ export async function createTenantWithEveryTable(label: string): Promise<TenantF
 
   const bakery = await asOwner({ organizationId: null, userId: admin!.id }, (tx) =>
     tx.organization.create({
-      data: { name: `${label} Bakery`, type: 'bakery', createdById: admin!.id },
+      data: { name: `${label} Bakery`, type: 'provider', createdById: admin!.id },
     }),
   );
   const contractor = await asOwner({ organizationId: null, userId: contractorAdmin!.id }, (tx) =>
@@ -88,7 +88,7 @@ export async function createTenantWithEveryTable(label: string): Promise<TenantF
     await tx.employeeProduct.create({
       data: { ...org, employeeId: employee!.id, productId: product.id },
     });
-    await tx.ingredientAssignment.create({
+    await tx.ingredientResponsibility.create({
       data: { ...org, ingredientId: ingredient.id, employeeId: employee!.id },
     });
     const task = await tx.task.create({
@@ -107,8 +107,8 @@ export async function createTenantWithEveryTable(label: string): Promise<TenantF
       data: {
         ...org,
         ingredientId: ingredient.id,
-        orderedById: employee!.id,
-        packs: 2,
+        requestedById: employee!.id,
+        quantity: 2,
         packPrice: 30_000,
         taskId: task.id,
       },

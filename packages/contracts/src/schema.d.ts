@@ -158,6 +158,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/organization/bot-access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Extra powers the AI bot has (organization admin)
+         * @description All start off (spec section 10). The bot can never read or change this setting itself.
+         */
+        get: operations["getBotAccess"];
+        /**
+         * Switch extra bot powers on or off (organization admin)
+         * @description Send only the switches to change. Audited; applies to the bot's next action.
+         */
+        put: operations["updateBotAccess"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/ingredients": {
         parameters: {
             query?: never;
@@ -239,7 +263,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/ingredients/{id}/assignees": {
+    "/ingredients/{id}/responsible": {
         parameters: {
             query?: never;
             header?: never;
@@ -251,7 +275,7 @@ export interface paths {
          * Set the employees responsible for ordering an ingredient (ING-4)
          * @description Replaces the whole list; send an empty list to clear it. Audited.
          */
-        put: operations["setIngredientAssignees"];
+        put: operations["setIngredientResponsible"];
         post?: never;
         delete?: never;
         options?: never;
@@ -470,8 +494,11 @@ export interface components {
         };
         /** Format: uuid */
         NextCursor: string | null;
-        /** @enum {string} */
-        OrganizationType: "bakery" | "contractor";
+        /**
+         * @description A provider sells (a bakery, a cake shop or any producer); a contractor buys.
+         * @enum {string}
+         */
+        OrganizationType: "provider" | "contractor";
         /** @enum {string} */
         MembershipRole: "admin" | "employee";
         /** @enum {string} */
@@ -711,6 +738,23 @@ export interface components {
             minutesPer10?: number;
             ingredients?: components["schemas"]["ProductIngredientInput"][];
             available?: boolean;
+        };
+        /** @enum {string} */
+        BotAccessSwitch: "decideApplications" | "manageMembers" | "manageEmployeeAccess";
+        BotAccess: {
+            /** @description The organization's version; send as If-Match when updating. */
+            version: number;
+            areas: {
+                key: components["schemas"]["BotAccessSwitch"];
+                label: string;
+                enabled: boolean;
+                defaultEnabled: boolean;
+            }[];
+        };
+        UpdateBotAccessRequest: {
+            decideApplications?: boolean;
+            manageMembers?: boolean;
+            manageEmployeeAccess?: boolean;
         };
         Member: {
             /**
@@ -1131,6 +1175,67 @@ export interface operations {
             428: components["responses"]["PreconditionRequired"];
         };
     };
+    getBotAccess: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every area with its current switch. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BotAccess"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateBotAccess: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+                /** @description The `version` of the record being edited. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateBotAccessRequest"];
+            };
+        };
+        responses: {
+            /** @description The updated setting. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BotAccess"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            428: components["responses"]["PreconditionRequired"];
+        };
+    };
     listIngredients: {
         parameters: {
             query?: never;
@@ -1333,7 +1438,7 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
-    setIngredientAssignees: {
+    setIngredientResponsible: {
         parameters: {
             query?: never;
             header: {

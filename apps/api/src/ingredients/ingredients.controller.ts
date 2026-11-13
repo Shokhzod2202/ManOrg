@@ -11,8 +11,8 @@ import { ZodBody } from '../common/zod';
 import {
   type CreateIngredientInput,
   createIngredientSchema,
-  type SetAssigneesInput,
-  setAssigneesSchema,
+  type SetResponsibleInput,
+  setResponsibleSchema,
   type SetPriceInput,
   setPriceSchema,
   type UpdateIngredientInput,
@@ -84,14 +84,14 @@ export class IngredientsController {
     return this.ingredients.prices(user, org, id);
   }
 
-  @Put(':id/assignees')
+  @Put(':id/responsible')
   @RequireOrg('ingredients.assignResponsibility')
-  setAssignees(
+  setResponsible(
     @CurrentUser() user: AuthUser,
     @CurrentOrg() org: OrgContext,
     @Param('id', new ParseUUIDPipe()) id: string,
-    @ZodBody(setAssigneesSchema) body: SetAssigneesInput,
+    @ZodBody(setResponsibleSchema) body: SetResponsibleInput,
   ) {
-    return this.ingredients.setAssignees(user, org, id, body);
+    return this.ingredients.setResponsible(user, org, id, body);
   }
 }

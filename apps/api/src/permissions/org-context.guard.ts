@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { Errors } from '../common/errors';
 import { type AppRequest, ORG_REQUIREMENT, type OrgRequirement } from '../common/request-context';
 import { DatabaseService } from '../database/database.service';
+import { resolveBotAccess } from './bot-access';
 import { resolveEmployeeAccess } from './employee-access';
 import { actorFor, can } from './permissions';
 
@@ -51,15 +52,20 @@ export class OrgContextGuard implements CanActivate {
         select: {
           id: true,
           role: true,
-          organization: { select: { id: true, type: true, employeeAccess: true } },
+          organization: {
+            select: { id: true, type: true, employeeAccess: true, botAccess: true },
+          },
         },
       }),
     );
     if (!membership) throw Errors.notFound('Organization');
 
     const actor = actorFor(membership.organization.type, membership.role);
-    const access = resolveEmployeeAccess(membership.organization.employeeAccess);
-    if (requirement.capability && !can(actor, requirement.capability, access)) {
+    const settings = {
+      employeeAccess: resolveEmployeeAccess(membership.organization.employeeAccess),
+      botAccess: resolveBotAccess(membership.organization.botAccess),
+    };
+    if (requirement.capability && !can(actor, requirement.capability, settings)) {
       throw Errors.forbidden();
     }
 
@@ -69,7 +75,7 @@ export class OrgContextGuard implements CanActivate {
       membershipId: membership.id,
       role: membership.role,
       actor,
-      employeeAccess: access,
+      ...settings,
     };
     return true;
   }

@@ -138,3 +138,75 @@ describe('PUT /organization/employee-access', () => {
       .expect(404);
   });
 });
+
+describe('Bot permissions (decided 2026-11-13)', () => {
+  it('start with every extra bot power off', async () => {
+    const res = await api.as(w.a.admin, w.a.id).get('/organization/bot-access').expect(200);
+    expect(enabled(res.body.areas)).toEqual({
+      decideApplications: false,
+      manageMembers: false,
+      manageEmployeeAccess: false,
+    });
+  });
+
+  it('are switched on by the admin, audited, and shared with no other organization', async () => {
+    const current = await api.as(w.a.admin, w.a.id).get('/organization/bot-access').expect(200);
+    const res = await api
+      .as(w.a.admin, w.a.id)
+      .put('/organization/bot-access')
+      .set('If-Match', String(current.body.version))
+      .send({ decideApplications: true })
+      .expect(200);
+    expect(enabled(res.body.areas)).toMatchObject({
+      decideApplications: true,
+      manageMembers: false,
+    });
+    const audit = await auditFor(w.a.id, { organizationId: w.a.id, userId: w.a.admin.userId });
+    expect(audit.at(-1)).toMatchObject({
+      action: 'organization.bot_access_update',
+      before: expect.objectContaining({ decideApplications: false }),
+      after: expect.objectContaining({ decideApplications: true }),
+    });
+    const other = await api.as(w.b.admin, w.b.id).get('/organization/bot-access').expect(200);
+    expect(enabled(other.body.areas)).toMatchObject({ decideApplications: false });
+  });
+
+  it('share the organization version with Employee access, so stale edits conflict', async () => {
+    const current = await api.as(w.b.admin, w.b.id).get('/organization/bot-access').expect(200);
+    await api
+      .as(w.b.admin, w.b.id)
+      .put('/organization/employee-access')
+      .set('If-Match', String(current.body.version))
+      .send({ deliveries: true })
+      .expect(200);
+    await api
+      .as(w.b.admin, w.b.id)
+      .put('/organization/bot-access')
+      .set('If-Match', String(current.body.version))
+      .send({ manageMembers: true })
+      .expect(409);
+  });
+
+  it('reject unknown switches', async () => {
+    const current = await api.as(w.b.admin, w.b.id).get('/organization/bot-access').expect(200);
+    const res = await api
+      .as(w.b.admin, w.b.id)
+      .put('/organization/bot-access')
+      .set('If-Match', String(current.body.version))
+      .send({ deleteEverything: true })
+      .expect(400);
+    expect(res.body.error.fields).toHaveProperty('deleteEverything');
+  });
+
+  it('are for the organization admin only', async () => {
+    await api.as(w.a.employee, w.a.id).get('/organization/bot-access').expect(403);
+    await api.as(w.contractor.admin, w.contractor.id).get('/organization/bot-access').expect(403);
+    await api.as(w.a.admin, w.b.id).get('/organization/bot-access').expect(404);
+    await api
+      .as(w.a.employee, w.a.id)
+      .put('/organization/bot-access')
+      .set('If-Match', '1')
+      .send({ manageMembers: true })
+      .expect(403);
+  });
+});

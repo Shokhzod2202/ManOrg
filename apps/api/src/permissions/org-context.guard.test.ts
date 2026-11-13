@@ -10,7 +10,7 @@ const ORG = '6f1c2f8e-9a51-4d0e-8a7e-1b1f2b3c4d5e';
 function setup(opts: {
   requirement?: OrgRequirement;
   header?: string;
-  membership?: { role: 'admin' | 'employee'; type: 'bakery' | 'contractor' } | null;
+  membership?: { role: 'admin' | 'employee'; type: 'provider' | 'contractor' } | null;
   employeeAccess?: Record<string, boolean>;
 }) {
   const reflector = {
@@ -83,7 +83,7 @@ describe('OrgContextGuard', () => {
     const { guard, context } = setup({
       requirement: { kind: 'required', capability: 'applications.decide' },
       header: ORG,
-      membership: { role: 'employee', type: 'bakery' },
+      membership: { role: 'employee', type: 'provider' },
     });
     await expect(guard.canActivate(context)).rejects.toMatchObject({ status: 403 });
   });
@@ -101,13 +101,13 @@ describe('OrgContextGuard', () => {
     const closed = setup({
       requirement: { kind: 'required', capability: 'orders.readHistory' },
       header: ORG,
-      membership: { role: 'employee', type: 'bakery' },
+      membership: { role: 'employee', type: 'provider' },
     });
     await expect(closed.guard.canActivate(closed.context)).rejects.toMatchObject({ status: 403 });
     const open = setup({
       requirement: { kind: 'required', capability: 'orders.readHistory' },
       header: ORG,
-      membership: { role: 'employee', type: 'bakery' },
+      membership: { role: 'employee', type: 'provider' },
       employeeAccess: { ordersHistory: true },
     });
     await expect(open.guard.canActivate(open.context)).resolves.toBe(true);
@@ -117,16 +117,17 @@ describe('OrgContextGuard', () => {
     const { guard, context, req } = setup({
       requirement: { kind: 'required', capability: 'members.manage' },
       header: ORG,
-      membership: { role: 'admin', type: 'bakery' },
+      membership: { role: 'admin', type: 'provider' },
     });
     await expect(guard.canActivate(context)).resolves.toBe(true);
     expect(req.org).toEqual({
       organizationId: ORG,
-      organizationType: 'bakery',
+      organizationType: 'provider',
       membershipId: 'm-1',
       role: 'admin',
       actor: 'org_admin',
       employeeAccess: expect.objectContaining({ allShifts: true, finance: false }),
+      botAccess: { decideApplications: false, manageMembers: false, manageEmployeeAccess: false },
     });
   });
 });

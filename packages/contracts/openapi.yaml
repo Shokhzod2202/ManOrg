@@ -267,6 +267,49 @@ paths:
         '409': { $ref: '#/components/responses/Conflict' }
         '428': { $ref: '#/components/responses/PreconditionRequired' }
 
+  /organization/bot-access:
+    get:
+      operationId: getBotAccess
+      summary: Extra powers the AI bot has (organization admin)
+      description: All start off (spec section 10). The bot can never read or change this setting itself.
+      tags: [organizations]
+      x-tenant-scoped: true
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Every area with its current switch.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BotAccess' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      operationId: updateBotAccess
+      summary: Switch extra bot powers on or off (organization admin)
+      description: Send only the switches to change. Audited; applies to the bot's next action.
+      tags: [organizations]
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateBotAccessRequest' }
+      responses:
+        '200':
+          description: The updated setting.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BotAccess' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
   /ingredients:
     get:
       operationId: listIngredients
@@ -427,9 +470,9 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
-  /ingredients/{id}/assignees:
+  /ingredients/{id}/responsible:
     put:
-      operationId: setIngredientAssignees
+      operationId: setIngredientResponsible
       summary: Set the employees responsible for ordering an ingredient (ING-4)
       description: Replaces the whole list; send an empty list to clear it. Audited.
       tags: [ingredients]
@@ -938,7 +981,8 @@ components:
 
     OrganizationType:
       type: string
-      enum: [bakery, contractor]
+      enum: [provider, contractor]
+      description: A provider sells (a bakery, a cake shop or any producer); a contractor buys.
     MembershipRole:
       type: string
       enum: [admin, employee]
@@ -1276,6 +1320,35 @@ components:
           maxItems: 100
           items: { $ref: '#/components/schemas/ProductIngredientInput' }
         available: { type: boolean }
+
+    BotAccessSwitch:
+      type: string
+      enum: [decideApplications, manageMembers, manageEmployeeAccess]
+    BotAccess:
+      type: object
+      required: [version, areas]
+      properties:
+        version:
+          type: integer
+          description: The organization's version; send as If-Match when updating.
+        areas:
+          type: array
+          items:
+            type: object
+            required: [key, label, enabled, defaultEnabled]
+            properties:
+              key: { $ref: '#/components/schemas/BotAccessSwitch' }
+              label: { type: string }
+              enabled: { type: boolean }
+              defaultEnabled: { type: boolean }
+    UpdateBotAccessRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        decideApplications: { type: boolean }
+        manageMembers: { type: boolean }
+        manageEmployeeAccess: { type: boolean }
 
     Member:
       type: object

@@ -106,7 +106,7 @@ export class OrganizationsService {
           select: poolFields,
         });
         if (!target) throw Errors.notFound('Organization');
-        if (target.type !== 'bakery') {
+        if (target.type !== 'provider') {
           throw Errors.unprocessable(
             'CONTRACTOR_ADMINS_ONLY',
             'Contractor organizations have admins only; ask an admin to add you.',
@@ -121,7 +121,7 @@ export class OrganizationsService {
   private async applyAsEmployee(
     tx: Tx,
     user: AuthUser,
-    target: { id: string; name: string; type: 'bakery' | 'contractor' },
+    target: { id: string; name: string; type: 'provider' | 'contractor' },
   ) {
     await assertNoOpenMembership(tx, user.userId, 'you');
     const lastRejected = await tx.membership.findFirst({
@@ -164,10 +164,10 @@ export class OrganizationsService {
     tx: Tx,
     user: AuthUser,
     org: OrgContext,
-    target: { id: string; name: string; type: 'bakery' | 'contractor' },
+    target: { id: string; name: string; type: 'provider' | 'contractor' },
   ) {
     if (org.organizationType !== 'contractor') {
-      throw Errors.forbidden('Only a contractor organization can apply to buy from a bakery.');
+      throw Errors.forbidden('Only a contractor organization can apply to buy from a provider.');
     }
     const existing = await tx.contractorLink.findFirst({
       where: {

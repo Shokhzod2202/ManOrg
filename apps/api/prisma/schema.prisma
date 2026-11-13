@@ -25,7 +25,8 @@ datasource db {
 // ---------------------------------------------------------------------------
 
 enum OrganizationType {
-  bakery
+  /// Sells to contractors: a bakery, a cake shop or any other producer (decided 2026-11-13).
+  provider
   contractor
 
   @@map("organization_type")
@@ -197,39 +198,41 @@ model Organization {
   /// Which read-only areas employees may see; missing keys use the defaults in
   /// src/permissions/employee-access.ts. Edited by the organization admin.
   employeeAccess    Json             @default("{}") @map("employee_access")
+  /// Extra powers the admin grants the AI bot; all off by default (decided 2026-11-13).
+  botAccess         Json             @default("{}") @map("bot_access")
   createdById       String           @map("created_by") @db.Uuid
   version           Int              @default(1)
   createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  memberships             Membership[]
-  contractorLinksAsBakery ContractorLink[]        @relation("bakery")
-  contractorLinksAsBuyer  ContractorLink[]        @relation("contractor")
-  shifts                  Shift[]
-  punchEvents             PunchEvent[]
-  punchChangeRequests     PunchChangeRequest[]
-  products                Product[]
-  ingredients             Ingredient[]
-  productIngredients      ProductIngredient[]
-  employeeProducts        EmployeeProduct[]
-  outputEntries           OutputEntry[]
-  dailyLogs               DailyLog[]
-  tasks                   Task[]
-  taskPhotos              TaskPhoto[]
-  ordersAsBakery          Order[]                 @relation("orderBakery")
-  ordersAsBuyer           Order[]                 @relation("orderContractor")
-  orderLines              OrderLine[]
-  deliveriesAsBakery      Delivery[]              @relation("deliveryBakery")
-  deliveriesAsBuyer       Delivery[]              @relation("deliveryContractor")
-  deliveryLines           DeliveryLine[]
-  deliveryChangeRequests  DeliveryChangeRequest[]
-  notifications           Notification[]
-  auditLog                AuditLog[]
-  teams                   Team[]
-  teamMembers             TeamMember[]
-  ingredientAssignments   IngredientAssignment[]
-  ingredientOrders        IngredientOrder[]
-  ingredientPrices        IngredientPrice[]
+  memberships                Membership[]
+  contractorLinksAsBakery    ContractorLink[]           @relation("bakery")
+  contractorLinksAsBuyer     ContractorLink[]           @relation("contractor")
+  shifts                     Shift[]
+  punchEvents                PunchEvent[]
+  punchChangeRequests        PunchChangeRequest[]
+  products                   Product[]
+  ingredients                Ingredient[]
+  productIngredients         ProductIngredient[]
+  employeeProducts           EmployeeProduct[]
+  outputEntries              OutputEntry[]
+  dailyLogs                  DailyLog[]
+  tasks                      Task[]
+  taskPhotos                 TaskPhoto[]
+  ordersAsBakery             Order[]                    @relation("orderBakery")
+  ordersAsBuyer              Order[]                    @relation("orderContractor")
+  orderLines                 OrderLine[]
+  deliveriesAsBakery         Delivery[]                 @relation("deliveryBakery")
+  deliveriesAsBuyer          Delivery[]                 @relation("deliveryContractor")
+  deliveryLines              DeliveryLine[]
+  deliveryChangeRequests     DeliveryChangeRequest[]
+  notifications              Notification[]
+  auditLog                   AuditLog[]
+  teams                      Team[]
+  teamMembers                TeamMember[]
+  ingredientResponsibilities IngredientResponsibility[]
+  ingredientOrders           IngredientOrder[]
+  ingredientPrices           IngredientPrice[]
 
   @@index([name])
   @@map("organizations")
@@ -381,11 +384,11 @@ model Ingredient {
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  products     ProductIngredient[]
-  assignments  IngredientAssignment[]
-  orders       IngredientOrder[]
-  prices       IngredientPrice[]
+  organization     Organization               @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  products         ProductIngredient[]
+  responsibilities IngredientResponsibility[]
+  orders           IngredientOrder[]
+  prices           IngredientPrice[]
 
   @@unique([id, organizationId])
   @@map("ingredients")
@@ -444,7 +447,7 @@ model EmployeeProduct {
 }
 
 /// Ordering responsibility; several employees per ingredient (ING-4 / ING-7).
-model IngredientAssignment {
+model IngredientResponsibility {
   organizationId String   @map("organization_id") @db.Uuid
   ingredientId   String   @map("ingredient_id") @db.Uuid
   employeeId     String   @map("employee_id") @db.Uuid
@@ -455,7 +458,7 @@ model IngredientAssignment {
   ingredient   Ingredient   @relation(fields: [ingredientId, organizationId], references: [id, organizationId], onDelete: Cascade)
 
   @@id([ingredientId, employeeId])
-  @@map("ingredient_assignments")
+  @@map("ingredient_responsibilities")
 }
 
 /// Each order creates one task for the admin; each status change records who and when (ING-6).
@@ -463,8 +466,9 @@ model IngredientOrder {
   id             String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId String                @map("organization_id") @db.Uuid
   ingredientId   String                @map("ingredient_id") @db.Uuid
-  orderedById    String                @map("ordered_by") @db.Uuid
-  packs          Int
+  requestedById  String                @map("requested_by") @db.Uuid
+  /// Number of packs.
+  quantity       Int
   /// Price per pack in won when the order was placed; empty if the ingredient had no price.
   packPrice      Int?                  @map("pack_price")
   note           String?

@@ -79,7 +79,11 @@ export class Api {
     };
   }
 
-  async createOrganization(admin: Session, name: string, type: 'bakery' | 'contractor' = 'bakery') {
+  async createOrganization(
+    admin: Session,
+    name: string,
+    type: 'provider' | 'contractor' = 'provider',
+  ) {
     const res = await this.as(admin).post('/organizations').send({ name, type }).expect(201);
     return res.body.organization.id as string;
   }

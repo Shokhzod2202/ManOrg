@@ -26,10 +26,10 @@ describe('POST /organizations (ACC-4)', () => {
     const res = await api
       .as(founder)
       .post('/organizations')
-      .send({ name: 'Dawn Bakery', type: 'bakery' })
+      .send({ name: 'Dawn Bakery', type: 'provider' })
       .expect(201);
     expect(res.body).toMatchObject({
-      organization: { name: 'Dawn Bakery', type: 'bakery', timezone: 'Asia/Seoul', version: 1 },
+      organization: { name: 'Dawn Bakery', type: 'provider', timezone: 'Asia/Seoul', version: 1 },
       membership: { role: 'admin', status: 'active' },
     });
     const orgId = res.body.organization.id;
@@ -46,13 +46,13 @@ describe('POST /organizations (ACC-4)', () => {
     const res = await api
       .as(w.a.admin)
       .post('/organizations')
-      .send({ name: 'Second Bakery', type: 'bakery' })
+      .send({ name: 'Second Bakery', type: 'provider' })
       .expect(409);
     expect(res.body.error.code).toBe('ALREADY_IN_ORGANIZATION');
     await api
       .as(w.a.applicant)
       .post('/organizations')
-      .send({ name: 'Pending person bakery', type: 'bakery' })
+      .send({ name: 'Pending person bakery', type: 'provider' })
       .expect(409);
   });
 
@@ -71,7 +71,7 @@ describe('GET /organizations (ACC-3 account pool)', () => {
   it('finds organizations by part of the name, case-insensitively', async () => {
     const searcher = await api.register('Searcher');
     const res = await api.as(searcher).get('/organizations?q=alpha').expect(200);
-    expect(res.body.items).toEqual([{ id: w.a.id, name: 'Alpha Bakery', type: 'bakery' }]);
+    expect(res.body.items).toEqual([{ id: w.a.id, name: 'Alpha Bakery', type: 'provider' }]);
   });
 
   it('pages with limit and cursor', async () => {

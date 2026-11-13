@@ -2,6 +2,7 @@ import { createParamDecorator, type ExecutionContext, SetMetadata } from '@nestj
 import { type Request } from 'express';
 import { type MembershipRole, type OrganizationType } from '../generated/prisma/client';
 import { type DbContext } from '../database/prisma-client';
+import { type BotAccess } from '../permissions/bot-access';
 import { type EmployeeAccess } from '../permissions/employee-access';
 import { type Actor, can, type Capability } from '../permissions/permissions';
 
@@ -19,11 +20,13 @@ export interface OrgContext {
   actor: Actor;
   /** The organization's resolved Employee access setting. */
   employeeAccess: EmployeeAccess;
+  /** The organization's resolved Bot permissions setting. */
+  botAccess: BotAccess;
 }
 
 /** Permission check inside a service, for parts of a response or action the route allows. */
 export function orgCan(org: OrgContext, capability: Capability): boolean {
-  return can(org.actor, capability, org.employeeAccess);
+  return can(org.actor, capability, org);
 }
 
 export interface AppRequest extends Request {

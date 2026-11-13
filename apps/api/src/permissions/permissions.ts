@@ -1,4 +1,5 @@
 import { type MembershipRole, type OrganizationType } from '../generated/prisma/client';
+import { type BotAccess, type BotAccessKey } from './bot-access';
 import { type EmployeeAccess, type EmployeeAccessKey } from './employee-access';
 
 /**
@@ -12,11 +13,21 @@ import { type EmployeeAccess, type EmployeeAccessKey } from './employee-access';
  * - bot               the AI bot acting inside one organization for its admin (phase 2)
  *
  * Grants: 'any' (all records in the organization), 'own' (the caller's own records; services
- * enforce the "own" part), false, or { setting } for employee reads the admin switches on or off
- * in Employee access.
+ * enforce the "own" part), false, { setting } for employee reads the admin switches on or off in
+ * Employee access, or { botSetting } for bot powers the admin switches on in Bot permissions.
+ *
+ * "org_admin" is the admin of a provider organization: a bakery, a cake shop or any producer that
+ * sells to contractors (decided 2026-11-13).
  */
 export type Actor = 'employee' | 'org_admin' | 'contractor_admin' | 'bot';
-export type Grant = 'any' | 'own' | false | { setting: EmployeeAccessKey };
+export type Grant =
+  'any' | 'own' | false | { setting: EmployeeAccessKey } | { botSetting: BotAccessKey };
+
+/** The organization settings some grants depend on. */
+export interface OrgSettings {
+  employeeAccess: EmployeeAccess;
+  botAccess: BotAccess;
+}
 type Row = { employee: Grant; org_admin: Grant; contractor_admin: Grant };
 
 const setting = (key: EmployeeAccessKey) => ({ setting: key }) as const;
@@ -75,6 +86,7 @@ const MATRIX = {
     contractor_admin: false,
   },
   'employeeAccess.manage': { employee: false, org_admin: 'any', contractor_admin: false },
+  'botAccess.manage': { employee: false, org_admin: 'any', contractor_admin: false },
 
   // docs/F-001.md section 3 (built after the MVP gate)
   'prices.manage': { employee: false, org_admin: 'any', contractor_admin: false },
@@ -90,24 +102,35 @@ const MATRIX = {
 export type Capability = keyof typeof MATRIX;
 
 /**
- * The bot acts for the bakery admin and can see and do everything the admin can (decided
- * 2026-11-13), except these. Every bot write is still previewed and confirmed by the admin and
- * audited as the bot (spec section 10); no bot tool deletes anything (CLAUDE.md rule 7).
+ * The bot acts for the provider admin and can see and do everything the admin can (decided
+ * 2026-11-13), with two exceptions. Every bot write is still previewed and confirmed by the admin
+ * and audited as the bot (spec section 10); no bot tool deletes anything (CLAUDE.md rule 7).
  */
-export const BOT_EXCLUDED: ReadonlySet<Capability> = new Set<Capability>([
-  // Spec section 10: no tool changes roles or admins; access decisions stay with a person.
-  'members.manage',
-  'applications.decide',
-  'employeeAccess.manage',
-  // Creating or joining organizations is done by a person for themselves.
+/** Off by default; the admin may switch each on in Bot permissions. */
+export const BOT_BY_SETTING: Readonly<Partial<Record<Capability, BotAccessKey>>> = {
+  'applications.decide': 'decideApplications',
+  'members.manage': 'manageMembers',
+  'employeeAccess.manage': 'manageEmployeeAccess',
+};
+
+/** Never: the bot cannot widen its own powers or act as a person joining an organization. */
+export const BOT_NEVER: ReadonlySet<Capability> = new Set<Capability>([
+  'botAccess.manage',
   'organization.create',
   'organization.apply',
 ]);
 
+function botGrant(capability: Capability, row: Row): Grant {
+  if (BOT_NEVER.has(capability)) return false;
+  const key = BOT_BY_SETTING[capability];
+  if (key) return row.org_admin === false ? false : { botSetting: key };
+  return row.org_admin;
+}
+
 export const CAPABILITIES: Record<Capability, Record<Actor, Grant>> = Object.fromEntries(
   (Object.entries(MATRIX) as [Capability, Row][]).map(([capability, row]) => [
     capability,
-    { ...row, bot: BOT_EXCLUDED.has(capability) ? false : row.org_admin },
+    { ...row, bot: botGrant(capability, row) },
   ]),
 ) as Record<Capability, Record<Actor, Grant>>;
 
@@ -121,12 +144,15 @@ export function grantFor(actor: Actor, capability: Capability): Grant {
 }
 
 /**
- * Whether the actor may use the capability. Setting-gated grants need the organization's
- * resolved Employee access; without it they are denied.
+ * Whether the actor may use the capability. Setting-dependent grants need the organization's
+ * resolved settings; without them they are denied.
  */
-export function can(actor: Actor, capability: Capability, access?: EmployeeAccess): boolean {
+export function can(actor: Actor, capability: Capability, settings?: OrgSettings): boolean {
   const grant = grantFor(actor, capability);
   if (grant === false) return false;
-  if (typeof grant === 'object') return access?.[grant.setting] === true;
+  if (typeof grant === 'object') {
+    if ('setting' in grant) return settings?.employeeAccess[grant.setting] === true;
+    return settings?.botAccess[grant.botSetting] === true;
+  }
   return true;
 }
