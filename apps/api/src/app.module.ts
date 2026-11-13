@@ -11,6 +11,7 @@ import { DatabaseModule } from './database/database.module';
 import { HealthController } from './health/health.controller';
 import { ProductsController } from './products/products.controller';
 import { ProductsService } from './products/products.service';
+import { ShiftsModule } from './shifts/shifts.module';
 import { StorageModule } from './storage/storage.module';
 import { IngredientsController } from './ingredients/ingredients.controller';
 import { IngredientsService } from './ingredients/ingredients.service';
@@ -34,6 +35,7 @@ import { OrgContextGuard } from './permissions/org-context.guard';
     AuditModule,
     AuthModule,
     StorageModule,
+    ShiftsModule,
   ],
   controllers: [
     HealthController,

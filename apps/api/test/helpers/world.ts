@@ -47,6 +47,16 @@ async function bakery(api: Api, label: string): Promise<Bakery> {
     .put(`/employees/${employee.userId}/products`)
     .send({ productIds: [productId] })
     .expect(200);
+  await api
+    .as(admin, id)
+    .put('/shifts')
+    .send({
+      employeeId: employee.userId,
+      days: [{ weekday: 1, startTime: '06:00', endTime: '14:00' }],
+    })
+    .expect(200);
+  await api.as(employee, id).post('/punch').send({ action: 'start' }).expect(200);
+  await api.as(employee, id).post('/punch').send({ action: 'end' }).expect(200);
   return {
     id,
     admin,

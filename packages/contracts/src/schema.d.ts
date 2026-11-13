@@ -388,6 +388,189 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/shifts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Weekly planned shifts (SHF-1, SHF-2)
+         * @description Everyone's plans for admins and for employees when All employees' shifts is open in Employee access; otherwise only the caller's own.
+         */
+        get: operations["listShiftPlans"];
+        /**
+         * Set an employee's weekly plan (SHF-1)
+         * @description Replaces the whole week. A day whose end time is not after its start time ends on the next day. Audited.
+         */
+        put: operations["setShiftPlan"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/punch/card": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The caller's punch card (SHF-3) */
+        get: operations["getPunchCard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/punch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Punch history with plan, worked minutes and red flags (SHF-6)
+         * @description Without employee_id, the caller's own. Another employee's history needs the admin's punch permissions (403 otherwise).
+         */
+        get: operations["listPunchHistory"];
+        put?: never;
+        /**
+         * Start, pause, resume or end the shift (SHF-3)
+         * @description Recorded at the server time; the client sends no time. A repeated Idempotency-Key records nothing new. 409 PUNCH_NOT_ALLOWED when the action is out of order.
+         */
+        post: operations["punch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/punch/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Move a punch to another time (SHF-4)
+         * @description Audited with old value, new value, editor and time.
+         */
+        patch: operations["editPunch"];
+        trace?: never;
+    };
+    "/punch-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add a missing punch for an employee (SHF-4)
+         * @description For example a forgotten End Shift. Audited.
+         */
+        post: operations["addPunch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/punch-change-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Punch change requests
+         * @description Admins see everyone's; an employee sees their own.
+         */
+        get: operations["listPunchChangeRequests"];
+        put?: never;
+        /** Ask the admin to correct a shift (SHF-5) */
+        post: operations["requestPunchChange"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/punch-change-requests/{id}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve or reject a change request (SHF-5)
+         * @description Approval sets the shift's first start and last end to the requested times; every changed punch is audited.
+         */
+        post: operations["decidePunchChange"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/shifts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Main dashboard: every member by day (SHF-2, SHF-7, SHF-8)
+         * @description Calendar data for day, week or month views (at most 62 days); colour slot per person; red flags carry text.
+         */
+        get: operations["getShiftDashboard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Personal dashboard: own plan, hours and flags (SHF-7) */
+        get: operations["getMyDashboard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/applications": {
         parameters: {
             query?: never;
@@ -755,6 +938,179 @@ export interface components {
             decideApplications?: boolean;
             manageMembers?: boolean;
             manageEmployeeAccess?: boolean;
+        };
+        ShiftDay: {
+            /** @description 0 = Sunday */
+            weekday: number;
+            /** @example 22:00 */
+            startTime: string;
+            /** @example 06:00 */
+            endTime: string;
+            /** @description True for a night shift: it ends on the day after it starts. */
+            endsNextDay: boolean;
+        };
+        PersonRef: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+        };
+        ShiftPlan: {
+            employee: components["schemas"]["PersonRef"];
+            days: components["schemas"]["ShiftDay"][];
+        };
+        ShiftPlanResult: {
+            /** Format: uuid */
+            employeeId: string;
+            days: components["schemas"]["ShiftDay"][];
+        };
+        SetShiftPlanRequest: {
+            /** Format: uuid */
+            employeeId: string;
+            days: {
+                weekday: number;
+                startTime: string;
+                endTime: string;
+            }[];
+        };
+        PunchRequest: {
+            /** @enum {string} */
+            action: "start" | "pause" | "resume" | "end";
+        };
+        PunchEvent: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            employeeId?: string;
+            /** @enum {string} */
+            eventType: "start" | "pause" | "end";
+            /** Format: date-time */
+            occurredAt: string;
+            /** @enum {string} */
+            source?: "self" | "admin";
+            version?: number;
+        };
+        PlannedShift: {
+            /** Format: date */
+            startDate: string;
+            /**
+             * Format: date
+             * @description The next day for a night shift.
+             */
+            endDate: string;
+            startTime: string;
+            endTime: string;
+            /** Format: date-time */
+            start?: string;
+            /** Format: date-time */
+            end?: string;
+        };
+        PunchCard: {
+            /** Format: date-time */
+            serverTime: string;
+            /** @enum {string} */
+            status: "off" | "working" | "paused";
+            allowedActions: ("start" | "pause" | "resume" | "end")[];
+            current: {
+                /** Format: date-time */
+                startedAt: string;
+                workedMinutes: number;
+                events: components["schemas"]["PunchEvent"][];
+            } | null;
+            todayPlan: components["schemas"]["PlannedShift"] | null;
+        };
+        Flag: {
+            /** @enum {string} */
+            code: "LATE_START" | "EARLY_END" | "MISSING_PUNCH" | "UNPLANNED" | "NOT_ENDED";
+            minutes?: number;
+            message: string;
+        };
+        TimesheetDay: {
+            /**
+             * Format: date
+             * @description A shift belongs to the date it started on.
+             */
+            date: string;
+            planned: components["schemas"]["PlannedShift"] | null;
+            sessions: {
+                /** Format: date-time */
+                startedAt: string;
+                /** Format: date-time */
+                endedAt: string | null;
+                /** @enum {string} */
+                status: "working" | "paused" | "ended";
+                workedMinutes: number;
+                events: components["schemas"]["PunchEvent"][];
+            }[];
+            /** @description Paused time excluded. */
+            workedMinutes: number;
+            flags: components["schemas"]["Flag"][];
+        };
+        Timesheet: {
+            employee: components["schemas"]["PersonRef"];
+            days: components["schemas"]["TimesheetDay"][];
+        };
+        ShiftDashboard: {
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            employees: {
+                employee: components["schemas"]["PersonRef"];
+                /** @description Colour slot 0 to 7; red is never used for people. */
+                color: number;
+                days: components["schemas"]["TimesheetDay"][];
+            }[];
+        };
+        EditPunchRequest: {
+            /** Format: date-time */
+            occurredAt: string;
+        };
+        AddPunchRequest: {
+            /** Format: uuid */
+            employeeId: string;
+            /** @enum {string} */
+            eventType: "start" | "pause" | "end";
+            /** Format: date-time */
+            occurredAt: string;
+        };
+        PunchChangeRequestInput: {
+            /** Format: date */
+            shiftDate: string;
+            /** Format: date-time */
+            requestedStart: string;
+            /** Format: date-time */
+            requestedEnd: string;
+            reason: string;
+        };
+        PunchChangeRequest: {
+            /** Format: uuid */
+            id: string;
+            employee: components["schemas"]["PersonRef"];
+            /** Format: date */
+            shiftDate: string;
+            original: {
+                /** Format: date-time */
+                start?: string | null;
+                /** Format: date-time */
+                end?: string | null;
+            };
+            requested: {
+                /** Format: date-time */
+                start?: string | null;
+                /** Format: date-time */
+                end?: string | null;
+            };
+            reason: string | null;
+            /** @enum {string} */
+            status: "pending" | "approved" | "rejected";
+            /** Format: date-time */
+            decidedAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        DecisionRequest: {
+            /** @enum {string} */
+            decision: "approve" | "reject";
         };
         Member: {
             /**
@@ -1742,6 +2098,386 @@ export interface operations {
                 };
             };
             400: components["responses"]["ValidationFailed"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listShiftPlans: {
+        parameters: {
+            query?: {
+                employee_id?: string;
+            };
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["ShiftPlan"][];
+                        nextCursor: components["schemas"]["NextCursor"];
+                    };
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setShiftPlan: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetShiftPlanRequest"];
+            };
+        };
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShiftPlanResult"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getPunchCard: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PunchCard"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listPunchHistory: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+                employee_id?: string;
+            };
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Timesheet"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    punch: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PunchRequest"];
+            };
+        };
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PunchCard"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    editPunch: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+                /** @description The `version` of the record being edited. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EditPunchRequest"];
+            };
+        };
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PunchEvent"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            428: components["responses"]["PreconditionRequired"];
+        };
+    };
+    addPunch: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddPunchRequest"];
+            };
+        };
+        responses: {
+            /** @description OK. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PunchEvent"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listPunchChangeRequests: {
+        parameters: {
+            query?: {
+                status?: "pending" | "approved" | "rejected";
+            };
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["PunchChangeRequest"][];
+                        nextCursor: components["schemas"]["NextCursor"];
+                    };
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    requestPunchChange: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PunchChangeRequestInput"];
+            };
+        };
+        responses: {
+            /** @description OK. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PunchChangeRequest"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    decidePunchChange: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PunchChangeRequest"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getShiftDashboard: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+                employee_id?: string;
+            };
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShiftDashboard"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getMyDashboard: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+                employee_id?: string;
+            };
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShiftDashboard"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
     };

@@ -30,6 +30,7 @@ tags:
   - name: members
   - name: ingredients
   - name: products
+  - name: shifts
 
 paths:
   /health:
@@ -730,6 +731,329 @@ paths:
         '400': { $ref: '#/components/responses/ValidationFailed' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /shifts:
+    get:
+      operationId: listShiftPlans
+      summary: 'Weekly planned shifts (SHF-1, SHF-2)'
+      description: "Everyone's plans for admins and for employees when All employees' shifts is open in Employee access; otherwise only the caller's own."
+      tags: [shifts]
+      x-tenant-scoped: true
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: employee_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/ShiftPlan' }
+                  nextCursor: { $ref: '#/components/schemas/NextCursor' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      operationId: setShiftPlan
+      summary: "Set an employee's weekly plan (SHF-1)"
+      description: 'Replaces the whole week. A day whose end time is not after its start time ends on the next day. Audited.'
+      tags: [shifts]
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetShiftPlanRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ShiftPlanResult' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /punch/card:
+    get:
+      operationId: getPunchCard
+      summary: "The caller's punch card (SHF-3)"
+      tags: [shifts]
+      x-tenant-scoped: true
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PunchCard' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /punch:
+    post:
+      operationId: punch
+      summary: 'Start, pause, resume or end the shift (SHF-3)'
+      description: 'Recorded at the server time; the client sends no time. A repeated Idempotency-Key records nothing new. 409 PUNCH_NOT_ALLOWED when the action is out of order.'
+      tags: [shifts]
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PunchRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PunchCard' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    get:
+      operationId: listPunchHistory
+      summary: 'Punch history with plan, worked minutes and red flags (SHF-6)'
+      description: "Without employee_id, the caller's own. Another employee's history needs the admin's punch permissions (403 otherwise)."
+      tags: [shifts]
+      x-tenant-scoped: true
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: from
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: employee_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Timesheet' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /punch/{id}:
+    patch:
+      operationId: editPunch
+      summary: 'Move a punch to another time (SHF-4)'
+      description: 'Audited with old value, new value, editor and time.'
+      tags: [shifts]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EditPunchRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PunchEvent' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+
+  /punch-events:
+    post:
+      operationId: addPunch
+      summary: 'Add a missing punch for an employee (SHF-4)'
+      description: 'For example a forgotten End Shift. Audited.'
+      tags: [shifts]
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AddPunchRequest' }
+      responses:
+        '201':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PunchEvent' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /punch-change-requests:
+    post:
+      operationId: requestPunchChange
+      summary: 'Ask the admin to correct a shift (SHF-5)'
+      tags: [shifts]
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PunchChangeRequestInput' }
+      responses:
+        '201':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PunchChangeRequest' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    get:
+      operationId: listPunchChangeRequests
+      summary: 'Punch change requests'
+      description: "Admins see everyone's; an employee sees their own."
+      tags: [shifts]
+      x-tenant-scoped: true
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: status
+          in: query
+          required: false
+          schema: { type: string, enum: [pending, approved, rejected], default: pending }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/PunchChangeRequest' }
+                  nextCursor: { $ref: '#/components/schemas/NextCursor' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /punch-change-requests/{id}/decision:
+    post:
+      operationId: decidePunchChange
+      summary: 'Approve or reject a change request (SHF-5)'
+      description: "Approval sets the shift's first start and last end to the requested times; every changed punch is audited."
+      tags: [shifts]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DecisionRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PunchChangeRequest' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /dashboard/shifts:
+    get:
+      operationId: getShiftDashboard
+      summary: 'Main dashboard: every member by day (SHF-2, SHF-7, SHF-8)'
+      description: 'Calendar data for day, week or month views (at most 62 days); colour slot per person; red flags carry text.'
+      tags: [shifts]
+      x-tenant-scoped: true
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: from
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: employee_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ShiftDashboard' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /dashboard/me:
+    get:
+      operationId: getMyDashboard
+      summary: 'Personal dashboard: own plan, hours and flags (SHF-7)'
+      tags: [shifts]
+      x-tenant-scoped: true
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: from
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: employee_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ShiftDashboard' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /applications:
     get:
       operationId: listApplications
@@ -1350,6 +1674,201 @@ components:
         manageMembers: { type: boolean }
         manageEmployeeAccess: { type: boolean }
 
+    ShiftDay:
+      type: object
+      required: [weekday, startTime, endTime, endsNextDay]
+      properties:
+        weekday: { type: integer, minimum: 0, maximum: 6, description: 0 = Sunday }
+        startTime: { type: string, example: '22:00' }
+        endTime: { type: string, example: '06:00' }
+        endsNextDay:
+          {
+            type: boolean,
+            description: 'True for a night shift: it ends on the day after it starts.',
+          }
+    PersonRef:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+    ShiftPlan:
+      type: object
+      required: [employee, days]
+      properties:
+        employee: { $ref: '#/components/schemas/PersonRef' }
+        days: { type: array, items: { $ref: '#/components/schemas/ShiftDay' } }
+    ShiftPlanResult:
+      type: object
+      required: [employeeId, days]
+      properties:
+        employeeId: { type: string, format: uuid }
+        days: { type: array, items: { $ref: '#/components/schemas/ShiftDay' } }
+    SetShiftPlanRequest:
+      type: object
+      additionalProperties: false
+      required: [employeeId, days]
+      properties:
+        employeeId: { type: string, format: uuid }
+        days:
+          type: array
+          maxItems: 7
+          items:
+            type: object
+            additionalProperties: false
+            required: [weekday, startTime, endTime]
+            properties:
+              weekday: { type: integer, minimum: 0, maximum: 6 }
+              startTime: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$' }
+              endTime: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$' }
+    PunchRequest:
+      type: object
+      additionalProperties: false
+      required: [action]
+      properties:
+        action: { type: string, enum: [start, pause, resume, end] }
+    PunchEvent:
+      type: object
+      required: [id, eventType, occurredAt]
+      properties:
+        id: { type: string, format: uuid }
+        employeeId: { type: string, format: uuid }
+        eventType: { type: string, enum: [start, pause, end] }
+        occurredAt: { type: string, format: date-time }
+        source: { type: string, enum: [self, admin] }
+        version: { type: integer }
+    PlannedShift:
+      type: object
+      required: [startDate, endDate, startTime, endTime]
+      properties:
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date, description: 'The next day for a night shift.' }
+        startTime: { type: string }
+        endTime: { type: string }
+        start: { type: string, format: date-time }
+        end: { type: string, format: date-time }
+    PunchCard:
+      type: object
+      required: [serverTime, status, allowedActions, current, todayPlan]
+      properties:
+        serverTime: { type: string, format: date-time }
+        status: { type: string, enum: [off, working, paused] }
+        allowedActions: { type: array, items: { type: string, enum: [start, pause, resume, end] } }
+        current:
+          oneOf:
+            - type: object
+              required: [startedAt, workedMinutes, events]
+              properties:
+                startedAt: { type: string, format: date-time }
+                workedMinutes: { type: integer }
+                events: { type: array, items: { $ref: '#/components/schemas/PunchEvent' } }
+            - type: 'null'
+        todayPlan:
+          oneOf:
+            - $ref: '#/components/schemas/PlannedShift'
+            - type: 'null'
+    Flag:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string, enum: [LATE_START, EARLY_END, MISSING_PUNCH, UNPLANNED, NOT_ENDED] }
+        minutes: { type: integer }
+        message: { type: string }
+    TimesheetDay:
+      type: object
+      required: [date, planned, sessions, workedMinutes, flags]
+      properties:
+        date:
+          { type: string, format: date, description: 'A shift belongs to the date it started on.' }
+        planned:
+          oneOf:
+            - $ref: '#/components/schemas/PlannedShift'
+            - type: 'null'
+        sessions:
+          type: array
+          items:
+            type: object
+            required: [startedAt, endedAt, status, workedMinutes, events]
+            properties:
+              startedAt: { type: string, format: date-time }
+              endedAt: { type: [string, 'null'], format: date-time }
+              status: { type: string, enum: [working, paused, ended] }
+              workedMinutes: { type: integer }
+              events: { type: array, items: { $ref: '#/components/schemas/PunchEvent' } }
+        workedMinutes: { type: integer, description: 'Paused time excluded.' }
+        flags: { type: array, items: { $ref: '#/components/schemas/Flag' } }
+    Timesheet:
+      type: object
+      required: [employee, days]
+      properties:
+        employee: { $ref: '#/components/schemas/PersonRef' }
+        days: { type: array, items: { $ref: '#/components/schemas/TimesheetDay' } }
+    ShiftDashboard:
+      type: object
+      required: [from, to, employees]
+      properties:
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        employees:
+          type: array
+          items:
+            type: object
+            required: [employee, color, days]
+            properties:
+              employee: { $ref: '#/components/schemas/PersonRef' }
+              color:
+                { type: integer, description: 'Colour slot 0 to 7; red is never used for people.' }
+              days: { type: array, items: { $ref: '#/components/schemas/TimesheetDay' } }
+    EditPunchRequest:
+      type: object
+      additionalProperties: false
+      required: [occurredAt]
+      properties:
+        occurredAt: { type: string, format: date-time }
+    AddPunchRequest:
+      type: object
+      additionalProperties: false
+      required: [employeeId, eventType, occurredAt]
+      properties:
+        employeeId: { type: string, format: uuid }
+        eventType: { type: string, enum: [start, pause, end] }
+        occurredAt: { type: string, format: date-time }
+    PunchChangeRequestInput:
+      type: object
+      additionalProperties: false
+      required: [shiftDate, requestedStart, requestedEnd, reason]
+      properties:
+        shiftDate: { type: string, format: date }
+        requestedStart: { type: string, format: date-time }
+        requestedEnd: { type: string, format: date-time }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+    PunchChangeRequest:
+      type: object
+      required: [id, employee, shiftDate, original, requested, reason, status, decidedAt, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        employee: { $ref: '#/components/schemas/PersonRef' }
+        shiftDate: { type: string, format: date }
+        original:
+          type: object
+          properties:
+            start: { type: [string, 'null'], format: date-time }
+            end: { type: [string, 'null'], format: date-time }
+        requested:
+          type: object
+          properties:
+            start: { type: [string, 'null'], format: date-time }
+            end: { type: [string, 'null'], format: date-time }
+        reason: { type: [string, 'null'] }
+        status: { type: string, enum: [pending, approved, rejected] }
+        decidedAt: { type: [string, 'null'], format: date-time }
+        createdAt: { type: string, format: date-time }
+    DecisionRequest:
+      type: object
+      additionalProperties: false
+      required: [decision]
+      properties:
+        decision: { type: string, enum: [approve, reject] }
     Member:
       type: object
       required: [id, role, status, version, user, createdAt]

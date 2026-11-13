@@ -312,6 +312,8 @@ model PunchEvent {
   eventType      PunchEventType @map("event_type")
   occurredAt     DateTime       @default(now()) @map("occurred_at") @db.Timestamptz(3)
   source         PunchSource
+  /// Client-chosen key from the Idempotency-Key header, so a repeated tap records one punch.
+  idempotencyKey String?        @map("idempotency_key")
   version        Int            @default(1)
   createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
