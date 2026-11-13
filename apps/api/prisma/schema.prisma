@@ -576,19 +576,23 @@ model DailyLog {
 
 /// assignee_id is empty for ingredient-order tasks, which go to the organization's admins.
 model Task {
-  id             String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId String     @map("organization_id") @db.Uuid
-  assigneeId     String?    @map("assignee_id") @db.Uuid
-  createdById    String     @map("created_by") @db.Uuid
-  taskType       TaskType   @default(general) @map("task_type")
-  title          String
-  description    String?
-  dueDate        DateTime?  @map("due_date") @db.Date
-  status         TaskStatus @default(open)
-  completedAt    DateTime?  @map("completed_at") @db.Timestamptz(3)
-  version        Int        @default(1)
-  createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt      DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id                  String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId      String     @map("organization_id") @db.Uuid
+  assigneeId          String?    @map("assignee_id") @db.Uuid
+  createdById         String     @map("created_by") @db.Uuid
+  taskType            TaskType   @default(general) @map("task_type")
+  title               String
+  description         String?
+  dueDate             DateTime?  @map("due_date") @db.Date
+  status              TaskStatus @default(open)
+  completedAt         DateTime?  @map("completed_at") @db.Timestamptz(3)
+  completedById       String?    @map("completed_by") @db.Uuid
+  /// One-time token issued right before the camera opens (TSK-2); hashed.
+  captureTokenHash    String?    @map("capture_token_hash")
+  captureTokenExpires DateTime?  @map("capture_token_expires") @db.Timestamptz(3)
+  version             Int        @default(1)
+  createdAt           DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   photos           TaskPhoto[]
@@ -742,6 +746,8 @@ model Notification {
   userId         String    @map("user_id") @db.Uuid
   type           String
   payload        Json      @default("{}")
+  /// Stops the same reminder being sent twice (e.g. one ingredient due on one day).
+  dedupeKey      String?   @map("dedupe_key")
   sentAt         DateTime? @map("sent_at") @db.Timestamptz(3)
   readAt         DateTime? @map("read_at") @db.Timestamptz(3)
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)

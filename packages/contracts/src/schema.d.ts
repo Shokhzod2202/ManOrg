@@ -679,6 +679,192 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Tasks
+         * @description Admins and the bot see every task, including ingredient orders; an employee sees tasks assigned to them.
+         */
+        get: operations["listTasks"];
+        put?: never;
+        /**
+         * Create a task for an employee (TSK-1)
+         * @description The assignee is notified. Audited.
+         */
+        post: operations["createTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tasks/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A task with its photos (TSK-3) */
+        get: operations["getTask"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit an open task
+         * @description A new assignee is notified. Audited.
+         */
+        patch: operations["updateTask"];
+        trace?: never;
+    };
+    "/tasks/{id}/capture-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Open the camera for a task (TSK-2, step 1)
+         * @description Returns a one-time token valid for 5 minutes; the photo must be sent with it.
+         */
+        post: operations["getCaptureToken"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tasks/{id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark a task done with a camera photo (TSK-2, step 2)
+         * @description Camera capture only: the photo needs the fresh capture token, and a JPEG whose camera time is more than 10 minutes old is refused as a gallery picture (422 CAMERA_REQUIRED). JPEG or PNG up to 10 MB. Completion time is the server's. Admins are notified.
+         */
+        post: operations["completeTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ingredient-orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ingredient orders
+         * @description Admins and the bot see every order; an employee sees their own. packPrice only for callers allowed to read prices.
+         */
+        get: operations["listIngredientOrders"];
+        put?: never;
+        /**
+         * Order an ingredient to the admin (ING-5)
+         * @description Any employee can order any ingredient; the order arrives as a task for the admins and keeps the price per pack in force now.
+         */
+        post: operations["orderIngredient"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ingredient-orders/{id}/fulfil": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark an ingredient order fulfilled (ING-6)
+         * @description Requested to fulfilled; records who and when; the requester is notified.
+         */
+        post: operations["fulfilIngredientOrder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ingredient-orders/{id}/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark an ingredient order checked (ING-6)
+         * @description Fulfilled to checked; records who and when and closes its task.
+         */
+        post: operations["checkIngredientOrder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The caller's in-app inbox
+         * @description Newest first, at most 100, across organizations.
+         */
+        get: operations["listNotifications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/{id}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark a notification read */
+        post: operations["markNotificationRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/applications": {
         parameters: {
             query?: never;
@@ -1299,6 +1485,111 @@ export interface components {
                 name: string;
                 quantity: number;
             }[];
+        };
+        Task: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            type: "general" | "ingredient_order";
+            title: string;
+            description: string | null;
+            /** @description Empty for ingredient-order tasks, which go to the admins. */
+            assignee: components["schemas"]["PersonRef"] | null;
+            createdBy: components["schemas"]["PersonRef"] | null;
+            /** Format: date */
+            dueDate: string | null;
+            /** @enum {string} */
+            status: "open" | "done";
+            /** Format: date-time */
+            completedAt: string | null;
+            completedBy: components["schemas"]["PersonRef"] | null;
+            photos: {
+                /** Format: uuid */
+                id: string;
+                /** @description Short-lived link. */
+                url: string;
+                /**
+                 * Format: date-time
+                 * @description Recorded by the server.
+                 */
+                takenAt: string;
+            }[];
+            /** Format: uuid */
+            ingredientOrderId: string | null;
+            version: number;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        CreateTaskRequest: {
+            title: string;
+            description?: string;
+            /** Format: uuid */
+            assigneeId: string;
+            /** Format: date */
+            dueDate: string;
+        };
+        UpdateTaskRequest: {
+            title?: string;
+            description?: string | null;
+            /** Format: uuid */
+            assigneeId?: string;
+            /** Format: date */
+            dueDate?: string;
+        };
+        CaptureToken: {
+            captureToken: string;
+            /** Format: date-time */
+            expiresAt: string;
+        };
+        CreateIngredientOrderRequest: {
+            /** Format: uuid */
+            ingredientId: string;
+            /** @description Number of packs. */
+            quantity: number;
+            note?: string;
+        };
+        IngredientOrder: {
+            /** Format: uuid */
+            id: string;
+            ingredient: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+                source: string;
+                packQuantity: number;
+                packUnit: components["schemas"]["PackUnit"];
+            };
+            /** @description Number of packs. */
+            quantity: number;
+            /** @description Won per pack when ordered; only for callers allowed to read prices. */
+            packPrice?: number | null;
+            note: string | null;
+            /** @enum {string} */
+            status: "requested" | "fulfilled" | "checked";
+            requestedBy: components["schemas"]["PersonRef"] | null;
+            fulfilledBy: components["schemas"]["PersonRef"] | null;
+            /** Format: date-time */
+            fulfilledAt: string | null;
+            checkedBy: components["schemas"]["PersonRef"] | null;
+            /** Format: date-time */
+            checkedAt: string | null;
+            /** Format: uuid */
+            taskId: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        Notification: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            organizationId: string | null;
+            /** @example task.assigned */
+            type: string;
+            payload: Record<string, never>;
+            /** Format: date-time */
+            readAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
         };
         Member: {
             /**
@@ -2883,6 +3174,378 @@ export interface operations {
             400: components["responses"]["ValidationFailed"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listTasks: {
+        parameters: {
+            query?: {
+                status?: "open" | "done";
+                type?: "general" | "ingredient_order";
+            };
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["Task"][];
+                        nextCursor: components["schemas"]["NextCursor"];
+                    };
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createTask: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTaskRequest"];
+            };
+        };
+        responses: {
+            /** @description OK. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Task"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getTask: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Task"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateTask: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+                /** @description The `version` of the record being edited. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTaskRequest"];
+            };
+        };
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Task"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            428: components["responses"]["PreconditionRequired"];
+        };
+    };
+    getCaptureToken: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaptureToken"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    completeTask: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    photo: string;
+                    captureToken: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Done. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Task"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["Unprocessable"];
+        };
+    };
+    listIngredientOrders: {
+        parameters: {
+            query?: {
+                status?: "requested" | "fulfilled" | "checked";
+            };
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["IngredientOrder"][];
+                        nextCursor: components["schemas"]["NextCursor"];
+                    };
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    orderIngredient: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateIngredientOrderRequest"];
+            };
+        };
+        responses: {
+            /** @description OK. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IngredientOrder"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    fulfilIngredientOrder: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IngredientOrder"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    checkIngredientOrder: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IngredientOrder"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listNotifications: {
+        parameters: {
+            query?: {
+                unread?: "true" | "false";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["Notification"][];
+                        nextCursor: components["schemas"]["NextCursor"];
+                    };
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+        };
+    };
+    markNotificationRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Marked read. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
             404: components["responses"]["NotFound"];
         };
     };

@@ -30,6 +30,8 @@ tags:
   - name: members
   - name: ingredients
   - name: products
+  - name: tasks
+  - name: notifications
   - name: output
   - name: shifts
 
@@ -1233,6 +1235,299 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /tasks:
+    post:
+      operationId: createTask
+      summary: 'Create a task for an employee (TSK-1)'
+      description: 'The assignee is notified. Audited.'
+      tags: [tasks]
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateTaskRequest' }
+      responses:
+        '201':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Task' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    get:
+      operationId: listTasks
+      summary: 'Tasks'
+      description: 'Admins and the bot see every task, including ingredient orders; an employee sees tasks assigned to them.'
+      tags: [tasks]
+      x-tenant-scoped: true
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: status
+          in: query
+          required: false
+          schema: { type: string, enum: [open, done] }
+        - name: type
+          in: query
+          required: false
+          schema: { type: string, enum: [general, ingredient_order] }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Task' }
+                  nextCursor: { $ref: '#/components/schemas/NextCursor' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /tasks/{id}:
+    get:
+      operationId: getTask
+      summary: 'A task with its photos (TSK-3)'
+      tags: [tasks]
+      x-tenant-scoped: true
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Task' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      operationId: updateTask
+      summary: 'Edit an open task'
+      description: 'A new assignee is notified. Audited.'
+      tags: [tasks]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateTaskRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Task' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+
+  /tasks/{id}/capture-token:
+    post:
+      operationId: getCaptureToken
+      summary: 'Open the camera for a task (TSK-2, step 1)'
+      description: 'Returns a one-time token valid for 5 minutes; the photo must be sent with it.'
+      tags: [tasks]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '201':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CaptureToken' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /tasks/{id}/complete:
+    post:
+      operationId: completeTask
+      summary: 'Mark a task done with a camera photo (TSK-2, step 2)'
+      description: "Camera capture only: the photo needs the fresh capture token, and a JPEG whose camera time is more than 10 minutes old is refused as a gallery picture (422 CAMERA_REQUIRED). JPEG or PNG up to 10 MB. Completion time is the server's. Admins are notified."
+      tags: [tasks]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [photo, captureToken]
+              properties:
+                photo: { type: string, format: binary }
+                captureToken: { type: string }
+      responses:
+        '200':
+          description: Done.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Task' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /ingredient-orders:
+    post:
+      operationId: orderIngredient
+      summary: 'Order an ingredient to the admin (ING-5)'
+      description: 'Any employee can order any ingredient; the order arrives as a task for the admins and keeps the price per pack in force now.'
+      tags: [tasks]
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateIngredientOrderRequest' }
+      responses:
+        '201':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IngredientOrder' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    get:
+      operationId: listIngredientOrders
+      summary: 'Ingredient orders'
+      description: 'Admins and the bot see every order; an employee sees their own. packPrice only for callers allowed to read prices.'
+      tags: [tasks]
+      x-tenant-scoped: true
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: status
+          in: query
+          required: false
+          schema: { type: string, enum: [requested, fulfilled, checked] }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/IngredientOrder' }
+                  nextCursor: { $ref: '#/components/schemas/NextCursor' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /ingredient-orders/{id}/fulfil:
+    post:
+      operationId: fulfilIngredientOrder
+      summary: 'Mark an ingredient order fulfilled (ING-6)'
+      description: 'Requested to fulfilled; records who and when; the requester is notified.'
+      tags: [tasks]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IngredientOrder' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /ingredient-orders/{id}/check:
+    post:
+      operationId: checkIngredientOrder
+      summary: 'Mark an ingredient order checked (ING-6)'
+      description: 'Fulfilled to checked; records who and when and closes its task.'
+      tags: [tasks]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IngredientOrder' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /notifications:
+    get:
+      operationId: listNotifications
+      summary: "The caller's in-app inbox"
+      description: 'Newest first, at most 100, across organizations.'
+      tags: [notifications]
+      x-tenant-scoped: false
+      parameters:
+        - name: unread
+          in: query
+          required: false
+          schema: { type: string, enum: ['true', 'false'], default: 'false' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Notification' }
+                  nextCursor: { $ref: '#/components/schemas/NextCursor' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+
+  /notifications/{id}/read:
+    post:
+      operationId: markNotificationRead
+      summary: 'Mark a notification read'
+      tags: [notifications]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204':
+          description: Marked read.
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /applications:
     get:
       operationId: listApplications
@@ -2155,6 +2450,152 @@ components:
               productId: { type: string, format: uuid }
               name: { type: string }
               quantity: { type: integer }
+    Task:
+      type: object
+      required:
+        [
+          id,
+          type,
+          title,
+          description,
+          assignee,
+          createdBy,
+          dueDate,
+          status,
+          completedAt,
+          completedBy,
+          photos,
+          ingredientOrderId,
+          version,
+          createdAt,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        type: { type: string, enum: [general, ingredient_order] }
+        title: { type: string }
+        description: { type: [string, 'null'] }
+        assignee:
+          description: Empty for ingredient-order tasks, which go to the admins.
+          oneOf:
+            - $ref: '#/components/schemas/PersonRef'
+            - type: 'null'
+        createdBy:
+          oneOf:
+            - $ref: '#/components/schemas/PersonRef'
+            - type: 'null'
+        dueDate: { type: [string, 'null'], format: date }
+        status: { type: string, enum: [open, done] }
+        completedAt: { type: [string, 'null'], format: date-time }
+        completedBy:
+          oneOf:
+            - $ref: '#/components/schemas/PersonRef'
+            - type: 'null'
+        photos:
+          type: array
+          items:
+            type: object
+            required: [id, url, takenAt]
+            properties:
+              id: { type: string, format: uuid }
+              url: { type: string, description: Short-lived link. }
+              takenAt: { type: string, format: date-time, description: Recorded by the server. }
+        ingredientOrderId: { type: [string, 'null'], format: uuid }
+        version: { type: integer }
+        createdAt: { type: string, format: date-time }
+    CreateTaskRequest:
+      type: object
+      additionalProperties: false
+      required: [title, assigneeId, dueDate]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string, maxLength: 2000 }
+        assigneeId: { type: string, format: uuid }
+        dueDate: { type: string, format: date }
+    UpdateTaskRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: [string, 'null'], maxLength: 2000 }
+        assigneeId: { type: string, format: uuid }
+        dueDate: { type: string, format: date }
+    CaptureToken:
+      type: object
+      required: [captureToken, expiresAt]
+      properties:
+        captureToken: { type: string }
+        expiresAt: { type: string, format: date-time }
+    CreateIngredientOrderRequest:
+      type: object
+      additionalProperties: false
+      required: [ingredientId, quantity]
+      properties:
+        ingredientId: { type: string, format: uuid }
+        quantity: { type: integer, minimum: 1, description: Number of packs. }
+        note: { type: string, maxLength: 500 }
+    IngredientOrder:
+      type: object
+      required:
+        [
+          id,
+          ingredient,
+          quantity,
+          note,
+          status,
+          requestedBy,
+          fulfilledBy,
+          fulfilledAt,
+          checkedBy,
+          checkedAt,
+          taskId,
+          createdAt,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        ingredient:
+          type: object
+          required: [id, name, source, packQuantity, packUnit]
+          properties:
+            id: { type: string, format: uuid }
+            name: { type: string }
+            source: { type: string }
+            packQuantity: { type: number }
+            packUnit: { $ref: '#/components/schemas/PackUnit' }
+        quantity: { type: integer, description: Number of packs. }
+        packPrice:
+          {
+            type: [integer, 'null'],
+            description: 'Won per pack when ordered; only for callers allowed to read prices.',
+          }
+        note: { type: [string, 'null'] }
+        status: { type: string, enum: [requested, fulfilled, checked] }
+        requestedBy:
+          oneOf:
+            - $ref: '#/components/schemas/PersonRef'
+            - type: 'null'
+        fulfilledBy:
+          oneOf:
+            - $ref: '#/components/schemas/PersonRef'
+            - type: 'null'
+        fulfilledAt: { type: [string, 'null'], format: date-time }
+        checkedBy:
+          oneOf:
+            - $ref: '#/components/schemas/PersonRef'
+            - type: 'null'
+        checkedAt: { type: [string, 'null'], format: date-time }
+        taskId: { type: [string, 'null'], format: uuid }
+        createdAt: { type: string, format: date-time }
+    Notification:
+      type: object
+      required: [id, organizationId, type, payload, readAt, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: [string, 'null'], format: uuid }
+        type: { type: string, example: task.assigned }
+        payload: { type: object }
+        readAt: { type: [string, 'null'], format: date-time }
+        createdAt: { type: string, format: date-time }
     Member:
       type: object
       required: [id, role, status, version, user, createdAt]
