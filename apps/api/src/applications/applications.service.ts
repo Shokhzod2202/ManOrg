@@ -4,6 +4,7 @@ import { Errors } from '../common/errors';
 import { type AuthUser, type OrgContext, dbContext } from '../common/request-context';
 import { DatabaseService } from '../database/database.service';
 import { type Tx } from '../database/prisma-client';
+import { NotificationsService } from '../notifications/notifications.service';
 
 type Decision = 'approve' | 'reject';
 
@@ -15,6 +16,7 @@ export class ApplicationsService {
   constructor(
     private readonly db: DatabaseService,
     private readonly audit: AuditService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   list(user: AuthUser, org: OrgContext) {
@@ -105,6 +107,13 @@ export class ApplicationsService {
       before,
       after: { ...after, user: undefined },
     });
+    // Spec section 9: the applicant hears the decision.
+    await this.notifications.notify(tx, {
+      organizationId: org.organizationId,
+      userIds: [before.userId],
+      type: decision === 'approve' ? 'application.approved' : 'application.rejected',
+      payload: { applicationId: before.id, organizationId: org.organizationId },
+    });
     return {
       id: after.id,
       kind: 'employee' as const,
@@ -145,6 +154,12 @@ export class ApplicationsService {
       entityId: before.id,
       before,
       after: { ...after, contractor: undefined },
+    });
+    await this.notifications.notify(tx, {
+      organizationId: org.organizationId,
+      userIds: [before.requestedById],
+      type: decision === 'approve' ? 'application.approved' : 'application.rejected',
+      payload: { applicationId: before.id, organizationId: org.organizationId },
     });
     const applicant = await tx.user.findUnique({
       where: { id: after.requestedById },

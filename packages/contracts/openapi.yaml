@@ -30,6 +30,7 @@ tags:
   - name: members
   - name: ingredients
   - name: products
+  - name: dashboards
   - name: deliveries
   - name: orders
   - name: tasks
@@ -2157,6 +2158,44 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /dashboard/today:
+    get:
+      operationId: getTodayDashboard
+      summary: "Today's Dashboard, the admin's home (DSH-1)"
+      description: "Who is on shift now (night shifts that began yesterday included), today's red flags, output totals, open tasks due, today's deliveries, the orders due next, and what is waiting for a decision."
+      tags: [dashboards]
+      x-tenant-scoped: true
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TodayDashboard' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /dashboard/home:
+    get:
+      operationId: getEmployeeHome
+      summary: "The employee's home (DSH-2)"
+      description: "Punch card, today's output, own open tasks and My Orders in one call."
+      tags: [dashboards]
+      x-tenant-scoped: true
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EmployeeHome' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /applications:
     get:
       operationId: listApplications
@@ -3527,6 +3566,58 @@ components:
         employee: { $ref: '#/components/schemas/PersonRef' }
         orders: { type: array, items: { $ref: '#/components/schemas/DueNextOrder' } }
         totals: { type: array, items: { $ref: '#/components/schemas/ProductTotal' } }
+    TodayDashboard:
+      type: object
+      required:
+        [today, onShift, flags, tasks, deliveriesToday, waiting, outputTotals, ordersDueNext]
+      properties:
+        today: { type: string, format: date }
+        onShift:
+          type: array
+          items:
+            type: object
+            properties:
+              employee: { $ref: '#/components/schemas/PersonRef' }
+              status: { type: string, enum: [working, paused] }
+              startedAt: { type: string, format: date-time }
+              workedMinutes: { type: integer }
+        flags:
+          type: array
+          items:
+            type: object
+            properties:
+              employee: { $ref: '#/components/schemas/PersonRef' }
+              flags: { type: array, items: { $ref: '#/components/schemas/Flag' } }
+        tasks:
+          type: object
+          properties:
+            due: { type: array, items: { type: object } }
+            doneLast24h: { type: integer }
+        deliveriesToday: { type: array, items: { type: object } }
+        waiting:
+          type: object
+          properties:
+            applications: { type: integer }
+            punchChangeRequests: { type: integer }
+            orderChangeRequests: { type: integer }
+            deliveryChangeRequests: { type: integer }
+            ingredientOrders: { type: integer }
+        outputTotals: { type: array, items: { type: object } }
+        ordersDueNext: { $ref: '#/components/schemas/DueNextOrders' }
+    EmployeeHome:
+      type: object
+      required: [today, punchCard, output, tasks, myOrders, unreadNotifications]
+      properties:
+        today: { type: string, format: date }
+        punchCard: { $ref: '#/components/schemas/PunchCard' }
+        output: { $ref: '#/components/schemas/OutputDay' }
+        tasks: { type: array, items: { type: object } }
+        myOrders:
+          description: Empty when the admin has closed Orders due next to employees.
+          oneOf:
+            - $ref: '#/components/schemas/EmployeeDueNextOrders'
+            - type: 'null'
+        unreadNotifications: { type: integer }
     Member:
       type: object
       required: [id, role, status, version, user, createdAt]

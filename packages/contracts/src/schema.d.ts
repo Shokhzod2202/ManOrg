@@ -1301,6 +1301,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dashboard/today": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Today's Dashboard, the admin's home (DSH-1)
+         * @description Who is on shift now (night shifts that began yesterday included), today's red flags, output totals, open tasks due, today's deliveries, the orders due next, and what is waiting for a decision.
+         */
+        get: operations["getTodayDashboard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/home": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The employee's home (DSH-2)
+         * @description Punch card, today's output, own open tasks and My Orders in one call.
+         */
+        get: operations["getEmployeeHome"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/applications": {
         parameters: {
             query?: never;
@@ -2237,6 +2277,46 @@ export interface components {
             employee: components["schemas"]["PersonRef"];
             orders: components["schemas"]["DueNextOrder"][];
             totals: components["schemas"]["ProductTotal"][];
+        };
+        TodayDashboard: {
+            /** Format: date */
+            today: string;
+            onShift: {
+                employee?: components["schemas"]["PersonRef"];
+                /** @enum {string} */
+                status?: "working" | "paused";
+                /** Format: date-time */
+                startedAt?: string;
+                workedMinutes?: number;
+            }[];
+            flags: {
+                employee?: components["schemas"]["PersonRef"];
+                flags?: components["schemas"]["Flag"][];
+            }[];
+            tasks: {
+                due?: Record<string, never>[];
+                doneLast24h?: number;
+            };
+            deliveriesToday: Record<string, never>[];
+            waiting: {
+                applications?: number;
+                punchChangeRequests?: number;
+                orderChangeRequests?: number;
+                deliveryChangeRequests?: number;
+                ingredientOrders?: number;
+            };
+            outputTotals: Record<string, never>[];
+            ordersDueNext: components["schemas"]["DueNextOrders"];
+        };
+        EmployeeHome: {
+            /** Format: date */
+            today: string;
+            punchCard: components["schemas"]["PunchCard"];
+            output: components["schemas"]["OutputDay"];
+            tasks: Record<string, never>[];
+            /** @description Empty when the admin has closed Orders due next to employees. */
+            myOrders: components["schemas"]["EmployeeDueNextOrders"] | null;
+            unreadNotifications: number;
         };
         Member: {
             /**
@@ -4945,6 +5025,58 @@ export interface operations {
                 };
             };
             400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getTodayDashboard: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TodayDashboard"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getEmployeeHome: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeHome"];
+                };
+            };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];

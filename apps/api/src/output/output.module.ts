@@ -7,5 +7,6 @@ import { OutputService } from './output.service';
   imports: [ShiftsModule],
   controllers: [OutputController],
   providers: [OutputService],
+  exports: [OutputService],
 })
 export class OutputModule {}

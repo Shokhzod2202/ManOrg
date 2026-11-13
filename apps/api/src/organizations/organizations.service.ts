@@ -12,6 +12,7 @@ import { type AuthUser, type OrgContext } from '../common/request-context';
 import { DatabaseService } from '../database/database.service';
 import { switchOrganization, type Tx } from '../database/prisma-client';
 import { env } from '../config/env';
+import { NotificationsService } from '../notifications/notifications.service';
 import {
   type CreateOrganizationInput,
   type SearchOrganizationsInput,
@@ -24,7 +25,25 @@ export class OrganizationsService {
   constructor(
     private readonly db: DatabaseService,
     private readonly audit: AuditService,
+    private readonly notifications: NotificationsService,
   ) {}
+
+  /** Spec section 9: a new application notifies the provider's admins. */
+  private async notifyNewApplication(
+    tx: Tx,
+    providerId: string,
+    applicationId: string,
+    kind: 'employee' | 'contractor',
+  ) {
+    // The applicant is not a member yet; the notification is written in the provider's organization.
+    await switchOrganization(tx, providerId);
+    await this.notifications.notify(tx, {
+      organizationId: providerId,
+      userIds: await this.notifications.admins(tx, providerId),
+      type: 'application.created',
+      payload: { applicationId, kind },
+    });
+  }
 
   /** ACC-3: the searchable account pool. Only id, name and type are public. */
   search(user: AuthUser, input: SearchOrganizationsInput) {
@@ -151,6 +170,7 @@ export class OrganizationsService {
       entityId: membership.id,
       after: membership,
     });
+    await this.notifyNewApplication(tx, target.id, membership.id, 'employee');
     return {
       id: membership.id,
       kind: 'employee' as const,
@@ -207,6 +227,7 @@ export class OrganizationsService {
       entityId: link.id,
       after: link,
     });
+    await this.notifyNewApplication(tx, target.id, link.id, 'contractor');
     return {
       id: link.id,
       kind: 'contractor' as const,
