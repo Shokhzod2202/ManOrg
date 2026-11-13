@@ -158,6 +158,107 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/ingredients": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The ingredient database (ING-1, ING-3, ING-4)
+         * @description Everyone who may order ingredients sees every ingredient; the caller's own ordering
+         *     responsibilities come first. `packPrice`, `unitPrice` and `priceEffectiveFrom` appear only for
+         *     callers allowed to read prices (admins, the bot, and employees when the admin opens
+         *     Ingredient prices in Employee access).
+         */
+        get: operations["listIngredients"];
+        put?: never;
+        /** Add an ingredient (ING-1, ING-8) */
+        post: operations["createIngredient"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ingredients/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getIngredient"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit an ingredient, including what one pack contains (ING-2)
+         * @description The price has its own endpoint so that a change only affects the future.
+         */
+        patch: operations["updateIngredient"];
+        trace?: never;
+    };
+    "/ingredients/{id}/price": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set a new price per pack, in whole won
+         * @description Effective from now; earlier prices stay in the history and past calculations keep using them.
+         */
+        put: operations["setIngredientPrice"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ingredients/{id}/prices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Price history, newest first */
+        get: operations["listIngredientPrices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ingredients/{id}/assignees": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set the employees responsible for ordering an ingredient (ING-4)
+         * @description Replaces the whole list; send an empty list to clear it. Audited.
+         */
+        put: operations["setIngredientAssignees"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/applications": {
         parameters: {
             query?: never;
@@ -411,6 +512,59 @@ export interface components {
             outputAll?: boolean;
             ingredientPrices?: boolean;
             finance?: boolean;
+        };
+        /** @enum {string} */
+        PackUnit: "g" | "kg" | "pc" | "L" | "mL";
+        /** @description When the ingredient must be ordered each week (open question 14). */
+        OrderSchedule: {
+            /** @description 0 = Sunday */
+            weekday: number;
+            /** @example 18:00 */
+            time: string;
+        };
+        Ingredient: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** @description Where it is bought. */
+            source: string;
+            orderSchedule: components["schemas"]["OrderSchedule"] | null;
+            /** @description How much one pack contains */
+            packQuantity: number;
+            packUnit: components["schemas"]["PackUnit"];
+            /** @description Current price per pack in whole won. Only for callers allowed to read prices. */
+            packPrice?: number | null;
+            /** @description packPrice divided by packQuantity, rounded to 0.01 won. Only with packPrice. */
+            unitPrice?: number | null;
+            /** Format: date-time */
+            priceEffectiveFrom?: string | null;
+            responsibleEmployees: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+            }[];
+            isMyResponsibility: boolean;
+            /** @description Today, in the organization's time zone, is this ingredient's ordering day. */
+            dueToday: boolean;
+            version: number;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        CreateIngredientRequest: {
+            name: string;
+            source: string;
+            orderSchedule?: components["schemas"]["OrderSchedule"] | null;
+            packQuantity: number;
+            packUnit: components["schemas"]["PackUnit"];
+            /** @description Whole won per pack. */
+            packPrice?: number;
+        };
+        UpdateIngredientRequest: {
+            name?: string;
+            source?: string;
+            orderSchedule?: components["schemas"]["OrderSchedule"] | null;
+            packQuantity?: number;
+            packUnit?: components["schemas"]["PackUnit"];
         };
         Member: {
             /**
@@ -829,6 +983,243 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             428: components["responses"]["PreconditionRequired"];
+        };
+    };
+    listIngredients: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ingredients. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["Ingredient"][];
+                        nextCursor: components["schemas"]["NextCursor"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createIngredient: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateIngredientRequest"];
+            };
+        };
+        responses: {
+            /** @description Created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ingredient"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getIngredient: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The ingredient. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ingredient"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateIngredient: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+                /** @description The `version` of the record being edited. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateIngredientRequest"];
+            };
+        };
+        responses: {
+            /** @description The updated ingredient. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ingredient"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            428: components["responses"]["PreconditionRequired"];
+        };
+    };
+    setIngredientPrice: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Whole won per pack. */
+                    packPrice: number;
+                };
+            };
+        };
+        responses: {
+            /** @description The ingredient with its new current price. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ingredient"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listIngredientPrices: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every price the ingredient has had. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** Format: uuid */
+                            id: string;
+                            packPrice: number;
+                            /** Format: date-time */
+                            effectiveFrom: string;
+                            /** Format: uuid */
+                            createdById: string;
+                        }[];
+                        nextCursor: components["schemas"]["NextCursor"];
+                    };
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setIngredientAssignees: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    employeeIds: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description The ingredient with its responsible employees. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ingredient"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     listApplications: {

@@ -2,7 +2,8 @@ import { createParamDecorator, type ExecutionContext, SetMetadata } from '@nestj
 import { type Request } from 'express';
 import { type MembershipRole, type OrganizationType } from '../generated/prisma/client';
 import { type DbContext } from '../database/prisma-client';
-import { type Capability } from '../permissions/permissions';
+import { type EmployeeAccess } from '../permissions/employee-access';
+import { type Actor, can, type Capability } from '../permissions/permissions';
 
 export interface AuthUser {
   userId: string;
@@ -14,6 +15,15 @@ export interface OrgContext {
   organizationType: OrganizationType;
   membershipId: string;
   role: MembershipRole;
+  /** The matrix actor for this membership (spec section 2). */
+  actor: Actor;
+  /** The organization's resolved Employee access setting. */
+  employeeAccess: EmployeeAccess;
+}
+
+/** Permission check inside a service, for parts of a response or action the route allows. */
+export function orgCan(org: OrgContext, capability: Capability): boolean {
+  return can(org.actor, capability, org.employeeAccess);
 }
 
 export interface AppRequest extends Request {

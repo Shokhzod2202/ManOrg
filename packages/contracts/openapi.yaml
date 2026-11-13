@@ -28,6 +28,7 @@ tags:
   - name: organizations
   - name: applications
   - name: members
+  - name: ingredients
 
 paths:
   /health:
@@ -264,6 +265,199 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
         '428': { $ref: '#/components/responses/PreconditionRequired' }
+
+  /ingredients:
+    get:
+      operationId: listIngredients
+      summary: The ingredient database (ING-1, ING-3, ING-4)
+      description: |
+        Everyone who may order ingredients sees every ingredient; the caller's own ordering
+        responsibilities come first. `packPrice`, `unitPrice` and `priceEffectiveFrom` appear only for
+        callers allowed to read prices (admins, the bot, and employees when the admin opens
+        Ingredient prices in Employee access).
+      tags: [ingredients]
+      x-tenant-scoped: true
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Ingredients.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Ingredient' }
+                  nextCursor: { $ref: '#/components/schemas/NextCursor' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      operationId: createIngredient
+      summary: Add an ingredient (ING-1, ING-8)
+      tags: [ingredients]
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateIngredientRequest' }
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ingredient' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /ingredients/{id}:
+    get:
+      operationId: getIngredient
+      tags: [ingredients]
+      x-tenant-scoped: true
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: The ingredient.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ingredient' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      operationId: updateIngredient
+      summary: Edit an ingredient, including what one pack contains (ING-2)
+      description: The price has its own endpoint so that a change only affects the future.
+      tags: [ingredients]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateIngredientRequest' }
+      responses:
+        '200':
+          description: The updated ingredient.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ingredient' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+
+  /ingredients/{id}/price:
+    put:
+      operationId: setIngredientPrice
+      summary: Set a new price per pack, in whole won
+      description: Effective from now; earlier prices stay in the history and past calculations keep using them.
+      tags: [ingredients]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [packPrice]
+              properties:
+                packPrice: { type: integer, minimum: 0, description: Whole won per pack. }
+      responses:
+        '200':
+          description: The ingredient with its new current price.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ingredient' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /ingredients/{id}/prices:
+    get:
+      operationId: listIngredientPrices
+      summary: Price history, newest first
+      tags: [ingredients]
+      x-tenant-scoped: true
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Every price the ingredient has had.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, packPrice, effectiveFrom, createdById]
+                      properties:
+                        id: { type: string, format: uuid }
+                        packPrice: { type: integer }
+                        effectiveFrom: { type: string, format: date-time }
+                        createdById: { type: string, format: uuid }
+                  nextCursor: { $ref: '#/components/schemas/NextCursor' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /ingredients/{id}/assignees:
+    put:
+      operationId: setIngredientAssignees
+      summary: Set the employees responsible for ordering an ingredient (ING-4)
+      description: Replaces the whole list; send an empty list to clear it. Audited.
+      tags: [ingredients]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [employeeIds]
+              properties:
+                employeeIds:
+                  type: array
+                  maxItems: 200
+                  items: { type: string, format: uuid }
+      responses:
+        '200':
+          description: The ingredient with its responsible employees.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ingredient' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   /applications:
     get:
@@ -706,6 +900,93 @@ components:
         outputAll: { type: boolean }
         ingredientPrices: { type: boolean }
         finance: { type: boolean }
+
+    PackUnit:
+      type: string
+      enum: [g, kg, pc, L, mL]
+    OrderSchedule:
+      description: When the ingredient must be ordered each week (open question 14).
+      type: object
+      required: [weekday, time]
+      properties:
+        weekday: { type: integer, minimum: 0, maximum: 6, description: 0 = Sunday }
+        time: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$', example: '18:00' }
+    Ingredient:
+      type: object
+      required:
+        [
+          id,
+          name,
+          source,
+          orderSchedule,
+          packQuantity,
+          packUnit,
+          responsibleEmployees,
+          isMyResponsibility,
+          dueToday,
+          version,
+          createdAt,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        source: { type: string, description: Where it is bought. }
+        orderSchedule:
+          oneOf:
+            - $ref: '#/components/schemas/OrderSchedule'
+            - type: 'null'
+        packQuantity: { type: number, description: How much one pack contains, in packUnit. }
+        packUnit: { $ref: '#/components/schemas/PackUnit' }
+        packPrice:
+          type: [integer, 'null']
+          description: Current price per pack in whole won. Only for callers allowed to read prices.
+        unitPrice:
+          type: [number, 'null']
+          description: packPrice divided by packQuantity, rounded to 0.01 won. Only with packPrice.
+        priceEffectiveFrom:
+          type: [string, 'null']
+          format: date-time
+        responsibleEmployees:
+          type: array
+          items:
+            type: object
+            required: [id, name]
+            properties:
+              id: { type: string, format: uuid }
+              name: { type: string }
+        isMyResponsibility: { type: boolean }
+        dueToday:
+          type: boolean
+          description: Today, in the organization's time zone, is this ingredient's ordering day.
+        version: { type: integer }
+        createdAt: { type: string, format: date-time }
+    CreateIngredientRequest:
+      type: object
+      additionalProperties: false
+      required: [name, source, packQuantity, packUnit]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        source: { type: string, minLength: 1, maxLength: 200 }
+        orderSchedule:
+          oneOf:
+            - $ref: '#/components/schemas/OrderSchedule'
+            - type: 'null'
+        packQuantity: { type: number, exclusiveMinimum: 0 }
+        packUnit: { $ref: '#/components/schemas/PackUnit' }
+        packPrice: { type: integer, minimum: 0, description: Whole won per pack. }
+    UpdateIngredientRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        source: { type: string, minLength: 1, maxLength: 200 }
+        orderSchedule:
+          oneOf:
+            - $ref: '#/components/schemas/OrderSchedule'
+            - type: 'null'
+        packQuantity: { type: number, exclusiveMinimum: 0 }
+        packUnit: { $ref: '#/components/schemas/PackUnit' }
 
     Member:
       type: object

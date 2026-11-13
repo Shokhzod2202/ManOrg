@@ -68,6 +68,8 @@ export class OrgContextGuard implements CanActivate {
       organizationType: membership.organization.type,
       membershipId: membership.id,
       role: membership.role,
+      actor,
+      employeeAccess: access,
     };
     return true;
   }

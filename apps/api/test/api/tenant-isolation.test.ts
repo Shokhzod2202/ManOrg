@@ -21,18 +21,26 @@ let w: World;
 /** Every id owned by an organization: the org, its members' memberships, links, audit rows. */
 const owned = new Map<string, Set<string>>();
 
+/**
+ * Every id an organization owns: the id column of every row in every tenant table that belongs
+ * to it, plus its people. Read from the catalog, so new tables are covered without changes here.
+ */
 async function idsOwnedBy(orgId: string, userIds: string[], admin: Session): Promise<Set<string>> {
   return asOwner({ organizationId: orgId, userId: admin.userId }, async (tx) => {
-    const memberships = await tx.membership.findMany({ where: { organizationId: orgId } });
-    const links = await tx.contractorLink.findMany({ where: { organizationId: orgId } });
-    const audit = await tx.auditLog.findMany({ where: { organizationId: orgId } });
-    return new Set([
-      orgId,
-      ...userIds,
-      ...memberships.flatMap((m) => [m.id, m.userId]),
-      ...links.map((l) => l.id),
-      ...audit.map((a) => a.id),
-    ]);
+    const tables = await tx.$queryRaw<{ table: string }[]>`
+      SELECT c.table_name AS table FROM information_schema.columns c
+      WHERE c.table_schema = 'public' AND c.column_name = 'organization_id'
+        AND EXISTS (SELECT 1 FROM information_schema.columns i
+                    WHERE i.table_schema = 'public' AND i.table_name = c.table_name AND i.column_name = 'id')`;
+    const ids = new Set<string>([orgId, ...userIds]);
+    for (const { table } of tables) {
+      const rows = await tx.$queryRawUnsafe<{ id: string }[]>(
+        `SELECT id::text AS id FROM "${table}" WHERE organization_id = $1::uuid`,
+        orgId,
+      );
+      for (const r of rows) ids.add(r.id);
+    }
+    return ids;
   });
 }
 

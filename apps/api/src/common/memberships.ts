@@ -62,3 +62,26 @@ export async function createMembershipOnce<T>(
     throw error;
   }
 }
+
+/**
+ * Checks that every user id is an active member of the organization, returning their names.
+ * Ids outside the organization are reported as not found, which reveals nothing about them.
+ */
+export async function activeMembers(
+  tx: Tx,
+  organizationId: string,
+  userIds: string[],
+): Promise<{ id: string; name: string }[]> {
+  const unique = [...new Set(userIds)];
+  if (unique.length === 0) return [];
+  const rows = await tx.membership.findMany({
+    where: { organizationId, userId: { in: unique }, status: 'active' },
+    select: { user: { select: { id: true, name: true } } },
+  });
+  if (rows.length !== unique.length) {
+    const found = new Set(rows.map((r) => r.user.id));
+    const missing = unique.filter((id) => !found.has(id));
+    throw Errors.validation({ employeeIds: missing.map((id) => `${id} is not an active member.`) });
+  }
+  return rows.map((r) => r.user);
+}

@@ -125,6 +125,8 @@ describe('OrgContextGuard', () => {
       organizationType: 'bakery',
       membershipId: 'm-1',
       role: 'admin',
+      actor: 'org_admin',
+      employeeAccess: expect.objectContaining({ allShifts: true, finance: false }),
     });
   });
 });

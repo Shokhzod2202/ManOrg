@@ -5,6 +5,7 @@ export interface Bakery {
   admin: Session;
   employee: Session & { membershipId: string };
   applicant: Session & { applicationId: string };
+  ingredientId: string;
 }
 
 export interface World {
@@ -23,11 +24,28 @@ async function bakery(api: Api, label: string): Promise<Bakery> {
     .as(applicantSession)
     .post(`/organizations/${id}/applications`)
     .expect(201);
+  const ingredient = await api
+    .as(admin, id)
+    .post('/ingredients')
+    .send({
+      name: `${label} Flour`,
+      source: 'Mill',
+      packQuantity: 20,
+      packUnit: 'kg',
+      packPrice: 30000,
+    })
+    .expect(201);
+  await api
+    .as(admin, id)
+    .put(`/ingredients/${ingredient.body.id}/assignees`)
+    .send({ employeeIds: [employee.userId] })
+    .expect(200);
   return {
     id,
     admin,
     employee,
     applicant: { ...applicantSession, applicationId: applied.body.id },
+    ingredientId: ingredient.body.id,
   };
 }
 
