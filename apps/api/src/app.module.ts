@@ -10,6 +10,8 @@ import { env } from './config/env';
 import { DatabaseModule } from './database/database.module';
 import { HealthController } from './health/health.controller';
 import { MeController } from './me/me.controller';
+import { EmployeeAccessController } from './organizations/employee-access.controller';
+import { EmployeeAccessService } from './organizations/employee-access.service';
 import { MeService } from './me/me.service';
 import { MembersController } from './members/members.controller';
 import { MembersService } from './members/members.service';
@@ -33,12 +35,14 @@ import { OrgContextGuard } from './permissions/org-context.guard';
     OrganizationsController,
     ApplicationsController,
     MembersController,
+    EmployeeAccessController,
   ],
   providers: [
     MeService,
     OrganizationsService,
     ApplicationsService,
     MembersService,
+    EmployeeAccessService,
     // Order matters: authenticate first, then resolve the organization and check permissions.
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: OrgContextGuard },

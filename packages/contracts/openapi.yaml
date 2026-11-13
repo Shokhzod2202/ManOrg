@@ -221,6 +221,50 @@ paths:
         '409': { $ref: '#/components/responses/Conflict' }
         '422': { $ref: '#/components/responses/Unprocessable' }
 
+  /organization/employee-access:
+    get:
+      operationId: getEmployeeAccess
+      summary: Which read-only areas employees may see (organization admin)
+      description: Areas start at their defaults; employees never get write access through this setting.
+      tags: [organizations]
+      x-tenant-scoped: true
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Every area with its current switch.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EmployeeAccess' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      operationId: updateEmployeeAccess
+      summary: Open or close read-only areas for employees (organization admin)
+      description: Send only the areas to change. Audited; applies on each employee's next request.
+      tags: [organizations]
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateEmployeeAccessRequest' }
+      responses:
+        '200':
+          description: The updated setting.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EmployeeAccess' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+
   /applications:
     get:
       operationId: listApplications
@@ -628,6 +672,40 @@ components:
             - $ref: '#/components/schemas/OrganizationSummary'
             - type: 'null'
         createdAt: { type: string, format: date-time }
+
+    EmployeeAccessArea:
+      type: string
+      enum:
+        [allShifts, ordersDueNext, ordersHistory, deliveries, outputAll, ingredientPrices, finance]
+    EmployeeAccess:
+      type: object
+      required: [version, areas]
+      properties:
+        version:
+          type: integer
+          description: The organization's version; send as If-Match when updating.
+        areas:
+          type: array
+          items:
+            type: object
+            required: [key, label, enabled, defaultEnabled]
+            properties:
+              key: { $ref: '#/components/schemas/EmployeeAccessArea' }
+              label: { type: string }
+              enabled: { type: boolean }
+              defaultEnabled: { type: boolean }
+    UpdateEmployeeAccessRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        allShifts: { type: boolean }
+        ordersDueNext: { type: boolean }
+        ordersHistory: { type: boolean }
+        deliveries: { type: boolean }
+        outputAll: { type: boolean }
+        ingredientPrices: { type: boolean }
+        finance: { type: boolean }
 
     Member:
       type: object

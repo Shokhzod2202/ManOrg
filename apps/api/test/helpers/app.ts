@@ -75,6 +75,7 @@ export class Api {
       get: (url: string) => auth(this.http.get(`/api/v1${url}`)),
       post: (url: string) => auth(this.http.post(`/api/v1${url}`)),
       patch: (url: string) => auth(this.http.patch(`/api/v1${url}`)),
+      put: (url: string) => auth(this.http.put(`/api/v1${url}`)),
     };
   }
 

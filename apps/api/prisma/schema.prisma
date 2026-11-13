@@ -194,6 +194,9 @@ model Organization {
   punchToleranceMin Int              @default(10) @map("punch_tolerance_min")
   /// Open question 1: order cut-off on the day before delivery, organization time (HH:MM).
   orderCutoffTime   String           @default("20:00") @map("order_cutoff_time")
+  /// Which read-only areas employees may see; missing keys use the defaults in
+  /// src/permissions/employee-access.ts. Edited by the organization admin.
+  employeeAccess    Json             @default("{}") @map("employee_access")
   createdById       String           @map("created_by") @db.Uuid
   version           Int              @default(1)
   createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)

@@ -134,6 +134,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/organization/employee-access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Which read-only areas employees may see (organization admin)
+         * @description Areas start at their defaults; employees never get write access through this setting.
+         */
+        get: operations["getEmployeeAccess"];
+        /**
+         * Open or close read-only areas for employees (organization admin)
+         * @description Send only the areas to change. Audited; applies on each employee's next request.
+         */
+        put: operations["updateEmployeeAccess"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/applications": {
         parameters: {
             query?: never;
@@ -366,6 +390,27 @@ export interface components {
             contractor: components["schemas"]["OrganizationSummary"] | null;
             /** Format: date-time */
             createdAt: string;
+        };
+        /** @enum {string} */
+        EmployeeAccessArea: "allShifts" | "ordersDueNext" | "ordersHistory" | "deliveries" | "outputAll" | "ingredientPrices" | "finance";
+        EmployeeAccess: {
+            /** @description The organization's version; send as If-Match when updating. */
+            version: number;
+            areas: {
+                key: components["schemas"]["EmployeeAccessArea"];
+                label: string;
+                enabled: boolean;
+                defaultEnabled: boolean;
+            }[];
+        };
+        UpdateEmployeeAccessRequest: {
+            allShifts?: boolean;
+            ordersDueNext?: boolean;
+            ordersHistory?: boolean;
+            deliveries?: boolean;
+            outputAll?: boolean;
+            ingredientPrices?: boolean;
+            finance?: boolean;
         };
         Member: {
             /**
@@ -723,6 +768,67 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             422: components["responses"]["Unprocessable"];
+        };
+    };
+    getEmployeeAccess: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every area with its current switch. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeAccess"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateEmployeeAccess: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+                /** @description The `version` of the record being edited. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateEmployeeAccessRequest"];
+            };
+        };
+        responses: {
+            /** @description The updated setting. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeAccess"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            428: components["responses"]["PreconditionRequired"];
         };
     };
     listApplications: {

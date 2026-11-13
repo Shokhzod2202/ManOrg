@@ -11,6 +11,7 @@ function setup(opts: {
   requirement?: OrgRequirement;
   header?: string;
   membership?: { role: 'admin' | 'employee'; type: 'bakery' | 'contractor' } | null;
+  employeeAccess?: Record<string, boolean>;
 }) {
   const reflector = {
     getAllAndOverride: vi.fn().mockReturnValue(opts.requirement),
@@ -20,7 +21,11 @@ function setup(opts: {
       ? {
           id: 'm-1',
           role: opts.membership.role,
-          organization: { id: ORG, type: opts.membership.type },
+          organization: {
+            id: ORG,
+            type: opts.membership.type,
+            employeeAccess: opts.employeeAccess ?? {},
+          },
         }
       : null,
   );
@@ -90,6 +95,22 @@ describe('OrgContextGuard', () => {
       membership: { role: 'admin', type: 'contractor' },
     });
     await expect(guard.canActivate(context)).rejects.toMatchObject({ status: 403 });
+  });
+
+  it('lets an employee read an area only while the organization has it switched on', async () => {
+    const closed = setup({
+      requirement: { kind: 'required', capability: 'orders.readHistory' },
+      header: ORG,
+      membership: { role: 'employee', type: 'bakery' },
+    });
+    await expect(closed.guard.canActivate(closed.context)).rejects.toMatchObject({ status: 403 });
+    const open = setup({
+      requirement: { kind: 'required', capability: 'orders.readHistory' },
+      header: ORG,
+      membership: { role: 'employee', type: 'bakery' },
+      employeeAccess: { ordersHistory: true },
+    });
+    await expect(open.guard.canActivate(open.context)).resolves.toBe(true);
   });
 
   it('attaches the verified membership when allowed', async () => {

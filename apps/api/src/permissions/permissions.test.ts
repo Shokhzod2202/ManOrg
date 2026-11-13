@@ -1,7 +1,25 @@
 import { describe, expect, it } from 'vitest';
-import { type Actor, actorFor, CAPABILITIES, can, type Capability, grantFor } from './permissions';
+import {
+  EMPLOYEE_ACCESS_AREAS,
+  type EmployeeAccess,
+  resolveEmployeeAccess,
+} from './employee-access';
+import {
+  type Actor,
+  actorFor,
+  BOT_EXCLUDED,
+  CAPABILITIES,
+  can,
+  type Capability,
+  grantFor,
+} from './permissions';
 
 const ACTORS: Actor[] = ['employee', 'org_admin', 'contractor_admin', 'bot'];
+const ALL = Object.keys(CAPABILITIES) as Capability[];
+const defaults = resolveEmployeeAccess({});
+const allOpen = Object.fromEntries(
+  Object.keys(EMPLOYEE_ACCESS_AREAS).map((k) => [k, true]),
+) as EmployeeAccess;
 
 describe('actorFor', () => {
   it('maps organization type and role to the matrix actor', () => {
@@ -32,7 +50,7 @@ describe('permission matrix (spec section 2)', () => {
 
   it.each(phase0)('%s is granted exactly as the spec says', (capability, expected) => {
     for (const actor of ACTORS) {
-      expect({ actor, allowed: can(actor, capability) }).toEqual({
+      expect({ actor, allowed: can(actor, capability, defaults) }).toEqual({
         actor,
         allowed: expected[actor],
       });
@@ -43,17 +61,6 @@ describe('permission matrix (spec section 2)', () => {
     expect(grantFor('contractor_admin', 'members.manage')).toBe('own');
   });
 
-  it('never lets the bot approve people, manage admins or create organizations', () => {
-    for (const capability of [
-      'applications.decide',
-      'members.manage',
-      'organization.create',
-      'organization.apply',
-    ] as const) {
-      expect(can('bot', capability)).toBe(false);
-    }
-  });
-
   it('only employees punch and complete tasks, and only for themselves', () => {
     for (const capability of ['punch.self', 'tasks.complete', 'punch.requestChange'] as const) {
       expect(ACTORS.filter((a) => can(a, capability))).toEqual(['employee']);
@@ -61,56 +68,19 @@ describe('permission matrix (spec section 2)', () => {
     }
   });
 
-  it('contractor admins see only their own orders', () => {
-    expect(grantFor('contractor_admin', 'organization.readAll')).toBe('own');
-    expect(can('contractor_admin', 'shifts.read')).toBe(false);
-  });
-
-  it('lets employees read the orders due next but never edit or place orders', () => {
-    expect(grantFor('employee', 'orders.readDueNext')).toBe('any');
-    expect(can('employee', 'orders.edit')).toBe(false);
-    expect(can('employee', 'orders.place')).toBe(false);
-  });
-
-  it('shows the monthly orders list only to the bakery admin and the contractor’s own admin', () => {
-    expect(ACTORS.filter((a) => can(a, 'orders.readHistory'))).toEqual([
-      'org_admin',
-      'contractor_admin',
-    ]);
-    expect(grantFor('contractor_admin', 'orders.readHistory')).toBe('own');
-  });
-
-  it('shows payment confirmations only to the bakery admin and the contractor’s own admin', () => {
-    expect(ACTORS.filter((a) => can(a, 'payments.view'))).toEqual([
-      'org_admin',
-      'contractor_admin',
-    ]);
-    expect(grantFor('contractor_admin', 'payments.view')).toBe('own');
-    expect(ACTORS.filter((a) => can(a, 'payments.submit'))).toEqual(['contractor_admin']);
-    expect(ACTORS.filter((a) => can(a, 'payments.review'))).toEqual(['org_admin']);
-  });
-
-  it('gives employees and the bot no access to financial data (F-001)', () => {
+  it('contractor admins see only their own orders, deliveries and payments', () => {
     for (const capability of [
-      'prices.manage',
-      'finance.view',
-      'payments.submit',
+      'organization.readAll',
+      'orders.readHistory',
+      'deliveries.read',
       'payments.view',
-      'payments.review',
-      'settlement.edit',
-      'settlement.view',
-      'settlement.close',
     ] as const) {
-      expect({
+      expect({ capability, grant: grantFor('contractor_admin', capability) }).toEqual({
         capability,
-        employee: can('employee', capability),
-        bot: can('bot', capability),
-      }).toEqual({
-        capability,
-        employee: false,
-        bot: false,
+        grant: 'own',
       });
     }
+    expect(can('contractor_admin', 'shifts.read')).toBe(false);
   });
 
   it('lists every actor for every capability', () => {
@@ -120,5 +90,118 @@ describe('permission matrix (spec section 2)', () => {
         actors: [...ACTORS].sort(),
       });
     }
+  });
+});
+
+describe('AI bot (decided 2026-11-13)', () => {
+  it('can see and do everything the bakery admin can, except the listed exclusions', () => {
+    for (const capability of ALL) {
+      const expected = BOT_EXCLUDED.has(capability) ? false : grantFor('org_admin', capability);
+      expect({ capability, bot: grantFor('bot', capability) }).toEqual({
+        capability,
+        bot: expected,
+      });
+    }
+  });
+
+  it('sees the orders, the monthly list, payments and finance', () => {
+    for (const capability of [
+      'orders.readDueNext',
+      'orders.readHistory',
+      'deliveries.read',
+      'payments.view',
+      'payments.review',
+      'finance.view',
+      'settlement.view',
+      'prices.manage',
+      'ingredients.readPrices',
+    ] as const) {
+      expect({ capability, bot: can('bot', capability) }).toEqual({ capability, bot: true });
+    }
+  });
+
+  it('never manages admins, roles, applications or employee access', () => {
+    for (const capability of [
+      'applications.decide',
+      'members.manage',
+      'employeeAccess.manage',
+      'organization.create',
+      'organization.apply',
+    ] as const) {
+      expect(can('bot', capability, allOpen)).toBe(false);
+    }
+  });
+
+  it('never acts as an employee or a contractor for them', () => {
+    for (const capability of [
+      'punch.self',
+      'tasks.complete',
+      'orders.place',
+      'deliveries.confirm',
+      'payments.submit',
+    ] as const) {
+      expect(can('bot', capability, allOpen)).toBe(false);
+    }
+  });
+});
+
+describe('employee access setting (decided 2026-11-12)', () => {
+  const gated = ALL.filter((c) => typeof grantFor('employee', c) === 'object');
+
+  it('can only ever open read access, never writes', () => {
+    expect(gated.length).toBeGreaterThan(0);
+    for (const capability of gated) {
+      expect(capability).toMatch(/\.(read\w*|view)$/);
+    }
+  });
+
+  it('starts with everyone’s shifts and the orders due next open, everything else closed', () => {
+    expect(ALL.filter((c) => gated.includes(c) && can('employee', c, defaults)).sort()).toEqual([
+      'orders.readDueNext',
+      'shifts.read',
+    ]);
+  });
+
+  it('follows each switch', () => {
+    expect(can('employee', 'orders.readHistory', defaults)).toBe(false);
+    expect(can('employee', 'orders.readHistory', { ...defaults, ordersHistory: true })).toBe(true);
+    expect(can('employee', 'payments.view', { ...defaults, finance: true })).toBe(true);
+    expect(can('employee', 'orders.readDueNext', { ...defaults, ordersDueNext: false })).toBe(
+      false,
+    );
+  });
+
+  it('is denied when the setting is unknown', () => {
+    expect(can('employee', 'shifts.read')).toBe(false);
+  });
+
+  it('never lets employees edit orders or touch money, whatever is switched on', () => {
+    for (const capability of [
+      'orders.edit',
+      'orders.place',
+      'payments.review',
+      'payments.submit',
+      'prices.manage',
+      'settlement.edit',
+      'settlement.close',
+      'employeeAccess.manage',
+    ] as const) {
+      expect(can('employee', capability, allOpen)).toBe(false);
+    }
+  });
+
+  it('does not change admins or contractors', () => {
+    expect(can('org_admin', 'orders.readHistory')).toBe(true);
+    expect(can('contractor_admin', 'payments.view')).toBe(true);
+  });
+});
+
+describe('resolveEmployeeAccess', () => {
+  it('fills missing areas with defaults and ignores unknown or malformed values', () => {
+    expect(resolveEmployeeAccess({ ordersHistory: true, finance: 'yes', bogus: true })).toEqual({
+      ...defaults,
+      ordersHistory: true,
+    });
+    expect(resolveEmployeeAccess(null)).toEqual(defaults);
   });
 });
