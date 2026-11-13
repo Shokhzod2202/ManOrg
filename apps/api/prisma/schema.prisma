@@ -287,6 +287,9 @@ model ContractorLink {
   contractorOrgId String     @map("contractor_org_id") @db.Uuid
   status          LinkStatus
   requestedById   String     @map("requested_by") @db.Uuid
+  /// DTM-1: standing approximate delivery time, every day the contractor has a delivery.
+  approxStart     DateTime?  @map("approx_start") @db.Time(0)
+  approxEnd       DateTime?  @map("approx_end") @db.Time(0)
   decidedById     String?    @map("decided_by") @db.Uuid
   decidedAt       DateTime?  @map("decided_at") @db.Timestamptz(3)
   version         Int        @default(1)

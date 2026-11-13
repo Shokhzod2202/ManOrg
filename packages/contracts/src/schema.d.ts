@@ -1080,6 +1080,227 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/contractors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The provider's approved contractors with their approximate delivery time (DEL-2, DTM-4)
+         * @description Earliest time first.
+         */
+        get: operations["listContractors"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/contractors/{id}/approx-time": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set the standing approximate delivery time (DTM-1 to DTM-3, DTM-6)
+         * @description Applies every day until changed: to deliveries from the next day on and to today's if not completed. Audited; the contractor's admins and the provider's people are notified.
+         */
+        put: operations["setApproxTime"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/deliveries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Deliveries by date
+         * @description The provider sees every contractor (employees need the Deliveries switch); a contractor sees its own.
+         */
+        get: operations["listDeliveries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/deliveries/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One delivery */
+        get: operations["getDelivery"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/deliveries/{contractorId}/{date}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A contractor's delivery for a day, or a draft built from that day's order (DEL-2)
+         * @description Before the delivery is saved, id is empty and status is not_started; delivered numbers start at the ordered numbers.
+         */
+        get: operations["getDeliveryForDay"];
+        /**
+         * Save delivered numbers (DEL-1, DEL-3, DEL-4)
+         * @description One delivery per contractor per day. Ordered products left out keep their current number; products not ordered are added as unordered lines. Ordered and delivered numbers are both kept; the difference is derived. Only a draft can be edited (409 DELIVERY_LOCKED). Audited.
+         */
+        put: operations["saveDelivery"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/deliveries/{id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark a delivery completed
+         * @description It takes the order off Today's Orders, and the contractor's admins are asked to confirm.
+         */
+        post: operations["completeDelivery"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/deliveries/{id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The contractor confirms a completed delivery (DEL-5)
+         * @description A confirmed delivery is locked.
+         */
+        post: operations["confirmDelivery"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/deliveries/{id}/change-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ask to change a confirmed delivery (DEL-6)
+         * @description The delivery stays unchanged until the provider admin approves.
+         */
+        post: operations["requestDeliveryChange"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/deliveries/{id}/change-requests/{requestId}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve or reject a delivery change (DEL-6)
+         * @description Approval applies the requested numbers. Audited; the contractor is notified.
+         */
+        post: operations["decideDeliveryChange"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/orders/due-next": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Today's Orders: every contractor's order due next (TOD-1 to TOD-4)
+         * @description For each contractor, its earliest order whose delivery is not completed, by delivery date then approximate time. It does not change at midnight. Totals are the sum of these orders.
+         */
+        get: operations["getOrdersDueNext"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{id}/orders/due-next": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * My Orders: an employee's products in the orders due next (TOD-5 to TOD-7)
+         * @description Only products assigned to the employee, each at the full quantity. Employees open their own; admins open anyone's.
+         */
+        get: operations["getEmployeeOrdersDueNext"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/applications": {
         parameters: {
             query?: never;
@@ -1899,6 +2120,123 @@ export interface components {
             }[];
             /** Format: date-time */
             createdAt: string;
+        };
+        ApproxTime: {
+            /** @example 14:00 */
+            start: string;
+            /** @example 15:00 */
+            end: string;
+        };
+        ApproxTimeRequest: {
+            start: string;
+            end: string;
+        };
+        ApproxTimeResult: {
+            contractor: {
+                /** Format: uuid */
+                id?: string;
+            };
+            approxTime: components["schemas"]["ApproxTime"];
+        };
+        ContractorWithTime: {
+            contractor: components["schemas"]["PersonRef"];
+            approxTime: components["schemas"]["ApproxTime"] | null;
+        };
+        Delivery: {
+            /**
+             * Format: uuid
+             * @description Empty for a draft that was not saved yet.
+             */
+            id: string | null;
+            provider: {
+                /** Format: uuid */
+                id?: string;
+                name?: string;
+            };
+            contractor: {
+                /** Format: uuid */
+                id?: string;
+                name?: string;
+            };
+            /** Format: date */
+            deliveryDate: string;
+            /** @description The approximate delivery time copied when the delivery was created (DTM-1). */
+            window: {
+                /** Format: date-time */
+                start?: string;
+                /** Format: date-time */
+                end?: string;
+                startTime?: string;
+                endTime?: string;
+            } | null;
+            /** @enum {string} */
+            status: "not_started" | "draft" | "completed" | "confirmed" | "change_requested";
+            lines: {
+                /** Format: uuid */
+                productId: string;
+                productName: string;
+                orderedQuantity: number;
+                deliveredQuantity: number;
+                /** @description Delivered minus ordered. */
+                difference: number;
+                isUnordered: boolean;
+            }[];
+            pendingChange: {
+                /** Format: uuid */
+                id?: string;
+                lines?: components["schemas"]["DeliveredLine"][];
+                reason?: string | null;
+                /** Format: date-time */
+                createdAt?: string;
+            } | null;
+            /** Format: date-time */
+            completedAt: string | null;
+            /** Format: date-time */
+            confirmedAt: string | null;
+            version: number;
+        };
+        DeliveredLine: {
+            /** Format: uuid */
+            productId: string;
+            deliveredQuantity: number;
+        };
+        SaveDeliveryRequest: {
+            lines: components["schemas"]["DeliveredLine"][];
+        };
+        DeliveryChangeRequest: {
+            lines: components["schemas"]["DeliveredLine"][];
+            reason: string;
+        };
+        DueNextOrder: {
+            /** Format: uuid */
+            orderId: string;
+            contractor: components["schemas"]["PersonRef"];
+            /** Format: date */
+            deliveryDate: string;
+            approxTime: components["schemas"]["ApproxTime"] | null;
+            /** @enum {string} */
+            deliveryStatus: "not_started" | "draft";
+            lines: {
+                /** Format: uuid */
+                productId: string;
+                productName: string;
+                quantity: number;
+            }[];
+        };
+        ProductTotal: {
+            /** Format: uuid */
+            productId: string;
+            productName: string;
+            quantity: number;
+        };
+        DueNextOrders: {
+            orders: components["schemas"]["DueNextOrder"][];
+            totals: components["schemas"]["ProductTotal"][];
+        };
+        EmployeeDueNextOrders: {
+            employee: components["schemas"]["PersonRef"];
+            orders: components["schemas"]["DueNextOrder"][];
+            totals: components["schemas"]["ProductTotal"][];
         };
         Member: {
             /**
@@ -4233,6 +4571,383 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    listContractors: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["ContractorWithTime"][];
+                        nextCursor: components["schemas"]["NextCursor"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setApproxTime: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApproxTimeRequest"];
+            };
+        };
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApproxTimeResult"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listDeliveries: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+                contractor_id?: string;
+            };
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["Delivery"][];
+                        nextCursor: components["schemas"]["NextCursor"];
+                    };
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getDelivery: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Delivery"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getDeliveryForDay: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                contractorId: string;
+                date: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Delivery"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    saveDelivery: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                contractorId: string;
+                date: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveDeliveryRequest"];
+            };
+        };
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Delivery"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    completeDelivery: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Delivery"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    confirmDelivery: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Delivery"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    requestDeliveryChange: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeliveryChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description OK. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Delivery"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    decideDeliveryChange: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Delivery"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getOrdersDueNext: {
+        parameters: {
+            query?: {
+                contractor_id?: string;
+            };
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DueNextOrders"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getEmployeeOrdersDueNext: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeDueNextOrders"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     listApplications: {

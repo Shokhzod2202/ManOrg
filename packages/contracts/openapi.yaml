@@ -30,6 +30,7 @@ tags:
   - name: members
   - name: ingredients
   - name: products
+  - name: deliveries
   - name: orders
   - name: tasks
   - name: notifications
@@ -1844,6 +1845,318 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
 
+  /contractors:
+    get:
+      operationId: listContractors
+      summary: "The provider's approved contractors with their approximate delivery time (DEL-2, DTM-4)"
+      description: 'Earliest time first.'
+      tags: [deliveries]
+      x-tenant-scoped: true
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/ContractorWithTime' }
+                  nextCursor: { $ref: '#/components/schemas/NextCursor' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /contractors/{id}/approx-time:
+    put:
+      operationId: setApproxTime
+      summary: 'Set the standing approximate delivery time (DTM-1 to DTM-3, DTM-6)'
+      description: "Applies every day until changed: to deliveries from the next day on and to today's if not completed. Audited; the contractor's admins and the provider's people are notified."
+      tags: [deliveries]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ApproxTimeRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApproxTimeResult' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /deliveries:
+    get:
+      operationId: listDeliveries
+      summary: 'Deliveries by date'
+      description: 'The provider sees every contractor (employees need the Deliveries switch); a contractor sees its own.'
+      tags: [deliveries]
+      x-tenant-scoped: true
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: from
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: contractor_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Delivery' }
+                  nextCursor: { $ref: '#/components/schemas/NextCursor' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /deliveries/{id}:
+    get:
+      operationId: getDelivery
+      summary: 'One delivery'
+      tags: [deliveries]
+      x-tenant-scoped: true
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Delivery' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /deliveries/{contractorId}/{date}:
+    get:
+      operationId: getDeliveryForDay
+      summary: "A contractor's delivery for a day, or a draft built from that day's order (DEL-2)"
+      description: 'Before the delivery is saved, id is empty and status is not_started; delivered numbers start at the ordered numbers.'
+      tags: [deliveries]
+      x-tenant-scoped: true
+      parameters:
+        - name: contractorId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: date
+          in: path
+          required: true
+          schema: { type: string, format: date }
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Delivery' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      operationId: saveDelivery
+      summary: 'Save delivered numbers (DEL-1, DEL-3, DEL-4)'
+      description: 'One delivery per contractor per day. Ordered products left out keep their current number; products not ordered are added as unordered lines. Ordered and delivered numbers are both kept; the difference is derived. Only a draft can be edited (409 DELIVERY_LOCKED). Audited.'
+      tags: [deliveries]
+      parameters:
+        - name: contractorId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: date
+          in: path
+          required: true
+          schema: { type: string, format: date }
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SaveDeliveryRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Delivery' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /deliveries/{id}/complete:
+    post:
+      operationId: completeDelivery
+      summary: 'Mark a delivery completed'
+      description: "It takes the order off Today's Orders, and the contractor's admins are asked to confirm."
+      tags: [deliveries]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Delivery' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /deliveries/{id}/confirm:
+    post:
+      operationId: confirmDelivery
+      summary: 'The contractor confirms a completed delivery (DEL-5)'
+      description: 'A confirmed delivery is locked.'
+      tags: [deliveries]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Delivery' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /deliveries/{id}/change-requests:
+    post:
+      operationId: requestDeliveryChange
+      summary: 'Ask to change a confirmed delivery (DEL-6)'
+      description: 'The delivery stays unchanged until the provider admin approves.'
+      tags: [deliveries]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DeliveryChangeRequest' }
+      responses:
+        '201':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Delivery' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /deliveries/{id}/change-requests/{requestId}/decision:
+    post:
+      operationId: decideDeliveryChange
+      summary: 'Approve or reject a delivery change (DEL-6)'
+      description: 'Approval applies the requested numbers. Audited; the contractor is notified.'
+      tags: [deliveries]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - name: requestId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DecisionRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Delivery' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /orders/due-next:
+    get:
+      operationId: getOrdersDueNext
+      summary: "Today's Orders: every contractor's order due next (TOD-1 to TOD-4)"
+      description: 'For each contractor, its earliest order whose delivery is not completed, by delivery date then approximate time. It does not change at midnight. Totals are the sum of these orders.'
+      tags: [deliveries]
+      x-tenant-scoped: true
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: contractor_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DueNextOrders' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /employees/{id}/orders/due-next:
+    get:
+      operationId: getEmployeeOrdersDueNext
+      summary: "My Orders: an employee's products in the orders due next (TOD-5 to TOD-7)"
+      description: "Only products assigned to the employee, each at the full quantity. Employees open their own; admins open anyone's."
+      tags: [deliveries]
+      x-tenant-scoped: true
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EmployeeDueNextOrders' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /applications:
     get:
       operationId: listApplications
@@ -3049,6 +3362,171 @@ components:
               needsAdmin: { type: boolean, description: 'True for decreases and removals.' }
               decidedAt: { type: [string, 'null'], format: date-time }
         createdAt: { type: string, format: date-time }
+    ApproxTime:
+      type: object
+      required: [start, end]
+      properties:
+        start: { type: string, example: '14:00' }
+        end: { type: string, example: '15:00' }
+    ApproxTimeRequest:
+      type: object
+      additionalProperties: false
+      required: [start, end]
+      properties:
+        start: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$' }
+        end: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$' }
+    ApproxTimeResult:
+      type: object
+      required: [contractor, approxTime]
+      properties:
+        contractor: { type: object, properties: { id: { type: string, format: uuid } } }
+        approxTime: { $ref: '#/components/schemas/ApproxTime' }
+    ContractorWithTime:
+      type: object
+      required: [contractor, approxTime]
+      properties:
+        contractor: { $ref: '#/components/schemas/PersonRef' }
+        approxTime:
+          oneOf:
+            - $ref: '#/components/schemas/ApproxTime'
+            - type: 'null'
+    Delivery:
+      type: object
+      required:
+        [
+          id,
+          provider,
+          contractor,
+          deliveryDate,
+          window,
+          status,
+          lines,
+          pendingChange,
+          completedAt,
+          confirmedAt,
+          version,
+        ]
+      properties:
+        id:
+          {
+            type: [string, 'null'],
+            format: uuid,
+            description: 'Empty for a draft that was not saved yet.',
+          }
+        provider:
+          {
+            type: object,
+            properties: { id: { type: string, format: uuid }, name: { type: string } },
+          }
+        contractor:
+          {
+            type: object,
+            properties: { id: { type: string, format: uuid }, name: { type: string } },
+          }
+        deliveryDate: { type: string, format: date }
+        window:
+          description: 'The approximate delivery time copied when the delivery was created (DTM-1).'
+          oneOf:
+            - type: object
+              properties:
+                start: { type: string, format: date-time }
+                end: { type: string, format: date-time }
+                startTime: { type: string }
+                endTime: { type: string }
+            - type: 'null'
+        status: { type: string, enum: [not_started, draft, completed, confirmed, change_requested] }
+        lines:
+          type: array
+          items:
+            type: object
+            required:
+              [productId, productName, orderedQuantity, deliveredQuantity, difference, isUnordered]
+            properties:
+              productId: { type: string, format: uuid }
+              productName: { type: string }
+              orderedQuantity: { type: integer }
+              deliveredQuantity: { type: integer }
+              difference: { type: integer, description: 'Delivered minus ordered.' }
+              isUnordered: { type: boolean }
+        pendingChange:
+          oneOf:
+            - type: object
+              properties:
+                id: { type: string, format: uuid }
+                lines: { type: array, items: { $ref: '#/components/schemas/DeliveredLine' } }
+                reason: { type: [string, 'null'] }
+                createdAt: { type: string, format: date-time }
+            - type: 'null'
+        completedAt: { type: [string, 'null'], format: date-time }
+        confirmedAt: { type: [string, 'null'], format: date-time }
+        version: { type: integer }
+    DeliveredLine:
+      type: object
+      additionalProperties: false
+      required: [productId, deliveredQuantity]
+      properties:
+        productId: { type: string, format: uuid }
+        deliveredQuantity: { type: integer, minimum: 0 }
+    SaveDeliveryRequest:
+      type: object
+      additionalProperties: false
+      required: [lines]
+      properties:
+        lines: { type: array, maxItems: 200, items: { $ref: '#/components/schemas/DeliveredLine' } }
+    DeliveryChangeRequest:
+      type: object
+      additionalProperties: false
+      required: [lines, reason]
+      properties:
+        lines:
+          {
+            type: array,
+            minItems: 1,
+            maxItems: 200,
+            items: { $ref: '#/components/schemas/DeliveredLine' },
+          }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+    DueNextOrder:
+      type: object
+      required: [orderId, contractor, deliveryDate, approxTime, deliveryStatus, lines]
+      properties:
+        orderId: { type: string, format: uuid }
+        contractor: { $ref: '#/components/schemas/PersonRef' }
+        deliveryDate: { type: string, format: date }
+        approxTime:
+          oneOf:
+            - $ref: '#/components/schemas/ApproxTime'
+            - type: 'null'
+        deliveryStatus: { type: string, enum: [not_started, draft] }
+        lines:
+          type: array
+          items:
+            type: object
+            required: [productId, productName, quantity]
+            properties:
+              productId: { type: string, format: uuid }
+              productName: { type: string }
+              quantity: { type: integer }
+    ProductTotal:
+      type: object
+      required: [productId, productName, quantity]
+      properties:
+        productId: { type: string, format: uuid }
+        productName: { type: string }
+        quantity: { type: integer }
+    DueNextOrders:
+      type: object
+      required: [orders, totals]
+      properties:
+        orders: { type: array, items: { $ref: '#/components/schemas/DueNextOrder' } }
+        totals: { type: array, items: { $ref: '#/components/schemas/ProductTotal' } }
+    EmployeeDueNextOrders:
+      type: object
+      required: [employee, orders, totals]
+      properties:
+        employee: { $ref: '#/components/schemas/PersonRef' }
+        orders: { type: array, items: { $ref: '#/components/schemas/DueNextOrder' } }
+        totals: { type: array, items: { $ref: '#/components/schemas/ProductTotal' } }
     Member:
       type: object
       required: [id, role, status, version, user, createdAt]
