@@ -571,6 +571,114 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/teams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The caller's saved teams (TEAM-1, OUT-5)
+         * @description Private to their creator.
+         */
+        get: operations["listTeams"];
+        put?: never;
+        /**
+         * Save a team (TEAM-1, OUT-4)
+         * @description The creator is always a member. Members must be active members of the organization.
+         */
+        post: operations["createTeam"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/teams/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a saved team
+         * @description Creator only. Lines already logged keep their member list.
+         */
+        delete: operations["deleteTeam"];
+        options?: never;
+        head?: never;
+        /**
+         * Rename a saved team or change its members
+         * @description Creator only; another person's team answers 404. Lines already logged keep the members they had.
+         */
+        patch: operations["updateTeam"];
+        trace?: never;
+    };
+    "/output/{date}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Enter one day's output and cleaning hours (OUT-1, OUT-6, TEAM-2)
+         * @description Replaces the lines the person logged that day. Employees log their own output for today or yesterday; admins and the bot may log for anyone on any day (employee_id). Products must be assigned to the person; a team line needs the person in the team (TEAM-3) and is counted once (409 TEAM_LINE_EXISTS when another member already logged it).
+         */
+        put: operations["putOutput"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/output": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Output per day with credited quantity and expected time (OUT-2)
+         * @description The caller's own by default; another person's needs Everyone's daily output (admins, the bot, or employees when opened).
+         */
+        get: operations["getOutput"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/shift-output": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Shift + Output dashboard for one day (OUT-3)
+         * @description Each person's punched hours next to their output and cleaning hours, and the day's totals per product (team lines counted once).
+         */
+        get: operations["getShiftOutputDashboard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/applications": {
         parameters: {
             query?: never;
@@ -1111,6 +1219,86 @@ export interface components {
         DecisionRequest: {
             /** @enum {string} */
             decision: "approve" | "reject";
+        };
+        Team: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            members: components["schemas"]["PersonRef"][];
+            version: number;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        CreateTeamRequest: {
+            name: string;
+            memberIds: string[];
+        };
+        UpdateTeamRequest: {
+            name?: string;
+            memberIds?: string[];
+        };
+        PutOutputRequest: {
+            lines: {
+                /** Format: uuid */
+                productId: string;
+                quantity: number;
+                /**
+                 * Format: uuid
+                 * @description Empty for personal output.
+                 */
+                teamId?: string | null;
+            }[];
+            /** @default 0 */
+            cleaningHours: number;
+        };
+        OutputDay: {
+            /** Format: date */
+            date: string;
+            personal: {
+                /** Format: uuid */
+                productId: string;
+                name: string;
+                quantity: number;
+                expectedMinutes: number;
+            }[];
+            team: {
+                team: components["schemas"]["PersonRef"];
+                /** Format: uuid */
+                loggedBy: string;
+                members: components["schemas"]["PersonRef"][];
+                /** Format: uuid */
+                productId: string;
+                name: string;
+                /** @description Counted once for the team. */
+                quantity: number;
+                /** @description Equal share for each member. */
+                creditedQuantity: number;
+            }[];
+            cleaningHours: number;
+            /** @description Personal quantity plus equal shares of team lines. */
+            creditedQuantity: number;
+            /** @description Quantity / 10 x minutes per 10, team lines shared equally. */
+            expectedMinutes: number;
+        };
+        OutputHistory: {
+            employee: components["schemas"]["PersonRef"];
+            days: components["schemas"]["OutputDay"][];
+        };
+        ShiftOutputDashboard: {
+            /** Format: date */
+            date: string;
+            employees: {
+                employee: components["schemas"]["PersonRef"];
+                workedMinutes: number;
+                flags: components["schemas"]["Flag"][];
+                output: components["schemas"]["OutputDay"];
+            }[];
+            totals: {
+                /** Format: uuid */
+                productId: string;
+                name: string;
+                quantity: number;
+            }[];
         };
         Member: {
             /**
@@ -2473,6 +2661,223 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ShiftDashboard"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listTeams: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["Team"][];
+                        nextCursor: components["schemas"]["NextCursor"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createTeam: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTeamRequest"];
+            };
+        };
+        responses: {
+            /** @description OK. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Team"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteTeam: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateTeam: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTeamRequest"];
+            };
+        };
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Team"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    putOutput: {
+        parameters: {
+            query?: {
+                employee_id?: string;
+            };
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                date: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PutOutputRequest"];
+            };
+        };
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutputDay"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["Unprocessable"];
+        };
+    };
+    getOutput: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+                employee_id?: string;
+            };
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutputHistory"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getShiftOutputDashboard: {
+        parameters: {
+            query: {
+                date: string;
+            };
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShiftOutputDashboard"];
                 };
             };
             400: components["responses"]["ValidationFailed"];

@@ -30,6 +30,7 @@ tags:
   - name: members
   - name: ingredients
   - name: products
+  - name: output
   - name: shifts
 
 paths:
@@ -1054,6 +1055,184 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /teams:
+    get:
+      operationId: listTeams
+      summary: "The caller's saved teams (TEAM-1, OUT-5)"
+      description: 'Private to their creator.'
+      tags: [output]
+      x-tenant-scoped: true
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Team' }
+                  nextCursor: { $ref: '#/components/schemas/NextCursor' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      operationId: createTeam
+      summary: 'Save a team (TEAM-1, OUT-4)'
+      description: 'The creator is always a member. Members must be active members of the organization.'
+      tags: [output]
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateTeamRequest' }
+      responses:
+        '201':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Team' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /teams/{id}:
+    patch:
+      operationId: updateTeam
+      summary: 'Rename a saved team or change its members'
+      description: "Creator only; another person's team answers 404. Lines already logged keep the members they had."
+      tags: [output]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateTeamRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Team' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      operationId: deleteTeam
+      summary: 'Delete a saved team'
+      description: 'Creator only. Lines already logged keep their member list.'
+      tags: [output]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '204':
+          description: Deleted.
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /output/{date}:
+    put:
+      operationId: putOutput
+      summary: "Enter one day's output and cleaning hours (OUT-1, OUT-6, TEAM-2)"
+      description: 'Replaces the lines the person logged that day. Employees log their own output for today or yesterday; admins and the bot may log for anyone on any day (employee_id). Products must be assigned to the person; a team line needs the person in the team (TEAM-3) and is counted once (409 TEAM_LINE_EXISTS when another member already logged it).'
+      tags: [output]
+      parameters:
+        - name: date
+          in: path
+          required: true
+          schema: { type: string, format: date }
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: employee_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PutOutputRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OutputDay' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /output:
+    get:
+      operationId: getOutput
+      summary: 'Output per day with credited quantity and expected time (OUT-2)'
+      description: "The caller's own by default; another person's needs Everyone's daily output (admins, the bot, or employees when opened)."
+      tags: [output]
+      x-tenant-scoped: true
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: from
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: employee_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OutputHistory' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /dashboard/shift-output:
+    get:
+      operationId: getShiftOutputDashboard
+      summary: 'Shift + Output dashboard for one day (OUT-3)'
+      description: "Each person's punched hours next to their output and cleaning hours, and the day's totals per product (team lines counted once)."
+      tags: [output]
+      x-tenant-scoped: true
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: date
+          in: query
+          required: true
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ShiftOutputDashboard' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /applications:
     get:
       operationId: listApplications
@@ -1869,6 +2048,113 @@ components:
       required: [decision]
       properties:
         decision: { type: string, enum: [approve, reject] }
+    Team:
+      type: object
+      required: [id, name, members, version, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        members: { type: array, items: { $ref: '#/components/schemas/PersonRef' } }
+        version: { type: integer }
+        createdAt: { type: string, format: date-time }
+    CreateTeamRequest:
+      type: object
+      additionalProperties: false
+      required: [name, memberIds]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        memberIds: { type: array, maxItems: 50, items: { type: string, format: uuid } }
+    UpdateTeamRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        memberIds: { type: array, maxItems: 50, items: { type: string, format: uuid } }
+    PutOutputRequest:
+      type: object
+      additionalProperties: false
+      required: [lines]
+      properties:
+        lines:
+          type: array
+          maxItems: 200
+          items:
+            type: object
+            additionalProperties: false
+            required: [productId, quantity]
+            properties:
+              productId: { type: string, format: uuid }
+              quantity: { type: integer, minimum: 0 }
+              teamId:
+                { type: [string, 'null'], format: uuid, description: 'Empty for personal output.' }
+        cleaningHours: { type: number, minimum: 0, maximum: 24, multipleOf: 0.25, default: 0 }
+    OutputDay:
+      type: object
+      required: [date, personal, team, cleaningHours, creditedQuantity, expectedMinutes]
+      properties:
+        date: { type: string, format: date }
+        personal:
+          type: array
+          items:
+            type: object
+            required: [productId, name, quantity, expectedMinutes]
+            properties:
+              productId: { type: string, format: uuid }
+              name: { type: string }
+              quantity: { type: integer }
+              expectedMinutes: { type: number }
+        team:
+          type: array
+          items:
+            type: object
+            required: [team, loggedBy, members, productId, name, quantity, creditedQuantity]
+            properties:
+              team: { $ref: '#/components/schemas/PersonRef' }
+              loggedBy: { type: string, format: uuid }
+              members: { type: array, items: { $ref: '#/components/schemas/PersonRef' } }
+              productId: { type: string, format: uuid }
+              name: { type: string }
+              quantity: { type: integer, description: 'Counted once for the team.' }
+              creditedQuantity: { type: number, description: 'Equal share for each member.' }
+        cleaningHours: { type: number }
+        creditedQuantity:
+          { type: number, description: 'Personal quantity plus equal shares of team lines.' }
+        expectedMinutes:
+          {
+            type: number,
+            description: 'Quantity / 10 x minutes per 10, team lines shared equally.',
+          }
+    OutputHistory:
+      type: object
+      required: [employee, days]
+      properties:
+        employee: { $ref: '#/components/schemas/PersonRef' }
+        days: { type: array, items: { $ref: '#/components/schemas/OutputDay' } }
+    ShiftOutputDashboard:
+      type: object
+      required: [date, employees, totals]
+      properties:
+        date: { type: string, format: date }
+        employees:
+          type: array
+          items:
+            type: object
+            required: [employee, workedMinutes, flags, output]
+            properties:
+              employee: { $ref: '#/components/schemas/PersonRef' }
+              workedMinutes: { type: integer }
+              flags: { type: array, items: { $ref: '#/components/schemas/Flag' } }
+              output: { $ref: '#/components/schemas/OutputDay' }
+        totals:
+          type: array
+          items:
+            type: object
+            required: [productId, name, quantity]
+            properties:
+              productId: { type: string, format: uuid }
+              name: { type: string }
+              quantity: { type: integer }
     Member:
       type: object
       required: [id, role, status, version, user, createdAt]

@@ -539,6 +539,8 @@ model OutputEntry {
   productId      String   @map("product_id") @db.Uuid
   quantity       Int
   teamId         String?  @map("team_id") @db.Uuid
+  /// Team members when the line was logged (TEAM-5); empty for personal lines.
+  teamMemberIds  String[] @default([]) @map("team_member_ids") @db.Uuid
   version        Int      @default(1)
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
