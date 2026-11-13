@@ -14,12 +14,19 @@ files so every version is recorded in git.
 | Employee: Task with camera photo | `TaskPhoto.dc.html`     | TSK-2                                 |
 | Contractor: New order            | `NewOrder.dc.html`      | ORD-2 with the 10:00 rule             |
 
+## Brand
+
+Haydar Inc logo: `brand/haydar-logo.png` (also served by the web app as `/logo.png`). The
+mockup files load it from the canvas's own upload (`/_blob/...`), so they show it only on the
+canvas.
+
 ## Visual rules
 
-- Colours from `packages/ui` tokens: primary blue `#2F5D8A`, ink `#1C1C1A`, ground `#FAFAF7`;
+- Colours from `packages/ui` tokens: logo blue `#0B3A8C` (darker `#082C6B`, soft `#EAF0FA`),
+  ink `#0F1A33`, clean white ground `#FFFFFF`, borders `#E4E8F0`;
   one colour per employee on calendars; red only for differences and errors, always with an icon
   and text.
-- Type: Inter for text, Space Grotesk for headings.
+- Type: Montserrat for headings (close to the logo lettering), Inter for text.
 - Touch targets at least 44 px; the punch buttons are the largest controls on the employee home.
 - Admin and contractor screens are web pages that also work on a phone; employee screens are
   phone-first.

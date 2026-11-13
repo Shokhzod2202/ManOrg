@@ -8,26 +8,26 @@
 <body>
 <x-dc>
 <helmet>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Montserrat:wght@600;700;800&amp;display=swap" rel="stylesheet">
 <style>
-body{margin:0;background:#FAFAF7}
-a{color:#2F5D8A}a:hover{color:#1F4468}
-.muted{color:#5F5E5A;font-size:13px}
-.nav a{display:flex;align-items:center;min-height:44px;padding:0 12px;border-radius:8px;color:#3B3A36;text-decoration:none;font-size:14px}
-.nav a.on{background:#E8EEF5;color:#1F4468;font-weight:600}
-.seg{min-height:40px;padding:0 14px;border:none;border-radius:8px;background:transparent;font:500 14px Inter,sans-serif;color:#3B3A36}
-.seg.on{background:#FFFFFF;font-weight:600;color:#1C1C1A}
-.cal{display:grid;grid-template-columns:180px repeat(7,minmax(120px,1fr));min-width:1000px;background:#FFFFFF;border:1px solid #E4E2DC;border-radius:12px;overflow:hidden}
-.cal > div{border-bottom:1px solid #F0EEE9;border-right:1px solid #F0EEE9;padding:10px;min-height:76px;box-sizing:border-box}
-.head{background:#F7F6F2;font-weight:600;font-size:13px;min-height:44px !important}
+body{margin:0;background:#FFFFFF}
+a{color:#0B3A8C}a:hover{color:#082C6B}
+.muted{color:#566078;font-size:13px}
+.nav a{display:flex;align-items:center;min-height:44px;padding:0 12px;border-radius:8px;color:#2F3648;text-decoration:none;font-size:14px}
+.nav a.on{background:#EAF0FA;color:#082C6B;font-weight:600}
+.seg{min-height:40px;padding:0 14px;border:none;border-radius:8px;background:transparent;font:500 14px Inter,sans-serif;color:#2F3648}
+.seg.on{background:#FFFFFF;font-weight:600;color:#0F1A33}
+.cal{display:grid;grid-template-columns:180px repeat(7,minmax(120px,1fr));min-width:1000px;background:#FFFFFF;border:1px solid #E4E8F0;border-radius:12px;overflow:hidden}
+.cal > div{border-bottom:1px solid #F1F3F8;border-right:1px solid #F1F3F8;padding:10px;min-height:76px;box-sizing:border-box}
+.head{background:#F6F8FB;font-weight:600;font-size:13px;min-height:44px !important}
 .who{display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px}
 .block{border-radius:8px;padding:6px 8px;font-size:12px;line-height:1.35;display:flex;flex-direction:column;gap:2px}
 .flag{display:flex;align-items:center;gap:4px;color:#A61F1F;font-weight:600;font-size:12px}
 </style>
 </helmet>
-<div style="font-family: Inter, sans-serif; color: #1C1C1A; background: #FAFAF7; min-height: 100vh; display: flex; flex-wrap: wrap">
-  <nav class="nav" aria-label="Main" style="flex: 1 1 220px; max-width: 260px; box-sizing: border-box; padding: 24px 16px; display: flex; flex-direction: column; gap: 4px; border-right: 1px solid #E4E2DC; background: #FFFFFF">
-    <div style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 20px; padding: 0 12px 16px">Sunrise Bakery</div>
+<div style="font-family: Inter, sans-serif; color: #0F1A33; background: #FFFFFF; min-height: 100vh; display: flex; flex-wrap: wrap">
+  <nav class="nav" aria-label="Main" style="flex: 1 1 220px; max-width: 260px; box-sizing: border-box; padding: 24px 16px; display: flex; flex-direction: column; gap: 4px; border-right: 1px solid #E4E8F0; background: #FFFFFF">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 0 8px 18px; margin-bottom: 8px; border-bottom: 1px solid #E4E8F0"><img src="/_blob/b59ddbcc1d51170e6bd5858141cd7232" alt="Haydar Inc" style="width: 56px; height: 56px; object-fit: contain"><div style="display: flex; flex-direction: column; gap: 2px"><span style="font: 800 17px Montserrat, sans-serif; letter-spacing: 2px; color: #0B3A8C">HAYDAR</span><span style="font-size: 13px; color: #566078">Sunrise Bakery</span></div></div>
     <a href="Main.dc.html">Today</a>
     <a href="Deliveries.dc.html">Deliveries</a>
     <a href="#">Orders</a>
@@ -42,30 +42,30 @@ a{color:#2F5D8A}a:hover{color:#1F4468}
   <main style="flex: 999 1 560px; min-width: 0; box-sizing: border-box; padding: 32px; display: flex; flex-direction: column; gap: 20px">
     <header style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px">
       <div>
-        <h1 style="margin: 0; font: 700 30px 'Space Grotesk', sans-serif">Shifts</h1>
+        <h1 style="margin: 0; font: 700 30px Montserrat, sans-serif">Shifts</h1>
         <div class="muted" style="font-size: 14px">9 to 15 November · planned and punched</div>
       </div>
       <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap">
-        <div role="tablist" aria-label="Calendar view" style="display: flex; background: #EFEDE7; border-radius: 10px; padding: 3px">
+        <div role="tablist" aria-label="Calendar view" style="display: flex; background: #F1F3F8; border-radius: 10px; padding: 3px">
           <button type="button" role="tab" aria-selected="false" class="seg">Day</button>
           <button type="button" role="tab" aria-selected="true" class="seg on">Week</button>
           <button type="button" role="tab" aria-selected="false" class="seg">Month</button>
         </div>
-        <a href="#" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 8px; background: #2F5D8A; color: #FFFFFF; text-decoration: none; font-weight: 600; font-size: 14px">Shift Editor</a>
+        <a href="#" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 8px; background: #0B3A8C; color: #FFFFFF; text-decoration: none; font-weight: 600; font-size: 14px">Shift Editor</a>
       </div>
     </header>
 
     <div style="overflow-x: auto">
       <div class="cal">
-        <div class="head">Employee</div><div class="head">Mon 9</div><div class="head">Tue 10</div><div class="head">Wed 11</div><div class="head">Thu 12</div><div class="head" style="background: #E8EEF5">Fri 13 · today</div><div class="head">Sat 14</div><div class="head">Sun 15</div>
+        <div class="head">Employee</div><div class="head">Mon 9</div><div class="head">Tue 10</div><div class="head">Wed 11</div><div class="head">Thu 12</div><div class="head" style="background: #EAF0FA">Fri 13 · today</div><div class="head">Sat 14</div><div class="head">Sun 15</div>
 
-        <div class="who"><span aria-hidden="true" style="width: 10px; height: 10px; border-radius: 50%; background: #2F5D8A"></span>Mina Park</div>
-        <div><div class="block" style="background: #E1EAF3"><strong>06:00 to 14:00</strong><span>Worked 7 h 55 min</span></div></div>
-        <div><div class="block" style="background: #E1EAF3"><strong>06:00 to 14:00</strong><span>Worked 8 h</span></div></div>
+        <div class="who"><span aria-hidden="true" style="width: 10px; height: 10px; border-radius: 50%; background: #0B3A8C"></span>Mina Park</div>
+        <div><div class="block" style="background: #EAF0FA"><strong>06:00 to 14:00</strong><span>Worked 7 h 55 min</span></div></div>
+        <div><div class="block" style="background: #EAF0FA"><strong>06:00 to 14:00</strong><span>Worked 8 h</span></div></div>
         <div></div>
-        <div><div class="block" style="background: #E1EAF3"><strong>06:00 to 14:00</strong><span>Worked 7 h 50 min</span></div></div>
-        <div><div class="block" style="background: #E1EAF3"><strong>06:00 to 14:00</strong><span>Working now · 4 h 10 min</span></div></div>
-        <div><div class="block" style="background: #E1EAF3"><strong>06:00 to 14:00</strong><span class="muted">Planned</span></div></div>
+        <div><div class="block" style="background: #EAF0FA"><strong>06:00 to 14:00</strong><span>Worked 7 h 50 min</span></div></div>
+        <div><div class="block" style="background: #EAF0FA"><strong>06:00 to 14:00</strong><span>Working now · 4 h 10 min</span></div></div>
+        <div><div class="block" style="background: #EAF0FA"><strong>06:00 to 14:00</strong><span class="muted">Planned</span></div></div>
         <div></div>
 
         <div class="who"><span aria-hidden="true" style="width: 10px; height: 10px; border-radius: 50%; background: #6A4C93"></span>Joon Kim</div>

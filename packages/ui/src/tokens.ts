@@ -5,17 +5,26 @@
  * decoration. A flag must also carry an icon and text, so colour is never the only signal.
  */
 export const colors = {
+  /** Haydar Inc brand (decided 2026-11-13): logo blue on a clean white background. */
   background: '#ffffff',
-  surface: '#f6f6f4',
-  text: '#1c1c1a',
-  textMuted: '#5f5e5a',
-  border: '#dedcd6',
-  primary: '#2f5d8a',
+  surface: '#f4f7fc',
+  text: '#0f1a33',
+  textMuted: '#566078',
+  border: '#e4e8f0',
+  primary: '#0b3a8c',
+  primaryDark: '#082c6b',
+  primarySoft: '#eaf0fa',
   onPrimary: '#ffffff',
   /** Reserved: punch differences, validation errors, failed actions. */
   flag: '#c62828',
   flagSurface: '#fbebeb',
-  success: '#2e7d32',
+  success: '#24622a',
+} as const;
+
+/** Montserrat for headings (close to the logo lettering), Inter for text. */
+export const fonts = {
+  heading: "Montserrat, 'Helvetica Neue', Arial, sans-serif",
+  body: "Inter, 'Helvetica Neue', Arial, sans-serif",
 } as const;
 
 /** One colour per employee on calendar dashboards (SHF-8). Red is deliberately excluded. */
