@@ -57,7 +57,8 @@ pnpm build
 
 ## Status
 
-Phase 0 (spec section 14) is done: monorepo, CI, database with row-level security, auth,
-organizations, applications, members and roles, and the audit log. Phase 1 features have not
-started; the web and mobile apps are shells. See `docs/DECISIONS.md` for every default and
+Phase 0 is done. Phase 1: the whole API is built and tested (shifts and punch cards, output and
+teams, tasks with camera photos, products, ingredients, orders with change requests, deliveries,
+Today's Orders, dashboards, in-app notifications); the web and mobile screens are next. See
+`docs/PHASE1.md` for the status by requirement ID and `docs/DECISIONS.md` for every default and
 choice the code relies on.
