@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Today's Orders</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#2F5D8A}a:hover{color:#1F4468}
+.card{background:#FFFFFF;border:1px solid #E4E2DC;border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.muted{color:#5F5E5A;font-size:13px}
+.line{display:flex;justify-content:space-between;align-items:center;min-height:28px}
+.chip{display:inline-flex;align-items:center;min-height:36px;padding:0 14px;border-radius:18px;border:1px solid #D5D2CA;background:#FFFFFF;font:500 14px Inter,sans-serif;color:#3B3A36}
+.chip.on{background:#1F4468;border-color:#1F4468;color:#FFFFFF}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:56px;font-size:12px;color:#5F5E5A;text-decoration:none}
+.tab.on{color:#1F4468;font-weight:600}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #FAFAF7; font-family: Inter, sans-serif; color: #1C1C1A; display: flex; flex-direction: column">
+  <div style="flex: 1; overflow: hidden; padding: 20px 16px 12px; display: flex; flex-direction: column; gap: 12px">
+    <header style="display: flex; flex-direction: column; gap: 4px">
+      <h1 style="margin: 0; font: 700 24px 'Space Grotesk', sans-serif">Today's Orders</h1>
+      <div class="muted">The orders due next. This list does not change at midnight.</div>
+    </header>
+
+    <div role="tablist" aria-label="View" style="display: flex; background: #EFEDE7; border-radius: 10px; padding: 3px">
+      <button type="button" role="tab" aria-selected="true" style="flex: 1; min-height: 40px; border: none; border-radius: 8px; background: #FFFFFF; font: 600 14px Inter, sans-serif; color: #1C1C1A">All orders</button>
+      <button type="button" role="tab" aria-selected="false" style="flex: 1; min-height: 40px; border: none; border-radius: 8px; background: transparent; font: 500 14px Inter, sans-serif; color: #3B3A36">My orders</button>
+    </div>
+
+    <div style="display: flex; gap: 8px; flex-wrap: wrap" aria-label="Filter by contractor">
+      <button type="button" class="chip on">All</button>
+      <button type="button" class="chip">City Cafe</button>
+      <button type="button" class="chip">Corner Cafe</button>
+    </div>
+
+    <section class="card" aria-labelledby="change" style="border-color: #B9CCE0; background: #F3F7FB">
+      <h2 id="change" style="margin: 0; font: 600 15px Inter, sans-serif">City Cafe asks to change its order</h2>
+      <div class="line"><span>Pilaf <span class="muted">new, 5</span></span><button type="button" style="min-height: 44px; padding: 0 16px; border-radius: 10px; border: none; background: #2F5D8A; color: #FFFFFF; font: 600 14px Inter, sans-serif">Accept</button></div>
+      <div class="line"><span>Bread <span class="muted">30 → 20</span></span><span class="muted">Waiting for the admin</span></div>
+    </section>
+
+    <section class="card" aria-labelledby="o1">
+      <div style="display: flex; justify-content: space-between; align-items: baseline">
+        <h2 id="o1" style="margin: 0; font: 600 16px 'Space Grotesk', sans-serif">City Cafe</h2>
+        <span style="font-weight: 600; color: #1F4468">Sat 14 · 11:00 to 12:00</span>
+      </div>
+      <div class="line"><span>Bread</span><span style="font-weight: 600">30</span></div>
+      <div class="line"><span>Somsa</span><span style="font-weight: 600">20</span></div>
+    </section>
+
+    <section class="card" aria-labelledby="o2">
+      <div style="display: flex; justify-content: space-between; align-items: baseline">
+        <h2 id="o2" style="margin: 0; font: 600 16px 'Space Grotesk', sans-serif">Corner Cafe</h2>
+        <span style="font-weight: 600; color: #1F4468">Sat 14 · 14:00 to 15:00</span>
+      </div>
+      <div class="line"><span>Bread</span><span style="font-weight: 600">40</span></div>
+      <div class="line"><span>Somsa</span><span style="font-weight: 600">30</span></div>
+    </section>
+
+    <section class="card" aria-labelledby="tot" style="background: #F0EEE9; border-color: #E4E2DC">
+      <h2 id="tot" style="margin: 0; font: 600 15px Inter, sans-serif">Total to make</h2>
+      <div class="line"><span>Bread</span><span style="font-weight: 700">70</span></div>
+      <div class="line"><span>Somsa</span><span style="font-weight: 700">50</span></div>
+    </section>
+  </div>
+
+  <nav aria-label="App" style="display: flex; border-top: 1px solid #E4E2DC; background: #FFFFFF">
+    <a class="tab" href="EmployeeHome.dc.html">
+      <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Home</a>
+    <a class="tab on" href="#">
+      <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5h11M9 12h11M9 19h11M4 5h.01M4 12h.01M4 19h.01"/></svg>Orders</a>
+    <a class="tab" href="#">
+      <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>Output</a>
+    <a class="tab" href="#">
+      <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>Shifts</a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

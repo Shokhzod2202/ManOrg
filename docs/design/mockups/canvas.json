@@ -1,0 +1,37 @@
+{
+  "v": 3,
+  "createdOnFiles": { "v": 1, "at": "2026-11-13T15:00:00Z" },
+  "title": "ManOrg app mockups",
+  "launch": { "view": "canvas" },
+  "pages": [],
+  "boards": {
+    "Main.dc.html": { "x": 0, "y": 0, "w": 1440, "h": 1060, "title": "Admin · Today's Dashboard", "expand": "fill" },
+    "Deliveries.dc.html": { "x": 1520, "y": 0, "w": 1440, "h": 1060, "title": "Admin · Delivery management", "expand": "fill" },
+    "ShiftCalendar.dc.html": { "x": 3040, "y": 0, "w": 1440, "h": 1060, "title": "Admin · Shift calendar (week)", "expand": "fill" },
+    "EmployeeHome.dc.html": { "x": 0, "y": 1620, "w": 390, "h": 844, "title": "Employee · Home and punch card" },
+    "TodaysOrders.dc.html": { "x": 470, "y": 1620, "w": 390, "h": 844, "title": "Employee · Today's Orders" },
+    "TaskPhoto.dc.html": { "x": 940, "y": 1620, "w": 390, "h": 844, "title": "Employee · Task with camera photo" },
+    "NewOrder.dc.html": { "x": 1410, "y": 1620, "w": 390, "h": 844, "title": "Contractor · New order" }
+  },
+  "order": [
+    "Main.dc.html",
+    "Deliveries.dc.html",
+    "ShiftCalendar.dc.html",
+    "EmployeeHome.dc.html",
+    "TodaysOrders.dc.html",
+    "TaskPhoto.dc.html",
+    "NewOrder.dc.html"
+  ],
+  "notes": {
+    "webTitle": { "x": 0, "y": -300, "text": "Admin web app", "kind": "title1", "maxW": 4480 },
+    "phoneTitle": { "x": 0, "y": 1320, "text": "Employee and contractor phone app", "kind": "title1", "maxW": 1800 },
+    "rules": {
+      "x": 1900,
+      "y": 1620,
+      "w": 420,
+      "text": "Design rules used\n\n- Red only for differences and errors, always with an icon and text.\n- Punch buttons are the largest controls on the employee home.\n- Touch targets at least 44 px.\n- Today's Orders never changes at midnight: it shows the order due next.\n- Employees accept added products; smaller quantities wait for the admin.",
+      "fill": "blue"
+    }
+  },
+  "designSystems": []
+}

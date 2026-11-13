@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>New order</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#2F5D8A}a:hover{color:#1F4468}
+.muted{color:#5F5E5A;font-size:13px}
+.day{min-height:40px;border:none;border-radius:20px;background:transparent;font:500 14px Inter,sans-serif;color:#1C1C1A}
+.day.past{color:#8E8C86}
+.item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #EFEDE7}
+.step{width:44px;height:44px;border-radius:22px;border:1px solid #D5D2CA;background:#FFFFFF;font:600 20px Inter,sans-serif;color:#1F4468}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #FAFAF7; font-family: Inter, sans-serif; color: #1C1C1A; display: flex; flex-direction: column">
+  <div style="flex: 1; overflow: hidden; padding: 20px 16px 0; display: flex; flex-direction: column; gap: 12px">
+    <header>
+      <div class="muted">City Cafe ordering from</div>
+      <h1 style="margin: 0; font: 700 24px 'Space Grotesk', sans-serif">Sunrise Bakery</h1>
+    </header>
+
+    <div role="alertdialog" aria-labelledby="ask" style="background: #F3F7FB; border: 1px solid #B9CCE0; border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 10px">
+      <div id="ask" style="font-weight: 600">It is 08:40. Is this order for today?</div>
+      <div style="display: flex; gap: 8px">
+        <button type="button" style="flex: 1; min-height: 44px; border-radius: 10px; border: none; background: #2F5D8A; color: #FFFFFF; font: 600 14px Inter, sans-serif">Yes, today (Fri 13)</button>
+        <button type="button" style="flex: 1; min-height: 44px; border-radius: 10px; border: 1px solid #2F5D8A; background: #FFFFFF; color: #1F4468; font: 600 14px Inter, sans-serif">No, tomorrow</button>
+      </div>
+    </div>
+
+    <section aria-labelledby="cal" style="background: #FFFFFF; border: 1px solid #E4E2DC; border-radius: 14px; padding: 12px">
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 4px 6px">
+        <h2 id="cal" style="margin: 0; font: 600 15px Inter, sans-serif">Delivery date · November</h2>
+        <span class="muted">Delivery 11:00 to 12:00</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; text-align: center">
+        <span class="muted">Mo</span><span class="muted">Tu</span><span class="muted">We</span><span class="muted">Th</span><span class="muted">Fr</span><span class="muted">Sa</span><span class="muted">Su</span>
+        <button type="button" class="day past" disabled>9</button><button type="button" class="day past" disabled>10</button><button type="button" class="day past" disabled>11</button><button type="button" class="day past" disabled>12</button>
+        <button type="button" class="day" aria-pressed="true" style="background: #1F4468; color: #FFFFFF; font-weight: 700">13</button>
+        <button type="button" class="day">14</button><button type="button" class="day">15</button>
+        <button type="button" class="day">16</button><button type="button" class="day">17</button><button type="button" class="day">18</button><button type="button" class="day">19</button><button type="button" class="day">20</button><button type="button" class="day">21</button><button type="button" class="day">22</button>
+      </div>
+    </section>
+
+    <section aria-labelledby="prod" style="display: flex; flex-direction: column">
+      <h2 id="prod" style="margin: 0 0 4px; font: 600 15px Inter, sans-serif">Products</h2>
+      <div class="item">
+        <span aria-hidden="true" style="width: 44px; height: 44px; border-radius: 10px; background: #EADFCB"></span>
+        <span style="flex: 1">Bread</span>
+        <button type="button" class="step" aria-label="Less bread">−</button>
+        <span style="width: 36px; text-align: center; font-weight: 700">30</span>
+        <button type="button" class="step" aria-label="More bread">+</button>
+      </div>
+      <div class="item">
+        <span aria-hidden="true" style="width: 44px; height: 44px; border-radius: 10px; background: #E7D3B8"></span>
+        <span style="flex: 1">Somsa</span>
+        <button type="button" class="step" aria-label="Less somsa">−</button>
+        <span style="width: 36px; text-align: center; font-weight: 700">20</span>
+        <button type="button" class="step" aria-label="More somsa">+</button>
+      </div>
+      <div class="item">
+        <span aria-hidden="true" style="width: 44px; height: 44px; border-radius: 10px; background: #DCCFB5"></span>
+        <span style="flex: 1">Pilaf</span>
+        <button type="button" class="step" aria-label="Less pilaf">−</button>
+        <span style="width: 36px; text-align: center; font-weight: 700">0</span>
+        <button type="button" class="step" aria-label="More pilaf">+</button>
+      </div>
+    </section>
+  </div>
+
+  <div style="padding: 12px 16px 20px; border-top: 1px solid #E4E2DC; background: #FFFFFF; display: flex; flex-direction: column; gap: 6px">
+    <button type="button" style="min-height: 56px; border-radius: 14px; border: none; background: #2F5D8A; color: #FFFFFF; font: 700 17px Inter, sans-serif">Place order for Fri 13 Nov</button>
+    <div class="muted" style="text-align: center">After placing, changes go to the bakery as a request.</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

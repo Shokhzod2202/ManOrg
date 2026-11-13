@@ -9,3 +9,4 @@ packages/contracts/src/schema.d.ts
 apps/api/prisma/migrations/**/*.sql
 docs/SPEC.md
 CLAUDE.md
+docs/design/mockups

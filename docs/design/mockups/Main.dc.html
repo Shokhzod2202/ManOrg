@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Today's Dashboard</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#FAFAF7}
+a{color:#2F5D8A}a:hover{color:#1F4468}
+.card{background:#FFFFFF;border:1px solid #E4E2DC;border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.h2{margin:0;font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:600;color:#1C1C1A}
+.muted{color:#5F5E5A;font-size:13px}
+.row{display:flex;align-items:center;gap:12px}
+.nav a{display:flex;align-items:center;gap:10px;min-height:44px;padding:0 12px;border-radius:8px;color:#3B3A36;text-decoration:none;font-size:14px}
+.nav a.on{background:#E8EEF5;color:#1F4468;font-weight:600}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:600}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 14px;border-radius:8px;font:600 14px Inter,sans-serif;border:1px solid #2F5D8A;background:#2F5D8A;color:#FFFFFF;cursor:pointer}
+.btn.ghost{background:#FFFFFF;color:#2F5D8A}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-weight:600;color:#5F5E5A;font-size:12px;padding:8px 10px;border-bottom:1px solid #E4E2DC}
+td{padding:10px;border-bottom:1px solid #F0EEE9;color:#1C1C1A}
+</style>
+</helmet>
+<div style="font-family: Inter, sans-serif; color: #1C1C1A; background: #FAFAF7; min-height: 100vh; display: flex; flex-wrap: wrap">
+  <nav class="nav" aria-label="Main" style="flex: 1 1 220px; max-width: 260px; box-sizing: border-box; padding: 24px 16px; display: flex; flex-direction: column; gap: 4px; border-right: 1px solid #E4E2DC; background: #FFFFFF">
+    <div style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 20px; padding: 0 12px 16px">Sunrise Bakery</div>
+    <a class="on" href="#">Today</a>
+    <a href="Deliveries.dc.html">Deliveries</a>
+    <a href="#">Orders</a>
+    <a href="ShiftCalendar.dc.html">Shifts</a>
+    <a href="#">Output</a>
+    <a href="#">Tasks</a>
+    <a href="#">Products</a>
+    <a href="#">Ingredients</a>
+    <a href="#">People</a>
+    <a href="#">Settings</a>
+    <a href="#">Bot</a>
+  </nav>
+  <main style="flex: 999 1 560px; min-width: 0; box-sizing: border-box; padding: 32px; display: flex; flex-direction: column; gap: 24px; max-width: 1200px">
+    <header class="row" style="justify-content: space-between; flex-wrap: wrap">
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <h1 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 30px; font-weight: 700">Today</h1>
+        <div class="muted" style="font-size: 14px">Friday 13 November · Asia/Seoul</div>
+      </div>
+      <a class="btn ghost" href="#" style="text-decoration: none">Ask the bot</a>
+    </header>
+
+    <section aria-label="Waiting for you" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px">
+      <a href="#" class="card" style="text-decoration: none; gap: 6px; padding: 16px"><span class="muted">Applications</span><span style="font: 700 28px 'Space Grotesk', sans-serif; color: #1C1C1A">1</span></a>
+      <a href="#" class="card" style="text-decoration: none; gap: 6px; padding: 16px"><span class="muted">Punch change requests</span><span style="font: 700 28px 'Space Grotesk', sans-serif; color: #1C1C1A">2</span></a>
+      <a href="#" class="card" style="text-decoration: none; gap: 6px; padding: 16px"><span class="muted">Order changes</span><span style="font: 700 28px 'Space Grotesk', sans-serif; color: #1C1C1A">1</span></a>
+      <a href="#" class="card" style="text-decoration: none; gap: 6px; padding: 16px"><span class="muted">Delivery changes</span><span style="font: 700 28px 'Space Grotesk', sans-serif; color: #1C1C1A">0</span></a>
+      <a href="#" class="card" style="text-decoration: none; gap: 6px; padding: 16px"><span class="muted">Ingredient orders</span><span style="font: 700 28px 'Space Grotesk', sans-serif; color: #1C1C1A">3</span></a>
+    </section>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px">
+      <section class="card" aria-labelledby="onshift">
+        <h2 class="h2" id="onshift">On shift now</h2>
+        <div class="row"><span aria-hidden="true" style="width: 10px; height: 10px; border-radius: 50%; background: #2F5D8A"></span><span style="flex: 1">Mina Park</span><span class="pill" style="background: #E6F2E7; color: #24622A">Working · 4 h 10 min</span></div>
+        <div class="row"><span aria-hidden="true" style="width: 10px; height: 10px; border-radius: 50%; background: #6A4C93"></span><span style="flex: 1">Joon Kim</span><span class="pill" style="background: #F3EFE2; color: #6B5413">Paused · since 11:40</span></div>
+        <div class="row"><span aria-hidden="true" style="width: 10px; height: 10px; border-radius: 50%; background: #1B7F79"></span><span style="flex: 1">Dilnoza Rahimova</span><span class="pill" style="background: #E6F2E7; color: #24622A">Working · night shift from Thu 22:00</span></div>
+      </section>
+
+      <section class="card" aria-labelledby="flags">
+        <h2 class="h2" id="flags">Red flags today</h2>
+        <div class="row" style="align-items: flex-start">
+          <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C62828" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+          <div style="flex: 1"><div style="font-weight: 600">Joon Kim · Started 25 minutes late</div><div class="muted">Planned 06:00, punched 06:25</div></div>
+          <a href="ShiftCalendar.dc.html" style="font-size: 14px">Fix</a>
+        </div>
+        <div class="row" style="align-items: flex-start">
+          <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C62828" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+          <div style="flex: 1"><div style="font-weight: 600">Aziz Karimov · Planned shift with no punch</div><div class="muted">Planned 07:00 to 15:00</div></div>
+          <a href="ShiftCalendar.dc.html" style="font-size: 14px">Fix</a>
+        </div>
+      </section>
+    </div>
+
+    <section class="card" aria-labelledby="duenext">
+      <div class="row" style="justify-content: space-between; flex-wrap: wrap">
+        <h2 class="h2" id="duenext">Orders due next</h2>
+        <span class="muted">Sorted by delivery time · stays the same after midnight</span>
+      </div>
+      <div style="overflow-x: auto">
+        <table>
+          <thead><tr><th scope="col">Contractor</th><th scope="col">Delivery</th><th scope="col">Bread</th><th scope="col">Somsa</th><th scope="col">Pilaf</th><th scope="col">Status</th></tr></thead>
+          <tbody>
+            <tr><td>City Cafe</td><td>Sat 14 Nov · 11:00 to 12:00</td><td>30</td><td>20</td><td>5</td><td><span class="pill" style="background: #F0EEE9; color: #3B3A36">Not started</span></td></tr>
+            <tr><td>Corner Cafe</td><td>Sat 14 Nov · 14:00 to 15:00</td><td>40</td><td>30</td><td>0</td><td><span class="pill" style="background: #E8EEF5; color: #1F4468">Draft</span></td></tr>
+            <tr><td style="font-weight: 600">Total to make</td><td></td><td style="font-weight: 600">70</td><td style="font-weight: 600">50</td><td style="font-weight: 600">5</td><td></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px">
+      <section class="card" aria-labelledby="tasks">
+        <h2 class="h2" id="tasks">Tasks due</h2>
+        <div class="row"><span style="flex: 1">Clean the ovens</span><span class="muted">Mina Park · today</span></div>
+        <div class="row"><span style="flex: 1">Order 2 packs of Flour</span><span class="muted">Ingredient order · from Joon Kim</span></div>
+        <div class="row"><span style="flex: 1">Wipe the counters</span><span class="pill" style="background: #E6F2E7; color: #24622A">Done with photo</span></div>
+      </section>
+      <section class="card" aria-labelledby="output">
+        <h2 class="h2" id="output">Output today</h2>
+        <div class="row"><span style="flex: 1">Bread</span><span style="font-weight: 600">60</span></div>
+        <div class="row"><span style="flex: 1">Somsa</span><span style="font-weight: 600">45</span></div>
+        <div class="row"><span style="flex: 1">Pilaf (Team A)</span><span style="font-weight: 600">30</span></div>
+      </section>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1060}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

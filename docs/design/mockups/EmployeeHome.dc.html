@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Employee home</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#2F5D8A}a:hover{color:#1F4468}
+.card{background:#FFFFFF;border:1px solid #E4E2DC;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.muted{color:#5F5E5A;font-size:13px}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:56px;font-size:12px;color:#5F5E5A;text-decoration:none}
+.tab.on{color:#1F4468;font-weight:600}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #FAFAF7; font-family: Inter, sans-serif; color: #1C1C1A; display: flex; flex-direction: column">
+  <div style="flex: 1; overflow: hidden; padding: 20px 16px 12px; display: flex; flex-direction: column; gap: 14px">
+    <header style="display: flex; justify-content: space-between; align-items: center">
+      <div>
+        <div class="muted">Sunrise Bakery</div>
+        <h1 style="margin: 0; font: 700 24px 'Space Grotesk', sans-serif">Hi, Mina</h1>
+      </div>
+      <a href="#" aria-label="Notifications, 2 unread" style="position: relative; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 22px; background: #FFFFFF; border: 1px solid #E4E2DC">
+        <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1C1C1A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>
+        <span style="position: absolute; top: 6px; right: 6px; min-width: 16px; height: 16px; border-radius: 8px; background: #2F5D8A; color: #FFFFFF; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center">2</span>
+      </a>
+    </header>
+
+    <section class="card" aria-labelledby="punch" style="gap: 14px">
+      <div style="display: flex; justify-content: space-between; align-items: baseline">
+        <h2 id="punch" style="margin: 0; font: 600 17px 'Space Grotesk', sans-serif">Punch card</h2>
+        <span class="muted">Today 06:00 to 14:00</span>
+      </div>
+      <div style="display: flex; align-items: baseline; gap: 10px">
+        <span style="font: 700 44px 'Space Grotesk', sans-serif; letter-spacing: -1px">4:10</span>
+        <span style="color: #24622A; font-weight: 600">Working since 06:02</span>
+      </div>
+      <button type="button" style="min-height: 72px; border-radius: 14px; border: 2px solid #2F5D8A; background: #FFFFFF; color: #1F4468; font: 700 20px Inter, sans-serif">Pause shift</button>
+      <button type="button" style="min-height: 72px; border-radius: 14px; border: none; background: #2F5D8A; color: #FFFFFF; font: 700 20px Inter, sans-serif">End shift</button>
+      <a href="#" style="font-size: 14px; align-self: flex-start">Time looks wrong? Ask for a correction</a>
+    </section>
+
+    <section class="card" aria-labelledby="myorders">
+      <div style="display: flex; justify-content: space-between; align-items: baseline">
+        <h2 id="myorders" style="margin: 0; font: 600 17px 'Space Grotesk', sans-serif">My orders to make</h2>
+        <a href="TodaysOrders.dc.html" style="font-size: 14px">All orders</a>
+      </div>
+      <div style="display: flex; justify-content: space-between"><span>Bread</span><span style="font-weight: 600">70</span></div>
+      <div style="display: flex; justify-content: space-between"><span>Somsa</span><span style="font-weight: 600">50</span></div>
+      <div class="muted">For Sat 14 Nov deliveries · City Cafe 11:00, Corner Cafe 14:00</div>
+    </section>
+
+    <section class="card" aria-labelledby="tasks">
+      <h2 id="tasks" style="margin: 0; font: 600 17px 'Space Grotesk', sans-serif">My tasks</h2>
+      <a href="TaskPhoto.dc.html" style="display: flex; justify-content: space-between; align-items: center; min-height: 44px; text-decoration: none; color: #1C1C1A">
+        <span>Clean the ovens</span><span class="muted">Due today ›</span>
+      </a>
+    </section>
+  </div>
+
+  <nav aria-label="App" style="display: flex; border-top: 1px solid #E4E2DC; background: #FFFFFF">
+    <a class="tab on" href="#">
+      <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Home</a>
+    <a class="tab" href="TodaysOrders.dc.html">
+      <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5h11M9 12h11M9 19h11M4 5h.01M4 12h.01M4 19h.01"/></svg>Orders</a>
+    <a class="tab" href="#">
+      <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>Output</a>
+    <a class="tab" href="#">
+      <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>Shifts</a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>
