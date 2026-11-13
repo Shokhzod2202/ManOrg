@@ -1,17 +1,88 @@
 {
   "v": 3,
-  "createdOnFiles": { "v": 1, "at": "2026-11-13T15:00:00Z" },
+  "createdOnFiles": {
+    "v": 1,
+    "at": "2026-11-13T15:00:00Z"
+  },
   "title": "ManOrg app mockups",
-  "launch": { "view": "canvas" },
+  "launch": {
+    "view": "canvas"
+  },
   "pages": [],
   "boards": {
-    "Main.dc.html": { "x": 0, "y": 0, "w": 1440, "h": 1060, "title": "Admin · Today's Dashboard", "expand": "fill" },
-    "Deliveries.dc.html": { "x": 1520, "y": 0, "w": 1440, "h": 1060, "title": "Admin · Delivery management", "expand": "fill" },
-    "ShiftCalendar.dc.html": { "x": 3040, "y": 0, "w": 1440, "h": 1060, "title": "Admin · Shift calendar (week)", "expand": "fill" },
-    "EmployeeHome.dc.html": { "x": 0, "y": 1620, "w": 390, "h": 844, "title": "Employee · Home and punch card" },
-    "TodaysOrders.dc.html": { "x": 470, "y": 1620, "w": 390, "h": 844, "title": "Employee · Today's Orders" },
-    "TaskPhoto.dc.html": { "x": 940, "y": 1620, "w": 390, "h": 844, "title": "Employee · Task with camera photo" },
-    "NewOrder.dc.html": { "x": 1410, "y": 1620, "w": 390, "h": 844, "title": "Contractor · New order" }
+    "Main.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 1060,
+      "title": "Admin \u00b7 Today's Dashboard",
+      "expand": "fill"
+    },
+    "Deliveries.dc.html": {
+      "x": 1520,
+      "y": 0,
+      "w": 1440,
+      "h": 1060,
+      "title": "Admin \u00b7 Delivery management",
+      "expand": "fill"
+    },
+    "ShiftCalendar.dc.html": {
+      "x": 3040,
+      "y": 0,
+      "w": 1440,
+      "h": 1060,
+      "title": "Admin \u00b7 Shift calendar (week)",
+      "expand": "fill"
+    },
+    "EmployeeHome.dc.html": {
+      "x": 0,
+      "y": 1620,
+      "w": 390,
+      "h": 844,
+      "title": "Employee \u00b7 Home and punch card"
+    },
+    "TodaysOrders.dc.html": {
+      "x": 470,
+      "y": 1620,
+      "w": 390,
+      "h": 844,
+      "title": "Employee \u00b7 Today's Orders"
+    },
+    "TaskPhoto.dc.html": {
+      "x": 940,
+      "y": 1620,
+      "w": 390,
+      "h": 844,
+      "title": "Employee \u00b7 Task with camera photo"
+    },
+    "NewOrder.dc.html": {
+      "x": 1410,
+      "y": 1620,
+      "w": 390,
+      "h": 844,
+      "title": "Contractor \u00b7 New order"
+    },
+    "MainPhone.dc.html": {
+      "x": 0,
+      "y": 2780,
+      "w": 390,
+      "h": 1700,
+      "title": "Admin \u00b7 Today's Dashboard on a phone"
+    },
+    "DeliveriesPhone.dc.html": {
+      "x": 470,
+      "y": 2780,
+      "w": 390,
+      "h": 1500,
+      "title": "Admin \u00b7 Delivery management on a phone"
+    },
+    "ShiftCalendarPhone.dc.html": {
+      "x": 940,
+      "y": 2780,
+      "w": 390,
+      "h": 1000,
+      "title": "Admin \u00b7 Shifts on a phone"
+    }
   },
   "order": [
     "Main.dc.html",
@@ -20,17 +91,39 @@
     "EmployeeHome.dc.html",
     "TodaysOrders.dc.html",
     "TaskPhoto.dc.html",
-    "NewOrder.dc.html"
+    "NewOrder.dc.html",
+    "MainPhone.dc.html",
+    "DeliveriesPhone.dc.html",
+    "ShiftCalendarPhone.dc.html"
   ],
   "notes": {
-    "webTitle": { "x": 0, "y": -300, "text": "Admin web app", "kind": "title1", "maxW": 4480 },
-    "phoneTitle": { "x": 0, "y": 1320, "text": "Employee and contractor phone app", "kind": "title1", "maxW": 1800 },
+    "webTitle": {
+      "x": 0,
+      "y": -300,
+      "text": "Admin web app",
+      "kind": "title1",
+      "maxW": 4480
+    },
+    "phoneTitle": {
+      "x": 0,
+      "y": 1320,
+      "text": "Employee and contractor phone app",
+      "kind": "title1",
+      "maxW": 1800
+    },
     "rules": {
       "x": 1900,
       "y": 1620,
       "w": 420,
       "text": "Design rules used\n\n- Red only for differences and errors, always with an icon and text.\n- Punch buttons are the largest controls on the employee home.\n- Touch targets at least 44 px.\n- Today's Orders never changes at midnight: it shows the order due next.\n- Employees accept added products; smaller quantities wait for the admin.",
       "fill": "blue"
+    },
+    "phoneWebTitle": {
+      "x": 0,
+      "y": 2480,
+      "text": "The same admin website, opened on a phone",
+      "kind": "title1",
+      "maxW": 1330
     }
   },
   "designSystems": []

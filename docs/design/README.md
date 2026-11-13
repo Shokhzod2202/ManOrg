@@ -28,5 +28,5 @@ canvas.
   and text.
 - Type: Montserrat for headings (close to the logo lettering), Inter for text.
 - Touch targets at least 44 px; the punch buttons are the largest controls on the employee home.
-- Admin and contractor screens are web pages that also work on a phone; employee screens are
-  phone-first.
+- Admin and contractor screens are web pages that turn into the phone app layout below 760 px
+  (bottom tab bar, compact top bar, tables as labelled cards); employee screens are phone-first.

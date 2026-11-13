@@ -23,9 +23,33 @@ a{color:#0B3A8C}a:hover{color:#082C6B}
 .who{display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px}
 .block{border-radius:8px;padding:6px 8px;font-size:12px;line-height:1.35;display:flex;flex-direction:column;gap:2px}
 .flag{display:flex;align-items:center;gap:4px;color:#A61F1F;font-weight:600;font-size:12px}
+
+.mtop,.mbar{display:none}
+@media (max-width: 760px){
+nav.nav{display:none !important}
+.mtop{display:flex !important;flex:1 1 100%;align-items:center;gap:10px;padding:10px 16px;background:#FFFFFF;border-bottom:1px solid #E4E8F0;box-sizing:border-box}
+.mbar{display:flex !important;position:fixed;left:0;right:0;bottom:0;background:#FFFFFF;border-top:1px solid #E4E8F0;z-index:5}
+.mbar a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:58px;font-size:11px;color:#566078;text-decoration:none}
+.mbar a.on{color:#0B3A8C;font-weight:600}
+main{padding:16px 16px 96px !important;gap:16px !important}
+main h1{font-size:24px !important}
+.rtable thead{display:none}
+.rtable,.rtable tbody,.rtable tr,.rtable td{display:block;width:auto}
+.rtable tr{border:1px solid #E4E8F0;border-radius:12px;padding:6px 12px;margin-bottom:10px;background:#FFFFFF}
+.rtable td{border:none !important;padding:6px 0 !important;display:flex !important;justify-content:space-between;align-items:center;gap:12px}
+.rtable td::before{content:attr(data-label);color:#566078;font-size:13px;font-weight:500}
+}
+@media (max-width: 760px){
+.cal{grid-template-columns:130px minmax(0,1fr) !important;min-width:0 !important}
+.cal > div:not(:nth-child(8n+1)):not(:nth-child(8n+6)){display:none !important}
+.views{display:none !important}
+.phone-note{display:block !important}
+}
+.phone-note{display:none}
 </style>
 </helmet>
 <div style="font-family: Inter, sans-serif; color: #0F1A33; background: #FFFFFF; min-height: 100vh; display: flex; flex-wrap: wrap">
+  <header class="mtop"><img src="/_blob/b59ddbcc1d51170e6bd5858141cd7232" alt="Haydar Inc" style="width: 40px; height: 40px; object-fit: contain"><div style="flex: 1; display: flex; flex-direction: column"><span style="font: 800 15px Montserrat, sans-serif; letter-spacing: 2px; color: #0B3A8C">HAYDAR</span><span style="font-size: 12px; color: #566078">Sunrise Bakery</span></div><a href="#" aria-label="Notifications" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 22px; border: 1px solid #E4E8F0"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F1A33" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg></a></header>
   <nav class="nav" aria-label="Main" style="flex: 1 1 220px; max-width: 260px; box-sizing: border-box; padding: 24px 16px; display: flex; flex-direction: column; gap: 4px; border-right: 1px solid #E4E8F0; background: #FFFFFF">
     <div style="display: flex; align-items: center; gap: 10px; padding: 0 8px 18px; margin-bottom: 8px; border-bottom: 1px solid #E4E8F0"><img src="/_blob/b59ddbcc1d51170e6bd5858141cd7232" alt="Haydar Inc" style="width: 56px; height: 56px; object-fit: contain"><div style="display: flex; flex-direction: column; gap: 2px"><span style="font: 800 17px Montserrat, sans-serif; letter-spacing: 2px; color: #0B3A8C">HAYDAR</span><span style="font-size: 13px; color: #566078">Sunrise Bakery</span></div></div>
     <a href="Main.dc.html">Today</a>
@@ -46,7 +70,7 @@ a{color:#0B3A8C}a:hover{color:#082C6B}
         <div class="muted" style="font-size: 14px">9 to 15 November · planned and punched</div>
       </div>
       <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap">
-        <div role="tablist" aria-label="Calendar view" style="display: flex; background: #F1F3F8; border-radius: 10px; padding: 3px">
+        <div class="views" role="tablist" aria-label="Calendar view" style="display: flex; background: #F1F3F8; border-radius: 10px; padding: 3px">
           <button type="button" role="tab" aria-selected="false" class="seg">Day</button>
           <button type="button" role="tab" aria-selected="true" class="seg on">Week</button>
           <button type="button" role="tab" aria-selected="false" class="seg">Month</button>
@@ -55,6 +79,7 @@ a{color:#0B3A8C}a:hover{color:#082C6B}
       </div>
     </header>
 
+    <div class="phone-note muted">Today on this phone. Open on a larger screen for the week and month views.</div>
     <div style="overflow-x: auto">
       <div class="cal">
         <div class="head">Employee</div><div class="head">Mon 9</div><div class="head">Tue 10</div><div class="head">Wed 11</div><div class="head">Thu 12</div><div class="head" style="background: #EAF0FA">Fri 13 · today</div><div class="head">Sat 14</div><div class="head">Sun 15</div>
@@ -101,6 +126,7 @@ a{color:#0B3A8C}a:hover{color:#082C6B}
     </div>
     <div class="muted">Night shifts belong to the day they start and show both dates. Red always comes with an icon and words.</div>
   </main>
+  <nav class="mbar" aria-label="Main"><a href="Main.dc.html"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Today</a><a href="#"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5h11M9 12h11M9 19h11M4 5h.01M4 12h.01M4 19h.01"/></svg>Orders</a><a href="Deliveries.dc.html"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7z"/><circle cx="7" cy="18" r="1.6"/><circle cx="17" cy="18" r="1.6"/></svg>Deliveries</a><a href="ShiftCalendar.dc.html" class="on" aria-current="page"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>Shifts</a><a href="#"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>More</a></nav>
 </div>
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1060}}'>
