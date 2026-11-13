@@ -12,6 +12,7 @@ import { HealthController } from './health/health.controller';
 import { ProductsController } from './products/products.controller';
 import { ProductsService } from './products/products.service';
 import { NotificationsModule } from './notifications/notifications.module';
+import { OrdersModule } from './orders/orders.module';
 import { OutputModule } from './output/output.module';
 import { TasksModule } from './tasks/tasks.module';
 import { ShiftsModule } from './shifts/shifts.module';
@@ -42,6 +43,7 @@ import { OrgContextGuard } from './permissions/org-context.guard';
     OutputModule,
     NotificationsModule,
     TasksModule,
+    OrdersModule,
   ],
   controllers: [
     HealthController,

@@ -85,6 +85,9 @@ const MATRIX = {
     org_admin: 'any',
     contractor_admin: false,
   },
+  // Decided 2026-11-13: anyone at the provider accepts added products or larger quantities in a
+  // contractor's change request; smaller quantities and removals need orders.edit (the admin).
+  'orders.acceptAdditions': { employee: 'any', org_admin: 'any', contractor_admin: false },
   'employeeAccess.manage': { employee: false, org_admin: 'any', contractor_admin: false },
   'botAccess.manage': { employee: false, org_admin: 'any', contractor_admin: false },
 

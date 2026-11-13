@@ -7,6 +7,8 @@ export interface Operation {
   path: string;
   operationId: string;
   tenantScoped: boolean | undefined;
+  /** Who calls it in the isolation suite when not the admin: `contractor`. */
+  actor: string | undefined;
   security: unknown[] | undefined;
   parameters: { $ref?: string; name?: string; in?: string }[];
   responses: Record<string, unknown>;
@@ -18,7 +20,10 @@ export interface OpenApiDoc {
     string,
     Record<
       string,
-      Omit<Operation, 'method' | 'path' | 'tenantScoped'> & { 'x-tenant-scoped'?: boolean }
+      Omit<Operation, 'method' | 'path' | 'tenantScoped' | 'actor'> & {
+        'x-tenant-scoped'?: boolean;
+        'x-tenant-actor'?: string;
+      }
     >
   >;
 }
@@ -35,6 +40,7 @@ export function loadOpenApi(): { doc: OpenApiDoc; operations: Operation[] } {
         path: p,
         operationId: op.operationId,
         tenantScoped: op['x-tenant-scoped'],
+        actor: op['x-tenant-actor'],
         security: op.security,
         parameters: op.parameters ?? [],
         responses: op.responses ?? {},

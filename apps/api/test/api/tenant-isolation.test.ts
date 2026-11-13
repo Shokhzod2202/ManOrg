@@ -25,6 +25,7 @@ function urlFor(op: (typeof operations)[number]): string {
     schema?: { format?: string };
   }[]) {
     if (p.in !== 'query' || !p.required || !p.name) continue;
+    if (p.name === 'provider_id') query.push(`provider_id=${w.a.id}`);
     if (p.schema?.format === 'date') {
       const d = new Date(Date.now() + (p.name === 'from' ? -14 : 1) * 86_400_000);
       query.push(`${p.name}=${d.toISOString().slice(0, 10)}`);
@@ -110,7 +111,17 @@ describe.each(listOps.map((op) => [op.operationId, op] as const))('GET %s', (_id
       { me: w.b, other: w.a },
     ] as const;
 
-  it('returns none of the other organization’s ids', async () => {
+  it.runIf(op.actor === 'contractor')(
+    'shows a contractor nothing of providers it does not buy from',
+    async () => {
+      const res = await api.as(w.contractor.admin, w.contractor.id).get(urlFor(op)).expect(200);
+      const seen = new Set(JSON.stringify(res.body).match(UUID) ?? []);
+      const foreign = [...(owned.get(w.b.id) ?? [])].filter((id) => seen.has(id));
+      expect({ op: op.operationId, foreign }).toEqual({ op: op.operationId, foreign: [] });
+    },
+  );
+
+  it.runIf(op.actor !== 'contractor')('returns none of the other organization’s ids', async () => {
     for (const { me, other } of pairs()) {
       // Called as the admin; operations only employees use (the punch card) fall back to the employee.
       let res = await api.as(me.admin, requiresOrgHeader(op) ? me.id : undefined).get(urlFor(op));
@@ -131,11 +142,14 @@ describe.each(listOps.map((op) => [op.operationId, op] as const))('GET %s', (_id
     }
   });
 
-  it.runIf(op.tenantScoped)('answers 404 when asked for the other organization', async () => {
-    for (const { me, other } of pairs()) {
-      await api.as(me.admin, other.id).get(urlFor(op)).expect(404);
-    }
-  });
+  it.runIf(op.tenantScoped && op.actor !== 'contractor')(
+    'answers 404 when asked for the other organization',
+    async () => {
+      for (const { me, other } of pairs()) {
+        await api.as(me.admin, other.id).get(urlFor(op)).expect(404);
+      }
+    },
+  );
 
   it.runIf(op.tenantScoped)('does not leak to a contractor admin', async () => {
     await api.as(w.contractor.admin, w.a.id).get(urlFor(op)).expect(404);

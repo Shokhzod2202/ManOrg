@@ -159,6 +159,20 @@ export async function createTenantWithEveryTable(label: string): Promise<TenantF
         quantity: 30,
       },
     });
+    const change = await tx.orderChangeRequest.create({
+      data: { ...sale, orderId: order.id, requestedById: contractorAdmin!.id },
+    });
+    await tx.orderChangeItem.create({
+      data: {
+        ...sale,
+        requestId: change.id,
+        productId: product.id,
+        productName: 'Bread',
+        fromQuantity: 30,
+        toQuantity: 40,
+        kind: 'increase',
+      },
+    });
     const delivery = await tx.delivery.create({
       data: { ...sale, orderId: order.id, deliveryDate: new Date('2026-11-02') },
     });

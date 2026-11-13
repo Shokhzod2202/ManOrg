@@ -100,6 +100,23 @@ enum OrderStatus {
   @@map("order_status")
 }
 
+enum ChangeItemKind {
+  add
+  increase
+  decrease
+  remove
+
+  @@map("change_item_kind")
+}
+
+enum ChangeItemStatus {
+  pending
+  accepted
+  rejected
+
+  @@map("change_item_status")
+}
+
 enum DeliveryStatus {
   draft
   completed
@@ -233,6 +250,8 @@ model Organization {
   ingredientResponsibilities IngredientResponsibility[]
   ingredientOrders           IngredientOrder[]
   ingredientPrices           IngredientPrice[]
+  orderChangeRequests        OrderChangeRequest[]
+  orderChangeItems           OrderChangeItem[]
 
   @@index([name])
   @@map("organizations")
@@ -639,10 +658,11 @@ model Order {
   createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  bakery     Organization @relation("orderBakery", fields: [organizationId], references: [id], onDelete: Restrict)
-  contractor Organization @relation("orderContractor", fields: [contractorOrgId], references: [id], onDelete: Restrict)
-  lines      OrderLine[]
-  deliveries Delivery[]
+  bakery         Organization         @relation("orderBakery", fields: [organizationId], references: [id], onDelete: Restrict)
+  contractor     Organization         @relation("orderContractor", fields: [contractorOrgId], references: [id], onDelete: Restrict)
+  lines          OrderLine[]
+  deliveries     Delivery[]
+  changeRequests OrderChangeRequest[]
 
   @@unique([id, organizationId, contractorOrgId])
   @@index([organizationId, deliveryDate])
@@ -665,6 +685,53 @@ model OrderLine {
   order        Order        @relation(fields: [orderId, organizationId, contractorOrgId], references: [id, organizationId, contractorOrgId], onDelete: Cascade)
 
   @@map("order_lines")
+}
+
+/// A contractor's edit to a placed order (decided 2026-11-13): it never changes the order itself.
+/// Each product change is an item; employees or admins accept additions and increases, only the
+/// admin accepts decreases and removals.
+model OrderChangeRequest {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  contractorOrgId String   @map("contractor_org_id") @db.Uuid
+  orderId         String   @map("order_id") @db.Uuid
+  requestedById   String   @map("requested_by") @db.Uuid
+  note            String?
+  /// open while any item is pending, then closed.
+  status          String   @default("open")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  order        Order             @relation(fields: [orderId, organizationId, contractorOrgId], references: [id, organizationId, contractorOrgId], onDelete: Cascade)
+  items        OrderChangeItem[]
+
+  @@unique([id, organizationId, contractorOrgId])
+  @@index([organizationId, status])
+  @@map("order_change_requests")
+}
+
+model OrderChangeItem {
+  id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId  String           @map("organization_id") @db.Uuid
+  contractorOrgId String           @map("contractor_org_id") @db.Uuid
+  requestId       String           @map("request_id") @db.Uuid
+  productId       String           @map("product_id") @db.Uuid
+  productName     String           @map("product_name")
+  fromQuantity    Int              @map("from_quantity")
+  toQuantity      Int              @map("to_quantity")
+  kind            ChangeItemKind
+  status          ChangeItemStatus @default(pending)
+  decidedById     String?          @map("decided_by") @db.Uuid
+  decidedAt       DateTime?        @map("decided_at") @db.Timestamptz(3)
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  request      OrderChangeRequest @relation(fields: [requestId, organizationId, contractorOrgId], references: [id, organizationId, contractorOrgId], onDelete: Cascade)
+
+  @@index([requestId])
+  @@map("order_change_items")
 }
 
 /// One delivery per contractor per day. A confirmed delivery is locked.
