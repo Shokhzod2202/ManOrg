@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Production board</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Montserrat:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#FFFFFF}
+a{color:#0B3A8C}a:hover{color:#082C6B}
+.chip{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:18px;background:#EAF0FA;color:#082C6B;font-size:14px}
+.tab{min-height:44px;padding:0 18px;border:1px solid #CAD2E0;border-radius:22px;background:#FFFFFF;font:600 15px Inter,sans-serif;color:#2F3648}
+.tab.on{background:#0B3A8C;border-color:#0B3A8C;color:#FFFFFF}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(520px,1fr));gap:16px;align-items:start}
+.cat{border:1px solid #E4E8F0;border-radius:14px;overflow:hidden;background:#FFFFFF}
+table{width:100%;border-collapse:collapse}
+caption{text-align:left;padding:12px 16px;font:700 17px Montserrat,sans-serif;color:#0F1A33;background:#F6F8FB;border-bottom:1px solid #E4E8F0}
+.count{font:600 13px Inter,sans-serif;color:#566078;margin-left:6px}
+th,td{padding:7px 12px;border-bottom:1px solid #F1F3F8;font-size:15px}
+thead th{font-size:12px;color:#566078;font-weight:600;text-align:center;line-height:1.3}
+.time{font-weight:500}
+tbody th{text-align:left;font-weight:600;color:#0F1A33}
+.pname{margin-right:8px}
+.q{text-align:center;width:84px;color:#2F3648}
+.q.zero{color:#B6BDCB}
+.tot{text-align:center;width:72px;font:800 20px Montserrat,sans-serif;color:#0B3A8C;background:#F4F7FC}
+thead .tot{font:600 12px Inter,sans-serif;color:#082C6B}
+tr.hl th,tr.hl td{background:#F4F7FC}
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font:700 12px Inter,sans-serif;vertical-align:middle}
+@media (max-width: 760px){
+.grid{grid-template-columns:1fr}
+.q{width:56px}
+}
+</style>
+</helmet>
+<div style="font-family: Inter, sans-serif; color: #0F1A33; background: #FFFFFF; min-height: 100vh; box-sizing: border-box; padding: 24px 24px 48px">
+  <div style="max-width: 1180px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px">
+    <header style="display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center">
+      <img src="/_blob/b59ddbcc1d51170e6bd5858141cd7232" alt="Haydar Inc" style="width: 56px; height: 56px; object-fit: contain">
+      <h1 style="margin: 0; font: 800 32px Montserrat, sans-serif; color: #0F1A33">Orders due next · Saturday 14 November</h1>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center"><span class="chip"><strong>City Cafe</strong> 11:00</span><span class="chip"><strong>Corner Cafe</strong> 14:00</span><span class="chip"><strong>Station Kiosk</strong> 16:00</span></div>
+    </header>
+
+    <a href="#" style="align-self: center; display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 18px; border-radius: 12px; background: #FFF1CC; border: 1px solid #E9C66B; color: #6B4600; text-decoration: none; font-weight: 600">
+      <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+      3 order changes · 2 accepted, 1 waiting for the admin</a>
+
+    <div style="display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap">
+      <label style="display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border: 1px solid #CAD2E0; border-radius: 22px; min-width: 260px">
+        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#566078" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <span style="position: absolute; left: -9999px">Find a product</span>
+        <input type="search" placeholder="Find a product" style="border: none; outline: none; font: 500 15px Inter, sans-serif; flex: 1; min-width: 0">
+      </label>
+      <div role="tablist" aria-label="Show" style="display: flex; gap: 6px">
+        <button type="button" role="tab" aria-selected="true" class="tab on">All 30</button>
+        <button type="button" role="tab" aria-selected="false" class="tab">Mine 6</button>
+        <button type="button" role="tab" aria-selected="false" class="tab">Changed 3</button>
+      </div>
+      <a href="#" style="font-size: 14px">Show all 45 products</a>
+    </div>
+
+    <div class="grid">
+      <section class="cat" aria-labelledby="cat-Bread">
+        <table>
+          <caption id="cat-Bread">Bread <span class="count">8</span></caption>
+          <thead><tr><th scope="col" style="text-align: left">Product</th><th scope="col" class="q">City Cafe<br><span class="time">11:00</span></th><th scope="col" class="q">Corner Cafe<br><span class="time">14:00</span></th><th scope="col" class="q">Station Kiosk<br><span class="time">16:00</span></th><th scope="col" class="tot">Total</th></tr></thead>
+          <tbody>
+            <tr><th scope="row"><span class="pname">White bread</span></th><td class="q" data-label="City Cafe">30</td><td class="q" data-label="Corner Cafe">40</td><td class="q" data-label="Station Kiosk">10</td><td class="tot" data-label="Total">80</td></tr>
+            <tr><th scope="row"><span class="pname">Rye bread</span></th><td class="q" data-label="City Cafe">10</td><td class="q zero" data-label="Corner Cafe">·</td><td class="q" data-label="Station Kiosk">6</td><td class="tot" data-label="Total">16</td></tr>
+            <tr><th scope="row"><span class="pname">Baguette</span></th><td class="q" data-label="City Cafe">12</td><td class="q" data-label="Corner Cafe">20</td><td class="q zero" data-label="Station Kiosk">·</td><td class="tot" data-label="Total">32</td></tr>
+            <tr><th scope="row"><span class="pname">Tandir non</span></th><td class="q" data-label="City Cafe">40</td><td class="q" data-label="Corner Cafe">25</td><td class="q" data-label="Station Kiosk">20</td><td class="tot" data-label="Total">85</td></tr>
+            <tr><th scope="row"><span class="pname">Patir non</span></th><td class="q" data-label="City Cafe">15</td><td class="q zero" data-label="Corner Cafe">·</td><td class="q" data-label="Station Kiosk">10</td><td class="tot" data-label="Total">25</td></tr>
+            <tr><th scope="row"><span class="pname">Toast loaf</span></th><td class="q" data-label="City Cafe">6</td><td class="q" data-label="Corner Cafe">8</td><td class="q zero" data-label="Station Kiosk">·</td><td class="tot" data-label="Total">14</td></tr>
+            <tr><th scope="row"><span class="pname">Whole wheat</span></th><td class="q zero" data-label="City Cafe">·</td><td class="q" data-label="Corner Cafe">10</td><td class="q" data-label="Station Kiosk">4</td><td class="tot" data-label="Total">14</td></tr>
+            <tr><th scope="row"><span class="pname">Ciabatta</span></th><td class="q" data-label="City Cafe">8</td><td class="q zero" data-label="Corner Cafe">·</td><td class="q zero" data-label="Station Kiosk">·</td><td class="tot" data-label="Total">8</td></tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="cat" aria-labelledby="cat-Pastry">
+        <table>
+          <caption id="cat-Pastry">Pastry <span class="count">9</span></caption>
+          <thead><tr><th scope="col" style="text-align: left">Product</th><th scope="col" class="q">City Cafe<br><span class="time">11:00</span></th><th scope="col" class="q">Corner Cafe<br><span class="time">14:00</span></th><th scope="col" class="q">Station Kiosk<br><span class="time">16:00</span></th><th scope="col" class="tot">Total</th></tr></thead>
+          <tbody>
+            <tr class="hl"><th scope="row"><span class="pname">Croissant</span><span class="badge" style="background: #0B3A8C; color: #FFFFFF">+10</span></th><td class="q" data-label="City Cafe">30</td><td class="q" data-label="Corner Cafe">30</td><td class="q" data-label="Station Kiosk">10</td><td class="tot" data-label="Total">70</td></tr>
+            <tr><th scope="row"><span class="pname">Pain au chocolat</span></th><td class="q" data-label="City Cafe">12</td><td class="q" data-label="Corner Cafe">18</td><td class="q zero" data-label="Station Kiosk">·</td><td class="tot" data-label="Total">30</td></tr>
+            <tr><th scope="row"><span class="pname">Cinnamon roll</span></th><td class="q" data-label="City Cafe">10</td><td class="q" data-label="Corner Cafe">12</td><td class="q" data-label="Station Kiosk">6</td><td class="tot" data-label="Total">28</td></tr>
+            <tr><th scope="row"><span class="pname">Danish</span></th><td class="q zero" data-label="City Cafe">·</td><td class="q" data-label="Corner Cafe">8</td><td class="q zero" data-label="Station Kiosk">·</td><td class="tot" data-label="Total">8</td></tr>
+            <tr><th scope="row"><span class="pname">Brioche</span></th><td class="q" data-label="City Cafe">6</td><td class="q zero" data-label="Corner Cafe">·</td><td class="q" data-label="Station Kiosk">4</td><td class="tot" data-label="Total">10</td></tr>
+            <tr><th scope="row"><span class="pname">Bagel</span></th><td class="q" data-label="City Cafe">10</td><td class="q" data-label="Corner Cafe">10</td><td class="q" data-label="Station Kiosk">10</td><td class="tot" data-label="Total">30</td></tr>
+            <tr><th scope="row"><span class="pname">Pretzel</span></th><td class="q zero" data-label="City Cafe">·</td><td class="q" data-label="Corner Cafe">6</td><td class="q" data-label="Station Kiosk">8</td><td class="tot" data-label="Total">14</td></tr>
+            <tr><th scope="row"><span class="pname">Muffin</span></th><td class="q" data-label="City Cafe">12</td><td class="q zero" data-label="Corner Cafe">·</td><td class="q" data-label="Station Kiosk">12</td><td class="tot" data-label="Total">24</td></tr>
+            <tr><th scope="row"><span class="pname">Puff pastry</span></th><td class="q" data-label="City Cafe">8</td><td class="q" data-label="Corner Cafe">4</td><td class="q zero" data-label="Station Kiosk">·</td><td class="tot" data-label="Total">12</td></tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="cat" aria-labelledby="cat-Savory">
+        <table>
+          <caption id="cat-Savory">Savory <span class="count">7</span></caption>
+          <thead><tr><th scope="col" style="text-align: left">Product</th><th scope="col" class="q">City Cafe<br><span class="time">11:00</span></th><th scope="col" class="q">Corner Cafe<br><span class="time">14:00</span></th><th scope="col" class="q">Station Kiosk<br><span class="time">16:00</span></th><th scope="col" class="tot">Total</th></tr></thead>
+          <tbody>
+            <tr class="hl"><th scope="row"><span class="pname">Somsa</span><span class="badge" style="background: #FFF1CC; color: #6B4600; border: 1px solid #E9C66B">City Cafe asks 20</span></th><td class="q" data-label="City Cafe">30</td><td class="q" data-label="Corner Cafe">30</td><td class="q" data-label="Station Kiosk">20</td><td class="tot" data-label="Total">80</td></tr>
+            <tr class="hl"><th scope="row"><span class="pname">Pilaf</span><span class="badge" style="background: #0B3A8C; color: #FFFFFF">New</span></th><td class="q" data-label="City Cafe">5</td><td class="q zero" data-label="Corner Cafe">·</td><td class="q zero" data-label="Station Kiosk">·</td><td class="tot" data-label="Total">5</td></tr>
+            <tr><th scope="row"><span class="pname">Burger</span></th><td class="q" data-label="City Cafe">10</td><td class="q zero" data-label="Corner Cafe">·</td><td class="q" data-label="Station Kiosk">6</td><td class="tot" data-label="Total">16</td></tr>
+            <tr><th scope="row"><span class="pname">Pizza slice</span></th><td class="q zero" data-label="City Cafe">·</td><td class="q" data-label="Corner Cafe">12</td><td class="q" data-label="Station Kiosk">10</td><td class="tot" data-label="Total">22</td></tr>
+            <tr><th scope="row"><span class="pname">Sausage roll</span></th><td class="q" data-label="City Cafe">8</td><td class="q" data-label="Corner Cafe">10</td><td class="q" data-label="Station Kiosk">12</td><td class="tot" data-label="Total">30</td></tr>
+            <tr><th scope="row"><span class="pname">Chebureki</span></th><td class="q zero" data-label="City Cafe">·</td><td class="q" data-label="Corner Cafe">15</td><td class="q zero" data-label="Station Kiosk">·</td><td class="tot" data-label="Total">15</td></tr>
+            <tr><th scope="row"><span class="pname">Belyash</span></th><td class="q" data-label="City Cafe">6</td><td class="q zero" data-label="Corner Cafe">·</td><td class="q" data-label="Station Kiosk">8</td><td class="tot" data-label="Total">14</td></tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="cat" aria-labelledby="cat-Sweets">
+        <table>
+          <caption id="cat-Sweets">Sweets <span class="count">6</span></caption>
+          <thead><tr><th scope="col" style="text-align: left">Product</th><th scope="col" class="q">City Cafe<br><span class="time">11:00</span></th><th scope="col" class="q">Corner Cafe<br><span class="time">14:00</span></th><th scope="col" class="q">Station Kiosk<br><span class="time">16:00</span></th><th scope="col" class="tot">Total</th></tr></thead>
+          <tbody>
+            <tr><th scope="row"><span class="pname">Napoleon</span></th><td class="q" data-label="City Cafe">2</td><td class="q" data-label="Corner Cafe">1</td><td class="q zero" data-label="Station Kiosk">·</td><td class="tot" data-label="Total">3</td></tr>
+            <tr><th scope="row"><span class="pname">Medovik</span></th><td class="q" data-label="City Cafe">2</td><td class="q" data-label="Corner Cafe">2</td><td class="q zero" data-label="Station Kiosk">·</td><td class="tot" data-label="Total">4</td></tr>
+            <tr><th scope="row"><span class="pname">Cheesecake</span></th><td class="q" data-label="City Cafe">1</td><td class="q" data-label="Corner Cafe">2</td><td class="q zero" data-label="Station Kiosk">·</td><td class="tot" data-label="Total">3</td></tr>
+            <tr><th scope="row"><span class="pname">Brownie</span></th><td class="q" data-label="City Cafe">12</td><td class="q zero" data-label="Corner Cafe">·</td><td class="q" data-label="Station Kiosk">10</td><td class="tot" data-label="Total">22</td></tr>
+            <tr><th scope="row"><span class="pname">Eclair</span></th><td class="q" data-label="City Cafe">10</td><td class="q" data-label="Corner Cafe">12</td><td class="q zero" data-label="Station Kiosk">·</td><td class="tot" data-label="Total">22</td></tr>
+            <tr><th scope="row"><span class="pname">Cookie box</span></th><td class="q zero" data-label="City Cafe">·</td><td class="q" data-label="Corner Cafe">4</td><td class="q" data-label="Station Kiosk">6</td><td class="tot" data-label="Total">10</td></tr>
+          </tbody>
+        </table>
+      </section>
+    </div>
+    <p style="margin: 0; text-align: center; color: #566078; font-size: 14px">30 of 45 products ordered · totals count every contractor · this list stays the same after midnight</p>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1060}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

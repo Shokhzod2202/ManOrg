@@ -8,77 +8,47 @@
 <body>
 <x-dc>
 <helmet>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Montserrat:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Montserrat:wght@600;700;800&amp;display=swap" rel="stylesheet">
 <style>
 body{margin:0}
 a{color:#0B3A8C}a:hover{color:#082C6B}
-.card{background:#FFFFFF;border:1px solid #E4E8F0;border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:8px}
-.muted{color:#566078;font-size:13px}
-.line{display:flex;justify-content:space-between;align-items:center;min-height:28px}
-.chip{display:inline-flex;align-items:center;min-height:36px;padding:0 14px;border-radius:18px;border:1px solid #CAD2E0;background:#FFFFFF;font:500 14px Inter,sans-serif;color:#2F3648}
-.chip.on{background:#082C6B;border-color:#082C6B;color:#FFFFFF}
-.tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:56px;font-size:12px;color:#566078;text-decoration:none}
-.tab.on{color:#082C6B;font-weight:600}
+.board{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
+.cathead{grid-column:1/-1;font:700 12px Montserrat,sans-serif;letter-spacing:1px;text-transform:uppercase;color:#566078;padding:4px 2px 0;text-align:center}
+.tile{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;min-height:42px;padding:3px 4px;border:1px solid #E4E8F0;border-radius:10px;background:#FFFFFF;font-family:Inter,sans-serif;text-align:center}
+.tn{font:600 11px Inter,sans-serif;color:#2F3648;line-height:1.15;max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.tq{font:800 18px Montserrat,sans-serif;color:#0F1A33;line-height:1.1}
+.tile.hl{border:2px solid #0B3A8C;background:#F4F7FC}
+.tile.ask{border:2px solid #E9C66B;background:#FFF8E6}
+.mk{position:absolute;top:-7px;right:-3px;padding:0 5px;border-radius:8px;background:#0B3A8C;color:#FFFFFF;font:700 9px Inter,sans-serif;line-height:14px}
+.mk.ask{background:#FFF1CC;color:#6B4600;border:1px solid #E9C66B}
+.seg{flex:1;min-height:40px;border:none;border-radius:8px;background:transparent;font:500 13px Inter,sans-serif;color:#2F3648}
+.seg.on{background:#FFFFFF;font-weight:700;color:#0F1A33}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:54px;font-size:11px;color:#566078;text-decoration:none}
+.tab.on{color:#0B3A8C;font-weight:600}
 </style>
 </helmet>
 <div style="width: 390px; height: 844px; box-sizing: border-box; background: #FFFFFF; font-family: Inter, sans-serif; color: #0F1A33; display: flex; flex-direction: column">
-  <div style="flex: 1; overflow: hidden; padding: 20px 16px 12px; display: flex; flex-direction: column; gap: 12px">
-    <header style="display: flex; flex-direction: column; gap: 4px">
-      <h1 style="margin: 0; font: 700 24px Montserrat, sans-serif">Today's Orders</h1>
-      <div class="muted">The orders due next. This list does not change at midnight.</div>
+  <div style="flex: 1; overflow: hidden; padding: 12px 10px 8px; display: flex; flex-direction: column; gap: 8px">
+    <header style="display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center">
+      <h1 style="margin: 0; font: 800 19px Montserrat, sans-serif">Orders due next</h1>
+      <div style="font-size: 12px; color: #566078">Sat 14 Nov · City 11:00 · Corner 14:00 · Kiosk 16:00</div>
     </header>
-
-    <div role="tablist" aria-label="View" style="display: flex; background: #F1F3F8; border-radius: 10px; padding: 3px">
-      <button type="button" role="tab" aria-selected="true" style="flex: 1; min-height: 40px; border: none; border-radius: 8px; background: #FFFFFF; font: 600 14px Inter, sans-serif; color: #0F1A33">All orders</button>
-      <button type="button" role="tab" aria-selected="false" style="flex: 1; min-height: 40px; border: none; border-radius: 8px; background: transparent; font: 500 14px Inter, sans-serif; color: #2F3648">My orders</button>
+    <a href="#" style="display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; border-radius: 10px; background: #FFF1CC; border: 1px solid #E9C66B; color: #6B4600; text-decoration: none; font-size: 13px; font-weight: 600">3 changes · 1 waits for the admin ›</a>
+    <div role="tablist" aria-label="Show" style="display: flex; background: #F1F3F8; border-radius: 10px; padding: 3px">
+      <button type="button" role="tab" aria-selected="true" class="seg on">All 30</button>
+      <button type="button" role="tab" aria-selected="false" class="seg">Mine 6</button>
+      <button type="button" role="tab" aria-selected="false" class="seg">Changed 3</button>
     </div>
-
-    <div style="display: flex; gap: 8px; flex-wrap: wrap" aria-label="Filter by contractor">
-      <button type="button" class="chip on">All</button>
-      <button type="button" class="chip">City Cafe</button>
-      <button type="button" class="chip">Corner Cafe</button>
+    <div class="board" aria-label="Products to make, total of all contractors">
+      <div class="cathead">Bread</div><button type="button" class="tile"><span class="tn">White bread</span><span class="tq">80</span></button><button type="button" class="tile"><span class="tn">Rye bread</span><span class="tq">16</span></button><button type="button" class="tile"><span class="tn">Baguette</span><span class="tq">32</span></button><button type="button" class="tile"><span class="tn">Tandir non</span><span class="tq">85</span></button><button type="button" class="tile"><span class="tn">Patir non</span><span class="tq">25</span></button><button type="button" class="tile"><span class="tn">Toast loaf</span><span class="tq">14</span></button><button type="button" class="tile"><span class="tn">Whole wheat</span><span class="tq">14</span></button><button type="button" class="tile"><span class="tn">Ciabatta</span><span class="tq">8</span></button><div class="cathead">Pastry</div><button type="button" class="tile hl"><span class="tn">Croissant</span><span class="tq">70</span><span class="mk">+10</span></button><button type="button" class="tile"><span class="tn">Pain au chocolat</span><span class="tq">30</span></button><button type="button" class="tile"><span class="tn">Cinnamon roll</span><span class="tq">28</span></button><button type="button" class="tile"><span class="tn">Danish</span><span class="tq">8</span></button><button type="button" class="tile"><span class="tn">Brioche</span><span class="tq">10</span></button><button type="button" class="tile"><span class="tn">Bagel</span><span class="tq">30</span></button><button type="button" class="tile"><span class="tn">Pretzel</span><span class="tq">14</span></button><button type="button" class="tile"><span class="tn">Muffin</span><span class="tq">24</span></button><button type="button" class="tile"><span class="tn">Puff pastry</span><span class="tq">12</span></button><div class="cathead">Savory</div><button type="button" class="tile hl ask"><span class="tn">Somsa</span><span class="tq">80</span><span class="mk ask">Asked 20</span></button><button type="button" class="tile hl"><span class="tn">Pilaf</span><span class="tq">5</span><span class="mk">New</span></button><button type="button" class="tile"><span class="tn">Burger</span><span class="tq">16</span></button><button type="button" class="tile"><span class="tn">Pizza slice</span><span class="tq">22</span></button><button type="button" class="tile"><span class="tn">Sausage roll</span><span class="tq">30</span></button><button type="button" class="tile"><span class="tn">Chebureki</span><span class="tq">15</span></button><button type="button" class="tile"><span class="tn">Belyash</span><span class="tq">14</span></button><div class="cathead">Sweets</div><button type="button" class="tile"><span class="tn">Napoleon</span><span class="tq">3</span></button><button type="button" class="tile"><span class="tn">Medovik</span><span class="tq">4</span></button><button type="button" class="tile"><span class="tn">Cheesecake</span><span class="tq">3</span></button><button type="button" class="tile"><span class="tn">Brownie</span><span class="tq">22</span></button><button type="button" class="tile"><span class="tn">Eclair</span><span class="tq">22</span></button><button type="button" class="tile"><span class="tn">Cookie box</span><span class="tq">10</span></button>
     </div>
-
-    <section class="card" aria-labelledby="change" style="border-color: #BFD0EE; background: #F4F7FC">
-      <h2 id="change" style="margin: 0; font: 600 15px Inter, sans-serif">City Cafe asks to change its order</h2>
-      <div class="line"><span>Pilaf <span class="muted">new, 5</span></span><button type="button" style="min-height: 44px; padding: 0 16px; border-radius: 10px; border: none; background: #0B3A8C; color: #FFFFFF; font: 600 14px Inter, sans-serif">Accept</button></div>
-      <div class="line"><span>Bread <span class="muted">30 → 20</span></span><span class="muted">Waiting for the admin</span></div>
-    </section>
-
-    <section class="card" aria-labelledby="o1">
-      <div style="display: flex; justify-content: space-between; align-items: baseline">
-        <h2 id="o1" style="margin: 0; font: 600 16px Montserrat, sans-serif">City Cafe</h2>
-        <span style="font-weight: 600; color: #082C6B">Sat 14 · 11:00 to 12:00</span>
-      </div>
-      <div class="line"><span>Bread</span><span style="font-weight: 600">30</span></div>
-      <div class="line"><span>Somsa</span><span style="font-weight: 600">20</span></div>
-    </section>
-
-    <section class="card" aria-labelledby="o2">
-      <div style="display: flex; justify-content: space-between; align-items: baseline">
-        <h2 id="o2" style="margin: 0; font: 600 16px Montserrat, sans-serif">Corner Cafe</h2>
-        <span style="font-weight: 600; color: #082C6B">Sat 14 · 14:00 to 15:00</span>
-      </div>
-      <div class="line"><span>Bread</span><span style="font-weight: 600">40</span></div>
-      <div class="line"><span>Somsa</span><span style="font-weight: 600">30</span></div>
-    </section>
-
-    <section class="card" aria-labelledby="tot" style="background: #F1F3F8; border-color: #E4E8F0">
-      <h2 id="tot" style="margin: 0; font: 600 15px Inter, sans-serif">Total to make</h2>
-      <div class="line"><span>Bread</span><span style="font-weight: 700">70</span></div>
-      <div class="line"><span>Somsa</span><span style="font-weight: 700">50</span></div>
-    </section>
+    <div style="text-align: center; font-size: 12px; color: #566078">Tap a product to see each contractor · 30 of 45 ordered</div>
   </div>
-
   <nav aria-label="App" style="display: flex; border-top: 1px solid #E4E8F0; background: #FFFFFF">
-    <a class="tab" href="EmployeeHome.dc.html">
-      <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Home</a>
-    <a class="tab on" href="#">
-      <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5h11M9 12h11M9 19h11M4 5h.01M4 12h.01M4 19h.01"/></svg>Orders</a>
-    <a class="tab" href="#">
-      <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>Output</a>
-    <a class="tab" href="#">
-      <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>Shifts</a>
+    <a class="tab" href="EmployeeHome.dc.html"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Home</a>
+    <a class="tab on" href="#" aria-current="page"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5h11M9 12h11M9 19h11M4 5h.01M4 12h.01M4 19h.01"/></svg>Orders</a>
+    <a class="tab" href="#"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>Output</a>
+    <a class="tab" href="#"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>Shifts</a>
   </nav>
 </div>
 </x-dc>

@@ -46,7 +46,7 @@
       "y": 1620,
       "w": 390,
       "h": 844,
-      "title": "Employee \u00b7 Today's Orders"
+      "title": "Employee \u00b7 Today's Orders (production board)"
     },
     "TaskPhoto.dc.html": {
       "x": 940,
@@ -82,6 +82,14 @@
       "w": 390,
       "h": 1000,
       "title": "Admin \u00b7 Shifts on a phone"
+    },
+    "ProductionBoard.dc.html": {
+      "x": 4560,
+      "y": 0,
+      "w": 1440,
+      "h": 1060,
+      "title": "Employees \u00b7 Production board (desktop or wall screen)",
+      "expand": "fill"
     }
   },
   "order": [
@@ -94,7 +102,8 @@
     "NewOrder.dc.html",
     "MainPhone.dc.html",
     "DeliveriesPhone.dc.html",
-    "ShiftCalendarPhone.dc.html"
+    "ShiftCalendarPhone.dc.html",
+    "ProductionBoard.dc.html"
   ],
   "notes": {
     "webTitle": {
@@ -102,7 +111,7 @@
       "y": -300,
       "text": "Admin web app",
       "kind": "title1",
-      "maxW": 4480
+      "maxW": 6000
     },
     "phoneTitle": {
       "x": 0,
@@ -124,6 +133,13 @@
       "text": "The same admin website, opened on a phone",
       "kind": "title1",
       "maxW": 1330
+    },
+    "board": {
+      "x": 4560,
+      "y": 1180,
+      "w": 520,
+      "fill": "blue",
+      "text": "Production board\n\n- One total per product across all contractors, in large bold numbers.\n- Grouped Bread, Pastry, Savory, Sweets; search on desktop.\n- Only products with orders show; Show all 45 on demand.\n- Mine shows the products assigned to me.\n- Changes: blue badge for added or more, amber for a request waiting for the admin. Red stays for errors.\n- Fits one screen: 3 tiles per row on a phone, category cards side by side on desktop."
     }
   },
   "designSystems": []
