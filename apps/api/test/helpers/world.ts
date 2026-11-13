@@ -1,4 +1,4 @@
-import { type Api, type Session } from './app';
+import { type Api, createProduct, type Session } from './app';
 
 export interface Bakery {
   id: string;
@@ -6,6 +6,7 @@ export interface Bakery {
   employee: Session & { membershipId: string };
   applicant: Session & { applicationId: string };
   ingredientId: string;
+  productId: string;
 }
 
 export interface World {
@@ -40,12 +41,19 @@ async function bakery(api: Api, label: string): Promise<Bakery> {
     .put(`/ingredients/${ingredient.body.id}/assignees`)
     .send({ employeeIds: [employee.userId] })
     .expect(200);
+  const productId = await createProduct(api, admin, id, ingredient.body.id, `${label} Bread`);
+  await api
+    .as(admin, id)
+    .put(`/employees/${employee.userId}/products`)
+    .send({ productIds: [productId] })
+    .expect(200);
   return {
     id,
     admin,
     employee,
     applicant: { ...applicantSession, applicationId: applied.body.id },
     ingredientId: ingredient.body.id,
+    productId,
   };
 }
 

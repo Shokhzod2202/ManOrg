@@ -29,6 +29,7 @@ tags:
   - name: applications
   - name: members
   - name: ingredients
+  - name: products
 
 paths:
   /health:
@@ -457,6 +458,233 @@ paths:
         '400': { $ref: '#/components/responses/ValidationFailed' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /product-images:
+    post:
+      operationId: uploadProductImage
+      summary: Upload a product picture (PRD-1)
+      description: JPEG, PNG or WebP up to 5 MB, detected from the file's bytes. Send the returned imageKey when creating or editing a product.
+      tags: [products]
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '201':
+          description: Stored.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [imageKey, imageUrl]
+                properties:
+                  imageKey: { type: string }
+                  imageUrl: { type: string, description: Short-lived link to the picture. }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '413':
+          description: The picture is larger than 5 MB.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /products:
+    get:
+      operationId: listProducts
+      summary: The organization's products, available or not (PRD-2)
+      tags: [products]
+      x-tenant-scoped: true
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Products by name.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Product' }
+                  nextCursor: { $ref: '#/components/schemas/NextCursor' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      operationId: createProduct
+      summary: Add a product (PRD-1)
+      description: Name, picture (imageKey from /product-images), ingredients and minutes per 10 are all required.
+      tags: [products]
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateProductRequest' }
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Product' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /products/{id}:
+    get:
+      operationId: getProduct
+      tags: [products]
+      x-tenant-scoped: true
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: The product.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Product' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      operationId: updateProduct
+      summary: Edit any product field, or set availability (PRD-2)
+      description: An unavailable product cannot be ordered but stays in history. Ingredients, when sent, replace the list.
+      tags: [products]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateProductRequest' }
+      responses:
+        '200':
+          description: The updated product.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Product' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+
+  /employees/{id}/products:
+    get:
+      operationId: listEmployeeProducts
+      summary: Products assigned to an employee (PRD-3)
+      description: Admins and the bot see anyone's; an employee sees only their own (their output form lists only these).
+      tags: [products]
+      x-tenant-scoped: true
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Assigned products.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Product' }
+                  nextCursor: { $ref: '#/components/schemas/NextCursor' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      operationId: setEmployeeProducts
+      summary: Assign products to an employee (PRD-3)
+      description: Replaces the whole list. Audited.
+      tags: [products]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [productIds]
+              properties:
+                productIds:
+                  type: array
+                  maxItems: 500
+                  items: { type: string, format: uuid }
+      responses:
+        '200':
+          description: The employee's products after the change.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Product' }
+                  nextCursor: { $ref: '#/components/schemas/NextCursor' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /files/{key}:
+    get:
+      operationId: getFile
+      summary: Download a stored file through a signed, expiring link
+      description: Links come from API responses (for example Product.imageUrl). Used with local storage; production links point at the bucket instead.
+      tags: [system]
+      security: []
+      x-tenant-scoped: false
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema: { type: string }
+        - name: expires
+          in: query
+          required: true
+          schema: { type: integer }
+        - name: signature
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: The file.
+          content:
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/png: { schema: { type: string, format: binary } }
+            image/webp: { schema: { type: string, format: binary } }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
         '404': { $ref: '#/components/responses/NotFound' }
 
   /applications:
@@ -987,6 +1215,67 @@ components:
             - type: 'null'
         packQuantity: { type: number, exclusiveMinimum: 0 }
         packUnit: { $ref: '#/components/schemas/PackUnit' }
+
+    ProductIngredientInput:
+      type: object
+      additionalProperties: false
+      required: [ingredientId]
+      properties:
+        ingredientId: { type: string, format: uuid }
+        quantityPer10:
+          type: number
+          exclusiveMinimum: 0
+          description: Optional amount for 10 units, in the ingredient's pack unit (assumption, spec section 7).
+    Product:
+      type: object
+      required:
+        [id, name, imageKey, imageUrl, minutesPer10, available, ingredients, version, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        imageKey: { type: string }
+        imageUrl: { type: string, description: Short-lived link to the picture. }
+        minutesPer10: { type: integer, description: Minutes to prepare 10 units. }
+        available: { type: boolean }
+        ingredients:
+          type: array
+          items:
+            type: object
+            required: [id, name, quantityPer10]
+            properties:
+              id: { type: string, format: uuid }
+              name: { type: string }
+              quantityPer10: { type: [number, 'null'] }
+        version: { type: integer }
+        createdAt: { type: string, format: date-time }
+    CreateProductRequest:
+      type: object
+      additionalProperties: false
+      required: [name, imageKey, minutesPer10, ingredients]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        imageKey: { type: string }
+        minutesPer10: { type: integer, minimum: 1, maximum: 10000 }
+        ingredients:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items: { $ref: '#/components/schemas/ProductIngredientInput' }
+        available: { type: boolean, default: true }
+    UpdateProductRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        imageKey: { type: string }
+        minutesPer10: { type: integer, minimum: 1, maximum: 10000 }
+        ingredients:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items: { $ref: '#/components/schemas/ProductIngredientInput' }
+        available: { type: boolean }
 
     Member:
       type: object

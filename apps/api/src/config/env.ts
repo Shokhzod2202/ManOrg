@@ -19,6 +19,17 @@ const schema = z.object({
   /** Requests per minute per client on the sign-in endpoints (spec section 12). */
   AUTH_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(10),
   APP_TIMEZONE_DEFAULT: z.string().default('Asia/Seoul'),
+  /** `local` keeps files on disk (development, tests); `s3` uses an S3-compatible bucket. */
+  STORAGE_DRIVER: z.enum(['local', 's3']).default('local'),
+  STORAGE_LOCAL_DIR: z.string().default(path.resolve(__dirname, '../../../../.storage')),
+  STORAGE_BUCKET: z.string().optional(),
+  STORAGE_ENDPOINT: z.string().optional(),
+  STORAGE_REGION: z.string().default('ap-northeast-2'),
+  STORAGE_KEY: z.string().optional(),
+  STORAGE_SECRET: z.string().optional(),
+  /** Public base URL of the API, used in signed file links served by the local driver. */
+  PUBLIC_API_URL: z.string().default('http://localhost:3001'),
+  SIGNED_URL_TTL_SECONDS: z.coerce.number().int().positive().default(300),
 });
 
 export type Env = z.infer<typeof schema>;

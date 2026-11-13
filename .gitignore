@@ -14,3 +14,4 @@ packages/contracts/src/schema.d.ts.tmp
 apps/web/next-env.d.ts
 # Written by next dev on every start
 apps/web/AGENTS.md
+.storage/

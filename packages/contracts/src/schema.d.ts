@@ -259,6 +259,111 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/product-images": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload a product picture (PRD-1)
+         * @description JPEG, PNG or WebP up to 5 MB, detected from the file's bytes. Send the returned imageKey when creating or editing a product.
+         */
+        post: operations["uploadProductImage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The organization's products, available or not (PRD-2) */
+        get: operations["listProducts"];
+        put?: never;
+        /**
+         * Add a product (PRD-1)
+         * @description Name, picture (imageKey from /product-images), ingredients and minutes per 10 are all required.
+         */
+        post: operations["createProduct"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/products/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getProduct"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit any product field, or set availability (PRD-2)
+         * @description An unavailable product cannot be ordered but stays in history. Ingredients, when sent, replace the list.
+         */
+        patch: operations["updateProduct"];
+        trace?: never;
+    };
+    "/employees/{id}/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Products assigned to an employee (PRD-3)
+         * @description Admins and the bot see anyone's; an employee sees only their own (their output form lists only these).
+         */
+        get: operations["listEmployeeProducts"];
+        /**
+         * Assign products to an employee (PRD-3)
+         * @description Replaces the whole list. Audited.
+         */
+        put: operations["setEmployeeProducts"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/files/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download a stored file through a signed, expiring link
+         * @description Links come from API responses (for example Product.imageUrl). Used with local storage; production links point at the bucket instead.
+         */
+        get: operations["getFile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/applications": {
         parameters: {
             query?: never;
@@ -565,6 +670,47 @@ export interface components {
             orderSchedule?: components["schemas"]["OrderSchedule"] | null;
             packQuantity?: number;
             packUnit?: components["schemas"]["PackUnit"];
+        };
+        ProductIngredientInput: {
+            /** Format: uuid */
+            ingredientId: string;
+            /** @description Optional amount for 10 units, in the ingredient's pack unit (assumption, spec section 7). */
+            quantityPer10?: number;
+        };
+        Product: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            imageKey: string;
+            /** @description Short-lived link to the picture. */
+            imageUrl: string;
+            /** @description Minutes to prepare 10 units. */
+            minutesPer10: number;
+            available: boolean;
+            ingredients: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+                quantityPer10: number | null;
+            }[];
+            version: number;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        CreateProductRequest: {
+            name: string;
+            imageKey: string;
+            minutesPer10: number;
+            ingredients: components["schemas"]["ProductIngredientInput"][];
+            /** @default true */
+            available: boolean;
+        };
+        UpdateProductRequest: {
+            name?: string;
+            imageKey?: string;
+            minutesPer10?: number;
+            ingredients?: components["schemas"]["ProductIngredientInput"][];
+            available?: boolean;
         };
         Member: {
             /**
@@ -1219,6 +1365,278 @@ export interface operations {
             400: components["responses"]["ValidationFailed"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    uploadProductImage: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Stored. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        imageKey: string;
+                        /** @description Short-lived link to the picture. */
+                        imageUrl: string;
+                    };
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The picture is larger than 5 MB. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listProducts: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Products by name. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["Product"][];
+                        nextCursor: components["schemas"]["NextCursor"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createProduct: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateProductRequest"];
+            };
+        };
+        responses: {
+            /** @description Created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Product"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getProduct: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The product. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Product"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateProduct: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+                /** @description The `version` of the record being edited. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateProductRequest"];
+            };
+        };
+        responses: {
+            /** @description The updated product. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Product"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            428: components["responses"]["PreconditionRequired"];
+        };
+    };
+    listEmployeeProducts: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Assigned products. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["Product"][];
+                        nextCursor: components["schemas"]["NextCursor"];
+                    };
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setEmployeeProducts: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    productIds: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description The employee's products after the change. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["Product"][];
+                        nextCursor: components["schemas"]["NextCursor"];
+                    };
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getFile: {
+        parameters: {
+            query: {
+                expires: number;
+                signature: string;
+            };
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The file. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                    "image/png": string;
+                    "image/webp": string;
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
             404: components["responses"]["NotFound"];
         };
     };

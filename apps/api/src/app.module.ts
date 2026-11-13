@@ -9,6 +9,9 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { env } from './config/env';
 import { DatabaseModule } from './database/database.module';
 import { HealthController } from './health/health.controller';
+import { ProductsController } from './products/products.controller';
+import { ProductsService } from './products/products.service';
+import { StorageModule } from './storage/storage.module';
 import { IngredientsController } from './ingredients/ingredients.controller';
 import { IngredientsService } from './ingredients/ingredients.service';
 import { MeController } from './me/me.controller';
@@ -30,6 +33,7 @@ import { OrgContextGuard } from './permissions/org-context.guard';
     DatabaseModule,
     AuditModule,
     AuthModule,
+    StorageModule,
   ],
   controllers: [
     HealthController,
@@ -39,6 +43,7 @@ import { OrgContextGuard } from './permissions/org-context.guard';
     MembersController,
     EmployeeAccessController,
     IngredientsController,
+    ProductsController,
   ],
   providers: [
     MeService,
@@ -47,6 +52,7 @@ import { OrgContextGuard } from './permissions/org-context.guard';
     MembersService,
     EmployeeAccessService,
     IngredientsService,
+    ProductsService,
     // Order matters: authenticate first, then resolve the organization and check permissions.
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: OrgContextGuard },

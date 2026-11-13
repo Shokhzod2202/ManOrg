@@ -99,6 +99,38 @@ export class Api {
   }
 }
 
+/** Smallest bytes that are recognized as a PNG picture. */
+export const PNG = Buffer.concat([
+  Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+  Buffer.alloc(32, 1),
+]);
+
+/** Uploads a picture and creates a product with one ingredient. */
+export async function createProduct(
+  api: Api,
+  admin: Session,
+  orgId: string,
+  ingredientId: string,
+  name = 'Bread',
+): Promise<string> {
+  const image = await api
+    .as(admin, orgId)
+    .post('/product-images')
+    .attach('file', PNG, 'bread.png')
+    .expect(201);
+  const product = await api
+    .as(admin, orgId)
+    .post('/products')
+    .send({
+      name,
+      imageKey: image.body.imageKey,
+      minutesPer10: 12,
+      ingredients: [{ ingredientId }],
+    })
+    .expect(201);
+  return product.body.id as string;
+}
+
 /** Audit entries for one entity, read inside the organization (or as the actor when account-level). */
 export async function auditFor(
   entityId: string,

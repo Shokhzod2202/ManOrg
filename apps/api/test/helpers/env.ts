@@ -1,3 +1,4 @@
+import os from 'node:os';
 import path from 'node:path';
 import { config as loadEnv } from 'dotenv';
 
@@ -31,5 +32,7 @@ export function applyTestEnv(): void {
   process.env.JWT_ACCESS_SECRET ??= 'test-access-secret-0123456789abcdef';
   process.env.JWT_REFRESH_SECRET ??= 'test-refresh-secret-0123456789abcdef';
   process.env.AUTH_RATE_LIMIT_PER_MINUTE ??= '100000';
+  process.env.STORAGE_DRIVER = 'local';
+  process.env.STORAGE_LOCAL_DIR = path.join(os.tmpdir(), 'manorg-test-storage');
   process.env.NODE_ENV = 'test';
 }
