@@ -46,7 +46,7 @@
       "y": 1620,
       "w": 390,
       "h": 844,
-      "title": "Employee \u00b7 Today's Orders (production board)"
+      "title": "Employee \u00b7 Today's Orders, Products view"
     },
     "TaskPhoto.dc.html": {
       "x": 940,
@@ -84,12 +84,50 @@
       "title": "Admin \u00b7 Shifts on a phone"
     },
     "ProductionBoard.dc.html": {
-      "x": 4560,
+      "x": 1520,
+      "y": 5100,
+      "w": 1440,
+      "h": 1060,
+      "title": "Orders \u00b7 Matrix view (products \u00d7 contractors)",
+      "expand": "fill"
+    },
+    "AdminTeams.dc.html": {
+      "x": 6080,
       "y": 0,
       "w": 1440,
       "h": 1060,
-      "title": "Employees \u00b7 Production board (desktop or wall screen)",
+      "title": "Admin \u00b7 Teams",
       "expand": "fill"
+    },
+    "TodaysOrdersList.dc.html": {
+      "x": 2420,
+      "y": 1620,
+      "w": 390,
+      "h": 844,
+      "title": "Employee \u00b7 Today's Orders, List view"
+    },
+    "OrdersList.dc.html": {
+      "x": 0,
+      "y": 5100,
+      "w": 1440,
+      "h": 1060,
+      "title": "Orders \u00b7 List view (contractors \u00d7 products)",
+      "expand": "fill"
+    },
+    "OrdersProducts.dc.html": {
+      "x": 3040,
+      "y": 5100,
+      "w": 1440,
+      "h": 1060,
+      "title": "Orders \u00b7 Products view",
+      "expand": "fill"
+    },
+    "WallScreen.dc.html": {
+      "x": 4560,
+      "y": 5100,
+      "w": 1920,
+      "h": 1080,
+      "title": "Wall screen (kitchen TV)"
     }
   },
   "order": [
@@ -103,7 +141,12 @@
     "MainPhone.dc.html",
     "DeliveriesPhone.dc.html",
     "ShiftCalendarPhone.dc.html",
-    "ProductionBoard.dc.html"
+    "ProductionBoard.dc.html",
+    "AdminTeams.dc.html",
+    "TodaysOrdersList.dc.html",
+    "OrdersList.dc.html",
+    "OrdersProducts.dc.html",
+    "WallScreen.dc.html"
   ],
   "notes": {
     "webTitle": {
@@ -111,17 +154,17 @@
       "y": -300,
       "text": "Admin web app",
       "kind": "title1",
-      "maxW": 6000
+      "maxW": 7520
     },
     "phoneTitle": {
       "x": 0,
       "y": 1320,
       "text": "Employee and contractor phone app",
       "kind": "title1",
-      "maxW": 1800
+      "maxW": 2820
     },
     "rules": {
-      "x": 1900,
+      "x": 2900,
       "y": 1620,
       "w": 420,
       "text": "Design rules used\n\n- Red only for differences and errors, always with an icon and text.\n- Punch buttons are the largest controls on the employee home.\n- Touch targets at least 44 px.\n- Today's Orders never changes at midnight: it shows the order due next.\n- Employees accept added products; smaller quantities wait for the admin.",
@@ -135,11 +178,18 @@
       "maxW": 1330
     },
     "board": {
-      "x": 4560,
-      "y": 1180,
-      "w": 520,
+      "x": 0,
+      "y": 6260,
+      "w": 640,
       "fill": "blue",
-      "text": "Production board\n\n- One total per product across all contractors, in large bold numbers.\n- Grouped Bread, Pastry, Savory, Sweets; search on desktop.\n- Only products with orders show; Show all 45 on demand.\n- Mine shows the products assigned to me.\n- Changes: blue badge for added or more, amber for a request waiting for the admin. Red stays for errors.\n- Fits one screen: 3 tiles per row on a phone, category cards side by side on desktop."
+      "text": "Orders views\n\n- List: one row per contractor, one column per product, Total row at the bottom, Made row with ticks.\n- Matrix: one row per product, one column per contractor, Total column, tick per product.\n- Products: one tile per product with total and made progress.\n- The chosen view is saved on the person's account and stays until they switch.\n- Products are A to Z; no product groups.\n- Made: tap to tick; green with a check and the word Made, never colour alone."
+    },
+    "ordersTitle": {
+      "x": 0,
+      "y": 4800,
+      "text": "Orders: three views each person can choose, plus the wall screen",
+      "kind": "title1",
+      "maxW": 6480
     }
   },
   "designSystems": []

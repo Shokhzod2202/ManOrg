@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Teams</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Montserrat:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#FFFFFF}
+a{color:#0B3A8C}a:hover{color:#082C6B}
+.muted{color:#566078}
+.chip{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:18px;background:#EAF0FA;color:#082C6B;font-size:14px}
+.views{display:flex;background:#F1F3F8;border-radius:12px;padding:4px;gap:2px}
+.views a{display:flex;align-items:center;gap:8px;min-height:44px;padding:0 18px;border-radius:9px;text-decoration:none;color:#2F3648;font:600 15px Inter,sans-serif}
+.views a.on{background:#FFFFFF;color:#0B3A8C;box-shadow:0 1px 2px rgba(15,26,51,.12)}
+.tab{min-height:44px;padding:0 18px;border:1px solid #CAD2E0;border-radius:22px;background:#FFFFFF;font:600 15px Inter,sans-serif;color:#2F3648}
+.tab.on{background:#0B3A8C;border-color:#0B3A8C;color:#FFFFFF}
+.badge{display:inline-flex;align-items:center;padding:1px 7px;border-radius:999px;font:700 11px Inter,sans-serif;white-space:nowrap}
+.b-up{background:#0B3A8C;color:#FFFFFF}
+.b-ask{background:#FFF1CC;color:#6B4600;border:1px solid #E9C66B}
+.alert{display:flex;align-items:center;gap:10px;min-height:46px;padding:0 18px;border-radius:12px;background:#FFF1CC;border:1px solid #E9C66B;color:#6B4600;text-decoration:none;font-weight:600}
+
+.tcard{border:1px solid #E4E8F0;border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:12px;background:#FFFFFF}
+.person{display:inline-flex;align-items:center;min-height:34px;padding:0 12px;border-radius:17px;background:#EAF0FA;color:#082C6B;font:600 14px Inter,sans-serif}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 16px;border-radius:10px;font:600 14px Inter,sans-serif;border:1px solid #0B3A8C;background:#0B3A8C;color:#FFFFFF}
+.btn.ghost{background:#FFFFFF;color:#0B3A8C}
+.field{display:flex;flex-direction:column;gap:6px;font:600 14px Inter,sans-serif}
+.field input{min-height:44px;border:1px solid #CAD2E0;border-radius:10px;padding:0 12px;font:500 15px Inter,sans-serif}
+.pick{display:flex;align-items:center;gap:10px;min-height:44px;font:500 15px Inter,sans-serif}
+.pick input{width:20px;height:20px}
+</style>
+</helmet>
+<div style="font-family: Inter, sans-serif; color: #0F1A33; background: #FFFFFF; min-height: 100vh; box-sizing: border-box; padding: 28px 24px 40px">
+  <div style="max-width: 1100px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px">
+    <header style="display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center">
+      <img src="/_blob/b59ddbcc1d51170e6bd5858141cd7232" alt="Haydar Inc" style="width: 52px; height: 52px; object-fit: contain">
+      <h1 style="margin: 0; font: 800 30px Montserrat, sans-serif">Teams</h1>
+      <p class="muted" style="margin: 0; font-size: 15px; max-width: 560px">People who work together. Every member sees the team and can log its output; team output counts once and is shared equally.</p>
+    </header>
+    <div style="display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start">
+      <div style="flex: 999 1 520px; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px">
+      <section class="tcard" aria-label="Morning bakers">
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px">
+          <h2 style="margin: 0; font: 700 18px Montserrat, sans-serif">Morning bakers</h2>
+          <span class="muted" style="font-size: 13px">3 people</span>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap"><span class="person">Mina Park</span><span class="person">Joon Kim</span><span class="person">Dilnoza Rahimova</span></div>
+        <div style="display: flex; gap: 8px"><button type="button" class="btn ghost">Edit members</button><button type="button" class="btn ghost">Rename</button></div>
+      </section>
+      <section class="tcard" aria-label="Pastry team">
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px">
+          <h2 style="margin: 0; font: 700 18px Montserrat, sans-serif">Pastry team</h2>
+          <span class="muted" style="font-size: 13px">2 people</span>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap"><span class="person">Aziz Karimov</span><span class="person">Mina Park</span></div>
+        <div style="display: flex; gap: 8px"><button type="button" class="btn ghost">Edit members</button><button type="button" class="btn ghost">Rename</button></div>
+      </section>
+      <section class="tcard" aria-label="Night shift">
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px">
+          <h2 style="margin: 0; font: 700 18px Montserrat, sans-serif">Night shift</h2>
+          <span class="muted" style="font-size: 13px">2 people</span>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap"><span class="person">Dilnoza Rahimova</span><span class="person">Bekzod Tursunov</span></div>
+        <div style="display: flex; gap: 8px"><button type="button" class="btn ghost">Edit members</button><button type="button" class="btn ghost">Rename</button></div>
+      </section>
+      </div>
+      <form class="tcard" aria-labelledby="newteam" style="flex: 1 1 300px; max-width: 360px">
+        <h2 id="newteam" style="margin: 0; font: 700 18px Montserrat, sans-serif">New team</h2>
+        <label class="field">Name<input type="text" placeholder="For example Morning bakers"></label>
+        <fieldset style="border: none; margin: 0; padding: 0; display: flex; flex-direction: column">
+          <legend style="font: 600 14px Inter, sans-serif; margin-bottom: 4px">Members</legend>
+          <label class="pick"><input type="checkbox" checked> Mina Park</label>
+          <label class="pick"><input type="checkbox" checked> Joon Kim</label>
+          <label class="pick"><input type="checkbox"> Dilnoza Rahimova</label>
+          <label class="pick"><input type="checkbox"> Aziz Karimov</label>
+          <label class="pick"><input type="checkbox"> Bekzod Tursunov</label>
+        </fieldset>
+        <button type="button" class="btn">Create team</button>
+      </form>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1060}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

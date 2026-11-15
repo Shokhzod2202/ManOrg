@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Today's Orders · List view</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Montserrat:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#FFFFFF}
+a{color:#0B3A8C}a:hover{color:#082C6B}
+.muted{color:#566078}
+.chip{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:18px;background:#EAF0FA;color:#082C6B;font-size:14px}
+.views{display:flex;background:#F1F3F8;border-radius:12px;padding:4px;gap:2px}
+.views a{display:flex;align-items:center;gap:8px;min-height:44px;padding:0 18px;border-radius:9px;text-decoration:none;color:#2F3648;font:600 15px Inter,sans-serif}
+.views a.on{background:#FFFFFF;color:#0B3A8C;box-shadow:0 1px 2px rgba(15,26,51,.12)}
+.tab{min-height:44px;padding:0 18px;border:1px solid #CAD2E0;border-radius:22px;background:#FFFFFF;font:600 15px Inter,sans-serif;color:#2F3648}
+.tab.on{background:#0B3A8C;border-color:#0B3A8C;color:#FFFFFF}
+.badge{display:inline-flex;align-items:center;padding:1px 7px;border-radius:999px;font:700 11px Inter,sans-serif;white-space:nowrap}
+.b-up{background:#0B3A8C;color:#FFFFFF}
+.b-ask{background:#FFF1CC;color:#6B4600;border:1px solid #E9C66B}
+.alert{display:flex;align-items:center;gap:10px;min-height:46px;padding:0 18px;border-radius:12px;background:#FFF1CC;border:1px solid #E9C66B;color:#6B4600;text-decoration:none;font-weight:600}
+
+.mk{width:34px;height:34px;border-radius:9px;border:2px solid #CAD2E0;background:#FFFFFF;color:#FFFFFF;display:inline-flex;align-items:center;justify-content:center;font:700 11px Inter,sans-serif;padding:0}
+.mk.done{background:#24622A;border-color:#24622A}
+.mk.part{background:#E6F2E7;border-color:#24622A;color:#24622A}
+
+.views{margin:0 auto}
+.views a{min-height:38px;padding:0 12px;font-size:13px}
+.box{overflow-x:auto;border:1px solid #E4E8F0;border-radius:12px}
+table{border-collapse:separate;border-spacing:0;font-variant-numeric:tabular-nums}
+th,td{border-bottom:1px solid #EEF1F6;text-align:center;padding:0}
+td{width:40px;min-width:40px;height:44px;font:700 16px Inter,sans-serif}
+td.z{color:#C3C9D5;font-weight:500}
+.ph{height:104px;vertical-align:bottom;position:relative;width:40px;min-width:40px}
+.ph span{display:inline-block;transform:rotate(-60deg);transform-origin:left bottom;white-space:nowrap;font:600 12px Inter,sans-serif;position:absolute;left:22px;bottom:8px}
+.who,.corner{position:sticky;left:0;z-index:2;background:#FFFFFF;text-align:left;padding:0 10px;min-width:84px;border-right:2px solid #E4E8F0}
+.cn{display:block;font:700 14px Inter,sans-serif}
+.ct{display:block;font:500 11px Inter,sans-serif;color:#566078}
+tr.total th,tr.total td{background:#EAF0FA;border-top:2px solid #0B3A8C}
+td.tot{font:800 18px Montserrat,sans-serif;color:#0B3A8C}
+.mk{width:28px;height:28px;border-radius:7px}
+.tabbar a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:54px;font-size:11px;color:#566078;text-decoration:none}
+.tabbar a.on{color:#0B3A8C;font-weight:600}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #FFFFFF; font-family: Inter, sans-serif; color: #0F1A33; display: flex; flex-direction: column">
+  <div style="flex: 1; overflow: hidden; padding: 12px 10px 8px; display: flex; flex-direction: column; gap: 10px">
+    <header style="text-align: center">
+      <h1 style="margin: 0; font: 800 19px Montserrat, sans-serif">Orders due next</h1>
+      <div class="muted" style="font-size: 12px">Sat 14 Nov · 7 of 30 made</div>
+    </header>
+    <nav class="views" aria-label="How to show orders (kept until you change it)"><a href="OrdersList.dc.html" class="on" aria-current="page"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18M3 12h18M3 19h18"/></svg>List</a><a href="ProductionBoard.dc.html"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>Matrix</a><a href="OrdersProducts.dc.html"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Products</a></nav>
+    <a href="#" class="alert" style="justify-content: center; min-height: 36px; font-size: 13px">3 changes · 1 waits for the admin ›</a>
+    <div class="box" role="region" aria-label="Orders by contractor and product" tabindex="0">
+      <table>
+        <thead><tr><th scope="col" class="corner"></th><th scope="col" class="ph"><span>Bagel</span></th><th scope="col" class="ph"><span>Baguette</span></th><th scope="col" class="ph"><span>Belyash</span></th><th scope="col" class="ph"><span>Brioche</span></th><th scope="col" class="ph"><span>Brownie</span></th><th scope="col" class="ph"><span>Burger</span></th><th scope="col" class="ph"><span>Cheesecake</span></th><th scope="col" class="ph"><span>Chebureki</span></th><th scope="col" class="ph"><span>Ciabatta</span></th><th scope="col" class="ph"><span>Cinnamon roll</span></th><th scope="col" class="ph"><span>Cookie box</span></th><th scope="col" class="ph"><span>Croissant</span></th><th scope="col" class="ph"><span>Danish</span></th><th scope="col" class="ph"><span>Eclair</span></th><th scope="col" class="ph"><span>Medovik</span></th><th scope="col" class="ph"><span>Muffin</span></th><th scope="col" class="ph"><span>Napoleon</span></th><th scope="col" class="ph"><span>Pain au chocolat</span></th><th scope="col" class="ph"><span>Patir non</span></th><th scope="col" class="ph"><span>Pilaf</span></th><th scope="col" class="ph"><span>Pizza slice</span></th><th scope="col" class="ph"><span>Pretzel</span></th><th scope="col" class="ph"><span>Puff pastry</span></th><th scope="col" class="ph"><span>Rye bread</span></th><th scope="col" class="ph"><span>Sausage roll</span></th><th scope="col" class="ph"><span>Somsa</span></th><th scope="col" class="ph"><span>Tandir non</span></th><th scope="col" class="ph"><span>Toast loaf</span></th><th scope="col" class="ph"><span>White bread</span></th><th scope="col" class="ph"><span>Whole wheat</span></th></tr></thead>
+        <tbody><tr><th scope="row" class="who"><span class="cn">City</span><span class="ct">11:00</span></th><td class="">10</td><td class="">12</td><td class="">6</td><td class="">6</td><td class="">12</td><td class="">10</td><td class="">1</td><td class="z">·</td><td class="">8</td><td class="">10</td><td class="z">·</td><td class="">30</td><td class="z">·</td><td class="">10</td><td class="">2</td><td class="">12</td><td class="">2</td><td class="">12</td><td class="">15</td><td class="">5</td><td class="z">·</td><td class="z">·</td><td class="">8</td><td class="">10</td><td class="">8</td><td class="">30</td><td class="">40</td><td class="">6</td><td class="">30</td><td class="z">·</td></tr><tr><th scope="row" class="who"><span class="cn">Corner</span><span class="ct">14:00</span></th><td class="">10</td><td class="">20</td><td class="z">·</td><td class="z">·</td><td class="z">·</td><td class="z">·</td><td class="">2</td><td class="">15</td><td class="z">·</td><td class="">12</td><td class="">4</td><td class="">30</td><td class="">8</td><td class="">12</td><td class="">2</td><td class="z">·</td><td class="">1</td><td class="">18</td><td class="z">·</td><td class="z">·</td><td class="">12</td><td class="">6</td><td class="">4</td><td class="z">·</td><td class="">10</td><td class="">30</td><td class="">25</td><td class="">8</td><td class="">40</td><td class="">10</td></tr><tr><th scope="row" class="who"><span class="cn">Station</span><span class="ct">16:00</span></th><td class="">10</td><td class="z">·</td><td class="">8</td><td class="">4</td><td class="">10</td><td class="">6</td><td class="z">·</td><td class="z">·</td><td class="z">·</td><td class="">6</td><td class="">6</td><td class="">10</td><td class="z">·</td><td class="z">·</td><td class="z">·</td><td class="">12</td><td class="z">·</td><td class="z">·</td><td class="">10</td><td class="z">·</td><td class="">10</td><td class="">8</td><td class="z">·</td><td class="">6</td><td class="">12</td><td class="">20</td><td class="">20</td><td class="z">·</td><td class="">10</td><td class="">4</td></tr><tr class="total"><th scope="row" class="who"><span class="cn" style="color: #0B3A8C">Total</span></th><td class="tot">30</td><td class="tot">32</td><td class="tot">14</td><td class="tot">10</td><td class="tot">22</td><td class="tot">16</td><td class="tot">3</td><td class="tot">15</td><td class="tot">8</td><td class="tot">28</td><td class="tot">10</td><td class="tot">70</td><td class="tot">8</td><td class="tot">22</td><td class="tot">4</td><td class="tot">24</td><td class="tot">3</td><td class="tot">30</td><td class="tot">25</td><td class="tot">5</td><td class="tot">22</td><td class="tot">14</td><td class="tot">12</td><td class="tot">16</td><td class="tot">30</td><td class="tot">80</td><td class="tot">85</td><td class="tot">14</td><td class="tot">80</td><td class="tot">14</td></tr><tr><th scope="row" class="who"><span class="cn" style="color: #24622A">Made</span></th><td class="made"><button type="button" class="mk done" aria-pressed="true" aria-label="Bagel made"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button></td><td class="made"><button type="button" class="mk part" aria-pressed="mixed" aria-label="Baguette: 20 of 32 made">20</button></td><td class="made"><button type="button" class="mk" aria-pressed="false" aria-label="Mark Belyash made"></button></td><td class="made"><button type="button" class="mk done" aria-pressed="true" aria-label="Brioche made"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button></td><td class="made"><button type="button" class="mk" aria-pressed="false" aria-label="Mark Brownie made"></button></td><td class="made"><button type="button" class="mk" aria-pressed="false" aria-label="Mark Burger made"></button></td><td class="made"><button type="button" class="mk" aria-pressed="false" aria-label="Mark Cheesecake made"></button></td><td class="made"><button type="button" class="mk" aria-pressed="false" aria-label="Mark Chebureki made"></button></td><td class="made"><button type="button" class="mk done" aria-pressed="true" aria-label="Ciabatta made"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button></td><td class="made"><button type="button" class="mk part" aria-pressed="mixed" aria-label="Cinnamon roll: 14 of 28 made">14</button></td><td class="made"><button type="button" class="mk" aria-pressed="false" aria-label="Mark Cookie box made"></button></td><td class="made"><button type="button" class="mk part" aria-pressed="mixed" aria-label="Croissant: 40 of 70 made">40</button></td><td class="made"><button type="button" class="mk" aria-pressed="false" aria-label="Mark Danish made"></button></td><td class="made"><button type="button" class="mk" aria-pressed="false" aria-label="Mark Eclair made"></button></td><td class="made"><button type="button" class="mk" aria-pressed="false" aria-label="Mark Medovik made"></button></td><td class="made"><button type="button" class="mk done" aria-pressed="true" aria-label="Muffin made"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button></td><td class="made"><button type="button" class="mk" aria-pressed="false" aria-label="Mark Napoleon made"></button></td><td class="made"><button type="button" class="mk" aria-pressed="false" aria-label="Mark Pain au chocolat made"></button></td><td class="made"><button type="button" class="mk done" aria-pressed="true" aria-label="Patir non made"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button></td><td class="made"><button type="button" class="mk" aria-pressed="false" aria-label="Mark Pilaf made"></button></td><td class="made"><button type="button" class="mk" aria-pressed="false" aria-label="Mark Pizza slice made"></button></td><td class="made"><button type="button" class="mk" aria-pressed="false" aria-label="Mark Pretzel made"></button></td><td class="made"><button type="button" class="mk" aria-pressed="false" aria-label="Mark Puff pastry made"></button></td><td class="made"><button type="button" class="mk done" aria-pressed="true" aria-label="Rye bread made"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button></td><td class="made"><button type="button" class="mk" aria-pressed="false" aria-label="Mark Sausage roll made"></button></td><td class="made"><button type="button" class="mk part" aria-pressed="mixed" aria-label="Somsa: 50 of 80 made">50</button></td><td class="made"><button type="button" class="mk done" aria-pressed="true" aria-label="Tandir non made"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button></td><td class="made"><button type="button" class="mk" aria-pressed="false" aria-label="Mark Toast loaf made"></button></td><td class="made"><button type="button" class="mk part" aria-pressed="mixed" aria-label="White bread: 60 of 80 made">60</button></td><td class="made"><button type="button" class="mk" aria-pressed="false" aria-label="Mark Whole wheat made"></button></td></tr></tbody>
+      </table>
+    </div>
+    <div class="muted" style="text-align: center; font-size: 12px">Swipe sideways for all 30 products, A to Z</div>
+  </div>
+  <nav class="tabbar" aria-label="App" style="display: flex; border-top: 1px solid #E4E8F0">
+    <a href="EmployeeHome.dc.html">Home</a><a class="on" href="#" aria-current="page">Orders</a><a href="#">Output</a><a href="#">Shifts</a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>
