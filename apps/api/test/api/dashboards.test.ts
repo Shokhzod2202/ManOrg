@@ -49,7 +49,13 @@ describe("Today's Dashboard (DSH-1)", () => {
     ]);
     expect(res.body.tasks.due.map((t: { title: string }) => t.title)).toContain('Clean ovens');
     expect(res.body.ordersDueNext.totals).toEqual([
-      { productId: w.a.productId, productName: 'Alpha Bread', quantity: 30 },
+      {
+        productId: w.a.productId,
+        productName: 'Alpha Bread',
+        quantity: 30,
+        madeQuantity: 0,
+        done: false,
+      },
     ]);
     expect(res.body.waiting.applications).toBe(1);
   });
@@ -71,7 +77,11 @@ describe('employee home (DSH-2)', () => {
     expect(res.body.output).toMatchObject({ date: today() });
     expect(res.body.tasks.map((t: { title: string }) => t.title)).toEqual(['Clean ovens']);
     expect(res.body.myOrders.orders[0].lines).toEqual([
-      { productId: w.a.productId, productName: 'Alpha Bread', quantity: 30 },
+      expect.objectContaining({
+        productId: w.a.productId,
+        productName: 'Alpha Bread',
+        quantity: 30,
+      }),
     ]);
     expect(res.body.unreadNotifications).toBeGreaterThan(0);
   });

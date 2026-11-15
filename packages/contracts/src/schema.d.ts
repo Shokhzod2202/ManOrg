@@ -1341,6 +1341,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/orders/due-next/made": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Tick a product as made, or not, in the orders due next
+         * @description For every contractor, or one (contractorId). Employees, admins and the bot. Audited. Ticks stay through order changes, up to the new quantity.
+         */
+        post: operations["markMade"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/applications": {
         parameters: {
             query?: never;
@@ -1497,6 +1517,7 @@ export interface components {
             email: string;
             /** @enum {string} */
             locale: "en" | "ko" | "uz";
+            preferences?: components["schemas"]["Preferences"];
             /** @description Newest first; includes pending and rejected applications. */
             memberships: {
                 /** Format: uuid */
@@ -1515,6 +1536,7 @@ export interface components {
             currentPassword?: string;
             /** @enum {string} */
             locale?: "en" | "ko" | "uz";
+            preferences?: components["schemas"]["Preferences"];
         };
         OrganizationSummary: {
             /** Format: uuid */
@@ -1886,6 +1908,8 @@ export interface components {
             /** Format: uuid */
             id: string;
             name: string;
+            /** @description Made by an admin and seen by every member. */
+            shared?: boolean;
             members: components["schemas"]["PersonRef"][];
             version: number;
             /** Format: date-time */
@@ -1893,6 +1917,11 @@ export interface components {
         };
         CreateTeamRequest: {
             name: string;
+            /**
+             * @description Admins only: a team every member sees.
+             * @default false
+             */
+            shared: boolean;
             memberIds: string[];
         };
         UpdateTeamRequest: {
@@ -2258,6 +2287,9 @@ export interface components {
             deliveryStatus: "not_started" | "draft";
             lines: {
                 /** Format: uuid */
+                lineId: string;
+                madeQuantity: number;
+                /** Format: uuid */
                 productId: string;
                 productName: string;
                 quantity: number;
@@ -2268,6 +2300,8 @@ export interface components {
             productId: string;
             productName: string;
             quantity: number;
+            madeQuantity: number;
+            done: boolean;
         };
         DueNextOrders: {
             orders: components["schemas"]["DueNextOrder"][];
@@ -2317,6 +2351,20 @@ export interface components {
             /** @description Empty when the admin has closed Orders due next to employees. */
             myOrders: components["schemas"]["EmployeeDueNextOrders"] | null;
             unreadNotifications: number;
+        };
+        MarkMadeRequest: {
+            /** Format: uuid */
+            productId: string;
+            /** Format: uuid */
+            contractorId?: string;
+            made: boolean;
+        };
+        Preferences: {
+            /**
+             * @description How the person sees orders; stays until they change it. Default products.
+             * @enum {string}
+             */
+            ordersView?: "list" | "matrix" | "products";
         };
         Member: {
             /**
@@ -5077,6 +5125,37 @@ export interface operations {
                     "application/json": components["schemas"]["EmployeeHome"];
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    markMade: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MarkMadeRequest"];
+            };
+        };
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DueNextOrders"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];

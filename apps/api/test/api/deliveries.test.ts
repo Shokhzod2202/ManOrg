@@ -124,7 +124,13 @@ describe("Today's Orders and My Orders (TOD-1 to TOD-7)", () => {
       }),
     ]);
     expect(res.body.totals).toEqual([
-      { productId: w.a.productId, productName: 'Alpha Bread', quantity: 30 },
+      {
+        productId: w.a.productId,
+        productName: 'Alpha Bread',
+        quantity: 30,
+        madeQuantity: 0,
+        done: false,
+      },
     ]);
   });
 
@@ -144,12 +150,17 @@ describe("Today's Orders and My Orders (TOD-1 to TOD-7)", () => {
       .get(`/employees/${joon.userId}/orders/due-next`)
       .expect(200);
     expect(mine.body.orders[0].lines).toEqual([
-      { productId: pilaf, productName: 'Pilaf', quantity: 12 },
+      expect.objectContaining({
+        productId: pilaf,
+        productName: 'Pilaf',
+        quantity: 12,
+        madeQuantity: 0,
+      }),
     ]);
     await api.as(joon, w.a.id).get(`/employees/${w.a.employee.userId}/orders/due-next`).expect(403);
     const adminView = await admin().get(`/employees/${joon.userId}/orders/due-next`).expect(200);
     expect(adminView.body.totals).toEqual([
-      { productId: pilaf, productName: 'Pilaf', quantity: 12 },
+      { productId: pilaf, productName: 'Pilaf', quantity: 12, madeQuantity: 0, done: false },
     ]);
   });
 
@@ -319,5 +330,68 @@ describe('a new standing time applies to today’s open delivery (DTM-2)', () =>
     expect(draft.body.window).toMatchObject({ startTime: '11:00', endTime: '12:00' });
     const done = await admin().get(`/deliveries/${w.contractor.id}/${yesterday()}`).expect(200);
     expect(done.body.window).toMatchObject({ startTime: '14:00', endTime: '15:00' });
+  });
+});
+
+describe('made ticks on the production board (decided 2026-11-13)', () => {
+  it('lets a worker tick a product made for every contractor, audited', async () => {
+    const res = await api
+      .as(w.a.employee, w.a.id)
+      .post('/orders/due-next/made')
+      .send({ productId: w.a.productId, made: true })
+      .expect(200);
+    const bread = res.body.totals.find((t: { productId: string }) => t.productId === w.a.productId);
+    expect(bread).toMatchObject({ madeQuantity: bread.quantity, done: true });
+    const audit = await auditFor(w.a.productId, {
+      organizationId: w.a.id,
+      userId: w.a.admin.userId,
+    });
+    expect(audit.at(-1)?.action).toBe('order.made');
+    const undone = await api
+      .as(w.a.employee, w.a.id)
+      .post('/orders/due-next/made')
+      .send({ productId: w.a.productId, made: false })
+      .expect(200);
+    expect(
+      undone.body.totals.find((t: { productId: string }) => t.productId === w.a.productId),
+    ).toMatchObject({ madeQuantity: 0, done: false });
+  });
+
+  it('keeps ticks through an accepted order change, up to the new quantity', async () => {
+    await api
+      .as(w.a.employee, w.a.id)
+      .post('/orders/due-next/made')
+      .send({ productId: w.a.productId, made: true })
+      .expect(200);
+    const order = (await api.as(w.a.employee, w.a.id).get('/orders/due-next').expect(200)).body
+      .orders[0];
+    const change = await cafe()
+      .post(`/orders/${order.orderId}/change-requests`)
+      .send({
+        lines: [
+          { productId: w.a.productId, quantity: 35 },
+          { productId: pilaf, quantity: 10 },
+        ],
+      })
+      .expect(201);
+    const more = change.body.items.find(
+      (i: { productId: string }) => i.productId === w.a.productId,
+    );
+    await admin().post(`/order-change-items/${more.id}/accept`).expect(200);
+    const after = await api.as(w.a.employee, w.a.id).get('/orders/due-next').expect(200);
+    expect(
+      after.body.orders[0].lines.find((l: { productId: string }) => l.productId === w.a.productId),
+    ).toMatchObject({ quantity: 35, madeQuantity: 30 });
+  });
+
+  it('refuses contractors and products not in the orders due next', async () => {
+    await cafe()
+      .post('/orders/due-next/made')
+      .send({ productId: w.a.productId, made: true })
+      .expect(403);
+    await admin()
+      .post('/orders/due-next/made')
+      .send({ productId: w.b.productId, made: true })
+      .expect(404);
   });
 });

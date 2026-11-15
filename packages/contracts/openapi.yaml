@@ -2196,6 +2196,30 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /orders/due-next/made:
+    post:
+      operationId: markMade
+      summary: 'Tick a product as made, or not, in the orders due next'
+      description: 'For every contractor, or one (contractorId). Employees, admins and the bot. Audited. Ticks stay through order changes, up to the new quantity.'
+      tags: [deliveries]
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MarkMadeRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DueNextOrders' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /applications:
     get:
       operationId: listApplications
@@ -2509,6 +2533,7 @@ components:
         name: { type: string }
         email: { type: string, format: email }
         locale: { type: string, enum: [en, ko, uz] }
+        preferences: { $ref: '#/components/schemas/Preferences' }
         memberships:
           type: array
           description: Newest first; includes pending and rejected applications.
@@ -2532,6 +2557,7 @@ components:
           type: string
           description: Required when changing email or password.
         locale: { type: string, enum: [en, ko, uz] }
+        preferences: { $ref: '#/components/schemas/Preferences' }
 
     OrganizationSummary:
       type: object
@@ -3017,6 +3043,7 @@ components:
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
+        shared: { type: boolean, description: 'Made by an admin and seen by every member.' }
         members: { type: array, items: { $ref: '#/components/schemas/PersonRef' } }
         version: { type: integer }
         createdAt: { type: string, format: date-time }
@@ -3026,6 +3053,8 @@ components:
       required: [name, memberIds]
       properties:
         name: { type: string, minLength: 1, maxLength: 80 }
+        shared:
+          { type: boolean, default: false, description: 'Admins only: a team every member sees.' }
         memberIds: { type: array, maxItems: 50, items: { type: string, format: uuid } }
     UpdateTeamRequest:
       type: object
@@ -3541,18 +3570,22 @@ components:
           type: array
           items:
             type: object
-            required: [productId, productName, quantity]
+            required: [lineId, productId, productName, quantity, madeQuantity]
             properties:
+              lineId: { type: string, format: uuid }
+              madeQuantity: { type: integer }
               productId: { type: string, format: uuid }
               productName: { type: string }
               quantity: { type: integer }
     ProductTotal:
       type: object
-      required: [productId, productName, quantity]
+      required: [productId, productName, quantity, madeQuantity, done]
       properties:
         productId: { type: string, format: uuid }
         productName: { type: string }
         quantity: { type: integer }
+        madeQuantity: { type: integer }
+        done: { type: boolean }
     DueNextOrders:
       type: object
       required: [orders, totals]
@@ -3618,6 +3651,21 @@ components:
             - $ref: '#/components/schemas/EmployeeDueNextOrders'
             - type: 'null'
         unreadNotifications: { type: integer }
+    MarkMadeRequest:
+      type: object
+      additionalProperties: false
+      required: [productId, made]
+      properties:
+        productId: { type: string, format: uuid }
+        contractorId: { type: string, format: uuid }
+        made: { type: boolean }
+    Preferences:
+      type: object
+      properties:
+        ordersView:
+          type: string
+          enum: [list, matrix, products]
+          description: 'How the person sees orders; stays until they change it. Default products.'
     Member:
       type: object
       required: [id, role, status, version, user, createdAt]

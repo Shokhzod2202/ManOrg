@@ -9,6 +9,10 @@ export const updateMeSchema = z
     password: password.optional(),
     currentPassword: z.string().min(1).max(200).optional(),
     locale: z.enum(['en', 'ko', 'uz']).optional(),
+    /** Choices that stay until the person changes them (decided 2026-11-13). */
+    preferences: z
+      .strictObject({ ordersView: z.enum(['list', 'matrix', 'products']).optional() })
+      .optional(),
   })
   .refine((v) => Object.values(v).some((x) => x !== undefined), 'Send at least one field.')
   .refine(

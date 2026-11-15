@@ -28,14 +28,27 @@ export class OutputService {
 
   // ------------------------------------------------------------ teams (TEAM-1, OUT-4, OUT-5)
 
-  /** Saved teams are private to their creator (open question 16 / 17). */
+  /**
+   * The caller's teams: their own private teams (open questions 16 and 17) and the shared teams
+   * an admin made that include them. Admins see every shared team.
+   */
   listTeams(user: AuthUser, org: OrgContext) {
+    const admin = orgCan(org, 'teams.manageShared');
     return this.db.run(dbContext(user, org), async (tx) => ({
       items: await Promise.all(
         (
           await tx.team.findMany({
-            where: { organizationId: org.organizationId, ownerId: user.userId, deletedAt: null },
-            orderBy: [{ name: 'asc' }, { id: 'asc' }],
+            where: {
+              organizationId: org.organizationId,
+              deletedAt: null,
+              OR: [
+                { shared: false, ownerId: user.userId },
+                admin
+                  ? { shared: true }
+                  : { shared: true, members: { some: { employeeId: user.userId } } },
+              ],
+            },
+            orderBy: [{ shared: 'desc' }, { name: 'asc' }, { id: 'asc' }],
             select: { id: true },
           })
         ).map((t) => this.presentTeam(tx, t.id)),
@@ -45,13 +58,18 @@ export class OutputService {
   }
 
   createTeam(user: AuthUser, org: OrgContext, input: CreateTeamInput) {
+    if (input.shared ? !orgCan(org, 'teams.manageShared') : !orgCan(org, 'teams.manage'))
+      throw Errors.forbidden();
     return this.db.run(dbContext(user, org), async (tx) => {
-      const ids = [...new Set([user.userId, ...input.memberIds])];
+      // An admin's shared team holds the chosen employees; a private team always holds its creator.
+      const ids = [...new Set(input.shared ? input.memberIds : [user.userId, ...input.memberIds])];
+      if (ids.length === 0) throw Errors.validation({ memberIds: ['Add at least one member.'] });
       await activeMembers(tx, org.organizationId, ids);
       const team = await tx.team.create({
         data: {
           organizationId: org.organizationId,
           ownerId: user.userId,
+          shared: input.shared,
           name: input.name,
           members: { create: ids.map((employeeId) => ({ employeeId })) },
         },
@@ -62,7 +80,7 @@ export class OutputService {
         action: 'team.create',
         entity: 'team',
         entityId: team.id,
-        after: { name: team.name, memberIds: ids.sort() },
+        after: { name: team.name, shared: team.shared, memberIds: ids.sort() },
       });
       return this.presentTeam(tx, team.id);
     });
@@ -79,7 +97,10 @@ export class OutputService {
         });
       }
       if (input.memberIds !== undefined) {
-        const ids = [...new Set([team.ownerId, ...input.memberIds])];
+        const ids = [
+          ...new Set(team.shared ? input.memberIds : [team.ownerId, ...input.memberIds]),
+        ];
+        if (ids.length === 0) throw Errors.validation({ memberIds: ['Add at least one member.'] });
         await activeMembers(tx, org.organizationId, ids);
         await tx.teamMember.deleteMany({ where: { teamId: id } });
         await tx.teamMember.createMany({
@@ -124,12 +145,14 @@ export class OutputService {
     });
   }
 
+  /** A private team is changed by its creator; a shared team by an admin. Others get 404. */
   private async ownTeam(tx: Tx, org: OrgContext, user: AuthUser, id: string) {
     const team = await tx.team.findFirst({
       where: { id, organizationId: org.organizationId, deletedAt: null },
     });
-    // Another person's team is answered as not found: teams are private to their creator.
-    if (!team || team.ownerId !== user.userId) throw Errors.notFound('Team');
+    const allowed =
+      team && (team.shared ? orgCan(org, 'teams.manageShared') : team.ownerId === user.userId);
+    if (!team || !allowed) throw Errors.notFound('Team');
     return team;
   }
 
@@ -143,6 +166,7 @@ export class OutputService {
     return {
       id: team.id,
       name: team.name,
+      shared: team.shared,
       members: people,
       version: team.version,
       createdAt: team.createdAt,

@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { AuditService, userActor } from '../audit/audit.service';
 import { Errors } from '../common/errors';
 import { type AuthUser, dbContext, type OrgContext } from '../common/request-context';
 import { addDays, localDate, timeToHhmm } from '../common/time';
@@ -19,7 +20,10 @@ const isoOf = (d: Date) => d.toISOString().slice(0, 10);
  */
 @Injectable()
 export class DueNextService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly audit: AuditService,
+  ) {}
 
   /** TOD-1 to TOD-4: every contractor's order due next, by date then approximate time, with totals. */
   dueNext(user: AuthUser, org: OrgContext, contractorId?: string) {
@@ -56,6 +60,45 @@ export class DueNextService {
         .map((o) => ({ ...o, lines: o.lines.filter((l) => assigned.has(l.productId)) }))
         .filter((o) => o.lines.length > 0);
       return { employee: member.user, orders, totals: totals(orders.flatMap((o) => o.lines)) };
+    });
+  }
+
+  /**
+   * Ticks a product as made (or not) in the orders due next, for every contractor or one
+   * (decided 2026-11-13). Audited; returns the updated board.
+   */
+  markMade(
+    user: AuthUser,
+    org: OrgContext,
+    input: { productId: string; contractorId?: string; made: boolean },
+  ) {
+    if (org.organizationType !== 'provider') throw Errors.forbidden();
+    return this.db.run(dbContext(user, org), async (tx) => {
+      const orders = await this.select(tx, org.organizationId, input.contractorId);
+      const lines = orders.flatMap((o) => o.lines.filter((l) => l.productId === input.productId));
+      if (lines.length === 0) throw Errors.notFound('Product in the orders due next');
+      const now = new Date();
+      for (const l of lines) {
+        await tx.orderLine.update({
+          where: { id: l.lineId },
+          data: input.made
+            ? { madeQuantity: l.quantity, madeById: user.userId, madeAt: now }
+            : { madeQuantity: 0, madeById: null, madeAt: null },
+        });
+      }
+      await this.audit.record(tx, {
+        organizationId: org.organizationId,
+        actor: userActor(user.userId),
+        action: input.made ? 'order.made' : 'order.not_made',
+        entity: 'product',
+        entityId: input.productId,
+        before: { lines: lines.map((l) => ({ lineId: l.lineId, made: l.madeQuantity })) },
+        after: {
+          lines: lines.map((l) => ({ lineId: l.lineId, made: input.made ? l.quantity : 0 })),
+        },
+      });
+      const updated = await this.select(tx, org.organizationId);
+      return { orders: updated, totals: totals(updated.flatMap((o) => o.lines)) };
     });
   }
 
@@ -137,9 +180,11 @@ export class DueNextService {
           approxTime,
           deliveryStatus: delivery?.status ?? 'not_started',
           lines: o.lines.map((l) => ({
+            lineId: l.id,
             productId: l.productId,
             productName: l.productName,
             quantity: l.quantity,
+            madeQuantity: l.madeQuantity,
           })),
         };
       })
@@ -152,16 +197,31 @@ export class DueNextService {
   }
 }
 
-/** TOD-4: totals match the sum of the orders due next. */
-function totals(lines: { productId: string; productName: string; quantity: number }[]) {
-  const map = new Map<string, { productId: string; productName: string; quantity: number }>();
+/** TOD-4: totals match the sum of the orders due next; made shows production progress. */
+function totals(
+  lines: { productId: string; productName: string; quantity: number; madeQuantity: number }[],
+) {
+  const map = new Map<
+    string,
+    {
+      productId: string;
+      productName: string;
+      quantity: number;
+      madeQuantity: number;
+      done: boolean;
+    }
+  >();
   for (const l of lines) {
     const t = map.get(l.productId) ?? {
       productId: l.productId,
       productName: l.productName,
       quantity: 0,
+      madeQuantity: 0,
+      done: false,
     };
     t.quantity += l.quantity;
+    t.madeQuantity += l.madeQuantity;
+    t.done = t.madeQuantity >= t.quantity;
     map.set(l.productId, t);
   }
   return [...map.values()].sort((a, b) => a.productName.localeCompare(b.productName));

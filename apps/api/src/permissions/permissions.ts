@@ -64,6 +64,10 @@ const MATRIX = {
     contractor_admin: false,
   },
   'teams.manage': { employee: 'own', org_admin: false, contractor_admin: false },
+  // Decided 2026-11-13: admins create shared teams of employees who work together.
+  'teams.manageShared': { employee: false, org_admin: 'any', contractor_admin: false },
+  // Decided 2026-11-13: workers tick products as made on the production board.
+  'orders.markMade': { employee: 'any', org_admin: 'any', contractor_admin: false },
   // Spec section 2, "Added capabilities"
   'output.logTeam': { employee: 'own', org_admin: 'any', contractor_admin: false },
 

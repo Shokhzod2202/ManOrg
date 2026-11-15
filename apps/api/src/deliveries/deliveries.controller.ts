@@ -25,6 +25,12 @@ import { DeliveriesService } from './deliveries.service';
 import { DueNextService } from './due-next.service';
 
 const contractorQuery = z.object({ contractor_id: z.uuid().optional() });
+/** Tick a product made for every contractor in the orders due next, or for one. */
+const markMadeSchema = z.strictObject({
+  productId: z.uuid(),
+  contractorId: z.uuid().optional(),
+  made: z.boolean(),
+});
 
 function dateParam(date: string): string {
   if (!isoDate.safeParse(date).success) throw Errors.validation({ date: ['Use YYYY-MM-DD.'] });
@@ -152,6 +158,17 @@ export class DeliveriesController {
     @ZodQuery(contractorQuery) query: z.infer<typeof contractorQuery>,
   ) {
     return this.dueNext.dueNext(user, org, query.contractor_id);
+  }
+
+  @Post('orders/due-next/made')
+  @HttpCode(200)
+  @RequireOrg('orders.markMade')
+  markMade(
+    @CurrentUser() user: AuthUser,
+    @CurrentOrg() org: OrgContext,
+    @ZodBody(markMadeSchema) body: z.infer<typeof markMadeSchema>,
+  ) {
+    return this.dueNext.markMade(user, org, body);
   }
 
   @Get('employees/:id/orders/due-next')

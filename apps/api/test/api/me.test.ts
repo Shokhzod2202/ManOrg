@@ -81,3 +81,25 @@ describe('/me (ACC-8)', () => {
     expect(audit.at(-1)?.after).toMatchObject({ passwordChanged: true });
   });
 });
+
+describe('preferences (decided 2026-11-13)', () => {
+  it('keeps the chosen orders view until it is changed', async () => {
+    const fresh = await api.register('Viewer');
+    expect((await api.as(fresh).get('/me').expect(200)).body.preferences).toEqual({
+      ordersView: 'products',
+    });
+    await api
+      .as(fresh)
+      .patch('/me')
+      .send({ preferences: { ordersView: 'matrix' } })
+      .expect(200);
+    expect((await api.as(fresh).get('/me').expect(200)).body.preferences).toEqual({
+      ordersView: 'matrix',
+    });
+    await api
+      .as(fresh)
+      .patch('/me')
+      .send({ preferences: { ordersView: 'grid' } })
+      .expect(400);
+  });
+});

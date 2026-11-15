@@ -60,8 +60,17 @@ describe('teams (TEAM-1, OUT-4, OUT-5)', () => {
       .expect(400);
   });
 
-  it('is for employees; admins do not keep teams', async () => {
-    await api.as(w.a.admin, w.a.id).get('/teams').expect(403);
+  it('lets admins keep shared teams only; private teams are for employees', async () => {
+    await api
+      .as(w.a.admin, w.a.id)
+      .post('/teams')
+      .send({ name: 'Admin private', memberIds: [] })
+      .expect(403);
+    await api
+      .as(w.a.employee, w.a.id)
+      .post('/teams')
+      .send({ name: 'Mine shared', memberIds: [], shared: true })
+      .expect(403);
   });
 });
 
@@ -231,5 +240,37 @@ describe('deleting a team', () => {
     expect(mine.body.items).toEqual([]);
     const res = await api.as(joon, w.a.id).get(`/output?from=${today()}&to=${today()}`).expect(200);
     expect(res.body.days[0].team[0].members).toHaveLength(2);
+  });
+});
+
+describe('shared teams made by an admin (decided 2026-11-13)', () => {
+  it('are seen by every member, used for team output, and changed by admins only', async () => {
+    const res = await api
+      .as(w.a.admin, w.a.id)
+      .post('/teams')
+      .send({ name: 'Morning bakers', memberIds: [w.a.employee.userId, joon.userId], shared: true })
+      .expect(201);
+    expect(res.body).toMatchObject({ name: 'Morning bakers', shared: true });
+    expect(res.body.members.map((m: { id: string }) => m.id).sort()).toEqual(
+      [w.a.employee.userId, joon.userId].sort(),
+    );
+    for (const member of [w.a.employee, joon]) {
+      const list = await api.as(member, w.a.id).get('/teams').expect(200);
+      expect(list.body.items.map((t: { id: string }) => t.id)).toContain(res.body.id);
+    }
+    await api.as(joon, w.a.id).patch(`/teams/${res.body.id}`).send({ name: 'Renamed' }).expect(404);
+    await api
+      .as(w.a.admin, w.a.id)
+      .patch(`/teams/${res.body.id}`)
+      .send({ name: 'Early bakers' })
+      .expect(200);
+    await api
+      .as(joon, w.a.id)
+      .put(`/output/${today()}`)
+      .send({ lines: [{ productId: pilaf, quantity: 12, teamId: res.body.id }] })
+      .expect(200);
+    const outsider = await api.hireEmployee(w.a.id, w.a.admin, 'Outsider');
+    const theirs = await api.as(outsider, w.a.id).get('/teams').expect(200);
+    expect(theirs.body.items.map((t: { id: string }) => t.id)).not.toContain(res.body.id);
   });
 });

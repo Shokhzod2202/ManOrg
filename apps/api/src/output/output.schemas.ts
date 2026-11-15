@@ -5,7 +5,12 @@ const teamName = z.string().trim().min(1, 'Enter a name.').max(80);
 const memberIds = z.array(z.uuid()).max(50);
 
 /** TEAM-1 / OUT-5: a saved team; its creator is always a member. */
-export const createTeamSchema = z.strictObject({ name: teamName, memberIds });
+export const createTeamSchema = z.strictObject({
+  name: teamName,
+  memberIds,
+  /** Admins only: a team every member sees (decided 2026-11-13). */
+  shared: z.boolean().default(false),
+});
 export const updateTeamSchema = z
   .strictObject({ name: teamName.optional(), memberIds: memberIds.optional() })
   .refine((v) => v.name !== undefined || v.memberIds !== undefined, 'Send name or memberIds.');

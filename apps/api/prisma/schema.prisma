@@ -170,6 +170,8 @@ model User {
   email        String    @unique
   passwordHash String    @map("password_hash")
   locale       String    @default("en")
+  /// Personal display choices that stay until changed, e.g. the orders view (decided 2026-11-13).
+  preferences  Json      @default("{}")
   deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(3)
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -523,6 +525,9 @@ model Team {
   id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId String    @map("organization_id") @db.Uuid
   ownerId        String    @map("owner_id") @db.Uuid
+  /// Shared teams are made by an admin and seen by every member (decided 2026-11-13);
+  /// private teams are an employee's own.
+  shared         Boolean   @default(false)
   name           String
   deletedAt      DateTime? @map("deleted_at") @db.Timestamptz(3)
   version        Int       @default(1)
@@ -674,15 +679,19 @@ model Order {
 
 /// Product name is copied at order time so later product edits never rewrite history.
 model OrderLine {
-  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId  String   @map("organization_id") @db.Uuid
-  contractorOrgId String   @map("contractor_org_id") @db.Uuid
-  orderId         String   @map("order_id") @db.Uuid
-  productId       String   @map("product_id") @db.Uuid
-  productName     String   @map("product_name")
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId  String    @map("organization_id") @db.Uuid
+  contractorOrgId String    @map("contractor_org_id") @db.Uuid
+  orderId         String    @map("order_id") @db.Uuid
+  productId       String    @map("product_id") @db.Uuid
+  productName     String    @map("product_name")
   quantity        Int
-  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  /// How many are made so far (decided 2026-11-13: workers tick products as made).
+  madeQuantity    Int       @default(0) @map("made_quantity")
+  madeById        String?   @map("made_by") @db.Uuid
+  madeAt          DateTime? @map("made_at") @db.Timestamptz(3)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   order        Order        @relation(fields: [orderId, organizationId, contractorOrgId], references: [id, organizationId, contractorOrgId], onDelete: Cascade)

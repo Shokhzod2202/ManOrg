@@ -43,13 +43,14 @@ export class OutputController {
   constructor(private readonly output: OutputService) {}
 
   @Get('teams')
-  @RequireOrg('teams.manage')
+  @RequireOrg()
   listTeams(@CurrentUser() user: AuthUser, @CurrentOrg() org: OrgContext) {
+    providerOnly(org);
     return this.output.listTeams(user, org);
   }
 
   @Post('teams')
-  @RequireOrg('teams.manage')
+  @RequireOrg()
   createTeam(
     @CurrentUser() user: AuthUser,
     @CurrentOrg() org: OrgContext,
@@ -59,7 +60,7 @@ export class OutputController {
   }
 
   @Patch('teams/:id')
-  @RequireOrg('teams.manage')
+  @RequireOrg()
   updateTeam(
     @CurrentUser() user: AuthUser,
     @CurrentOrg() org: OrgContext,
@@ -71,7 +72,7 @@ export class OutputController {
 
   @Delete('teams/:id')
   @HttpCode(204)
-  @RequireOrg('teams.manage')
+  @RequireOrg()
   async deleteTeam(
     @CurrentUser() user: AuthUser,
     @CurrentOrg() org: OrgContext,

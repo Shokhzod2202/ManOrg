@@ -491,6 +491,9 @@ export class OrdersService {
     lines: { productId: string; quantity: number }[],
     names: Map<string, string>,
   ) {
+    // Products already ticked as made stay made, up to the new quantity.
+    const before = await tx.orderLine.findMany({ where: { orderId: order.id } });
+    const made = new Map(before.map((l) => [l.productId, l]));
     await tx.orderLine.deleteMany({ where: { orderId: order.id } });
     if (lines.length > 0) {
       await tx.orderLine.createMany({
@@ -501,6 +504,9 @@ export class OrdersService {
           productId: l.productId,
           productName: names.get(l.productId) ?? '',
           quantity: l.quantity,
+          madeQuantity: Math.min(made.get(l.productId)?.madeQuantity ?? 0, l.quantity),
+          madeById: made.get(l.productId)?.madeById ?? null,
+          madeAt: made.get(l.productId)?.madeAt ?? null,
         })),
       });
     }

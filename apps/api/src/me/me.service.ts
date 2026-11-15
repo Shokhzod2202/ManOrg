@@ -44,6 +44,9 @@ export class MeService {
           ...(input.name !== undefined ? { name: input.name } : {}),
           ...(input.email !== undefined ? { email: input.email } : {}),
           ...(input.locale !== undefined ? { locale: input.locale } : {}),
+          ...(input.preferences !== undefined
+            ? { preferences: { ...readPreferences(current.preferences), ...input.preferences } }
+            : {}),
           ...(newHash ? { passwordHash: newHash } : {}),
         },
       });
@@ -60,11 +63,17 @@ export class MeService {
         action: 'user.update',
         entity: 'user',
         entityId: user.userId,
-        before: { name: current.name, email: current.email, locale: current.locale },
+        before: {
+          name: current.name,
+          email: current.email,
+          locale: current.locale,
+          preferences: current.preferences,
+        },
         after: {
           name: updated.name,
           email: updated.email,
           locale: updated.locale,
+          preferences: updated.preferences,
           ...(newHash ? { passwordChanged: true } : {}),
         },
       });
@@ -89,6 +98,7 @@ export class MeService {
       name: user.name,
       email: user.email,
       locale: user.locale,
+      preferences: readPreferences(user.preferences),
       memberships: user.memberships.map((m) => ({
         id: m.id,
         role: m.role,
@@ -97,4 +107,12 @@ export class MeService {
       })),
     };
   }
+}
+
+/** Stored preferences with defaults: the orders view starts as the product list. */
+function readPreferences(stored: unknown): { ordersView: 'list' | 'matrix' | 'products' } {
+  const value = (stored as { ordersView?: unknown } | null)?.ordersView;
+  return {
+    ordersView: value === 'list' || value === 'matrix' || value === 'products' ? value : 'products',
+  };
 }
