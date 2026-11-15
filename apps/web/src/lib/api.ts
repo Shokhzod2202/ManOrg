@@ -2,7 +2,9 @@ import { type Schemas } from '@manorg/contracts';
 
 export type { Schemas };
 
-const BASE = `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'}/api/v1`;
+// Same origin by default: the web server forwards /api/v1 to the API (next.config.ts), so no
+// CORS is needed and a preview link works. NEXT_PUBLIC_API_URL points the browser elsewhere.
+const BASE = `${process.env.NEXT_PUBLIC_API_URL ?? ''}/api/v1`;
 const TOKENS = 'manorg.tokens';
 const ORG = 'manorg.org';
 
