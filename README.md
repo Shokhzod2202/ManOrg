@@ -31,11 +31,17 @@ pnpm infra:up                     # PostgreSQL 16 and Redis (infra/docker-compos
 pnpm db:migrate                   # apply migrations
 pnpm db:seed                      # Sunrise Bakery + City Cafe, password Password123!
 pnpm dev                          # API :3001, web :3000, Expo dev server
+pnpm db:demo                      # optional, with the API running: products, contractors, orders
 pnpm test                         # unit, integration and tenant-isolation suites
 ```
 
 Seed accounts: `admin@sunrise.test` (bakery admin), `mina@sunrise.test` and `joon@sunrise.test`
 (employees), `admin@citycafe.test` (contractor admin).
+
+Open http://localhost:3000 and sign in. On a phone, or a browser narrower than 760 px, the
+website looks like the phone app. The kitchen TV view is http://localhost:3000/wall.
+
+Browser checks (with the API, web app and demo data running): `pnpm --filter @manorg/web e2e`.
 
 Try the API:
 

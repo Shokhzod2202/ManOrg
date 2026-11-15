@@ -1,0 +1,270 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { Empty, ErrorBox, Flag, Loading, PageHead } from '../../../components/ui';
+import { type ApiError, formatMinutes, put, type Schemas, today } from '../../../lib/api';
+import { useSession } from '../../../lib/session';
+import { useApi } from '../../../lib/use-api';
+
+type Product = Schemas['Product'];
+type Team = Schemas['Team'];
+type History = Schemas['OutputHistory'];
+type ShiftOutput = Schemas['ShiftOutputDashboard'];
+
+export default function OutputPage() {
+  const { actor } = useSession();
+  return actor === 'org_admin' ? <AdminOutput /> : <MyOutput />;
+}
+
+/** OUT-1 to OUT-4: personal lines, or team lines counted once and shared equally. */
+function MyOutput() {
+  const { me } = useSession();
+  const [date, setDate] = useState(today());
+  const products = useApi<{ items: Product[] }>(me ? `/employees/${me.id}/products` : null);
+  const teams = useApi<{ items: Team[] }>('/teams');
+  const history = useApi<History>(`/output?from=${date}&to=${date}`);
+  const [mode, setMode] = useState<string>('personal');
+  const [qty, setQty] = useState<Record<string, Record<string, number>>>({});
+  const [cleaning, setCleaning] = useState(0);
+  const [err, setErr] = useState<ApiError | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    const day = history.data?.days.find((d) => d.date === date);
+    const next: Record<string, Record<string, number>> = { personal: {} };
+    day?.personal.forEach(
+      (l) => ((next.personal as Record<string, number>)[l.productId] = l.quantity),
+    );
+    day?.team.forEach((l) => {
+      next[l.team.id] ??= {};
+      (next[l.team.id] as Record<string, number>)[l.productId] = l.quantity;
+    });
+    setQty(next);
+    setCleaning(day?.cleaningHours ?? 0);
+  }, [history.data, date]);
+
+  async function save() {
+    setErr(null);
+    setSaved(false);
+    try {
+      const lines = Object.entries(qty).flatMap(([key, m]) =>
+        Object.entries(m)
+          .filter(([, q]) => q > 0)
+          .map(([productId, quantity]) => ({
+            productId,
+            quantity,
+            teamId: key === 'personal' ? null : key,
+          })),
+      );
+      await put(`/output/${date}`, { lines, cleaningHours: cleaning });
+      setSaved(true);
+      history.reload();
+    } catch (e) {
+      setErr(e as ApiError);
+    }
+  }
+
+  const day = history.data?.days.find((d) => d.date === date);
+  const list = [...(products.data?.items ?? [])].sort((a, b) => a.name.localeCompare(b.name));
+  const current = qty[mode] ?? {};
+
+  return (
+    <div className="page">
+      <PageHead title="Output">
+        <input
+          className="input"
+          type="date"
+          value={date}
+          max={today()}
+          onChange={(e) => setDate(e.target.value)}
+          aria-label="Date"
+        />
+      </PageHead>
+      <ErrorBox error={products.error ?? history.error ?? err} />
+      {day ? (
+        <div className="kpis">
+          <div className="kpi">
+            <b>{Math.round(day.creditedQuantity * 10) / 10}</b>
+            <span>Items credited</span>
+          </div>
+          <div className="kpi">
+            <b>{formatMinutes(Math.round(day.expectedMinutes))}</b>
+            <span>Expected time</span>
+          </div>
+          <div className="kpi">
+            <b>{day.cleaningHours} h</b>
+            <span>Cleaning</span>
+          </div>
+        </div>
+      ) : null}
+      <div className="tabs" role="tablist" aria-label="Log for">
+        <button
+          role="tab"
+          aria-selected={mode === 'personal'}
+          className={mode === 'personal' ? 'on' : ''}
+          onClick={() => setMode('personal')}
+        >
+          Just me
+        </button>
+        {teams.data?.items.map((t) => (
+          <button
+            key={t.id}
+            role="tab"
+            aria-selected={mode === t.id}
+            className={mode === t.id ? 'on' : ''}
+            onClick={() => setMode(t.id)}
+          >
+            Team {t.name}
+          </button>
+        ))}
+      </div>
+      {mode !== 'personal' ? (
+        <p className="muted center small">
+          Team numbers are counted once and shared equally:{' '}
+          {teams.data?.items
+            .find((t) => t.id === mode)
+            ?.members.map((m) => m.name)
+            .join(', ')}
+          .
+        </p>
+      ) : null}
+      {products.loading ? <Loading /> : null}
+      {products.data && !list.length ? (
+        <Empty>No products are assigned to you yet. Ask your admin.</Empty>
+      ) : null}
+      {list.length ? (
+        <div className="card" style={{ padding: 8 }}>
+          {list.map((p) => (
+            <div
+              key={p.id}
+              className="row between"
+              style={{ padding: '6px 8px', borderBottom: '1px solid #f1f3f8' }}
+            >
+              <span className="row">
+                <img className="thumb" src={p.imageUrl} alt="" />
+                {p.name}
+              </span>
+              <input
+                className="input qty"
+                type="number"
+                min={0}
+                inputMode="numeric"
+                aria-label={`${p.name} made`}
+                value={current[p.id] ?? ''}
+                onChange={(e) =>
+                  setQty({
+                    ...qty,
+                    [mode]: { ...current, [p.id]: Math.max(0, Number(e.target.value)) },
+                  })
+                }
+              />
+            </div>
+          ))}
+          <div className="row between" style={{ padding: '10px 8px' }}>
+            <span>Cleaning hours</span>
+            <input
+              className="input qty"
+              type="number"
+              min={0}
+              max={24}
+              step={0.25}
+              value={cleaning}
+              onChange={(e) => setCleaning(Number(e.target.value))}
+              aria-label="Cleaning hours"
+            />
+          </div>
+        </div>
+      ) : null}
+      <button className="btn big" onClick={save} disabled={!list.length}>
+        Save output
+      </button>
+      {saved ? (
+        <span className="pill ok" style={{ alignSelf: 'center' }}>
+          Saved
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+/** DSH-3: who made what today, with hours and flags. */
+function AdminOutput() {
+  const [date, setDate] = useState(today());
+  const { data, error, loading, reload } = useApi<ShiftOutput>(
+    `/dashboard/shift-output?date=${date}`,
+    60_000,
+  );
+  return (
+    <div className="page wide">
+      <PageHead title="Output">
+        <input
+          className="input"
+          type="date"
+          value={date}
+          max={today()}
+          onChange={(e) => setDate(e.target.value)}
+          aria-label="Date"
+        />
+      </PageHead>
+      {loading && !data ? <Loading /> : null}
+      <ErrorBox error={error} onRetry={reload} />
+      {data ? (
+        <div className="grid2" style={{ alignItems: 'start' }}>
+          <section className="card">
+            <h2>By employee</h2>
+            {!data.employees.length ? <Empty>No one worked on this day.</Empty> : null}
+            <table className="t cards">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Worked</th>
+                  <th>Items</th>
+                  <th>Expected</th>
+                  <th>Cleaning</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.employees.map((e) => (
+                  <tr key={e.employee.id}>
+                    <td data-label="Name">
+                      <b>{e.employee.name}</b>
+                      {e.flags.map((f) => (
+                        <div key={f.code}>
+                          <Flag>{f.message}</Flag>
+                        </div>
+                      ))}
+                    </td>
+                    <td data-label="Worked">{formatMinutes(e.workedMinutes)}</td>
+                    <td data-label="Items">{Math.round(e.output.creditedQuantity * 10) / 10}</td>
+                    <td data-label="Expected">
+                      {formatMinutes(Math.round(e.output.expectedMinutes))}
+                    </td>
+                    <td data-label="Cleaning">{e.output.cleaningHours} h</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+          <section className="card">
+            <h2>Products made</h2>
+            {!data.totals.length ? <Empty>Nothing logged.</Empty> : null}
+            <table className="t">
+              <tbody>
+                {[...data.totals]
+                  .sort((a, b) => a.name.localeCompare(b.name))
+                  .map((t) => (
+                    <tr key={t.productId}>
+                      <td>{t.name}</td>
+                      <td style={{ textAlign: 'right' }}>
+                        <b>{t.quantity}</b>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </section>
+        </div>
+      ) : null}
+    </div>
+  );
+}
