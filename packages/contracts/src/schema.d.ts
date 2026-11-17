@@ -114,6 +114,60 @@ export interface paths {
         patch: operations["updateMe"];
         trace?: never;
     };
+    "/me/device-session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * A separate session for the Haydar phone app's background work
+         * @description Called by the web app only when it runs inside the phone app, which stores the token in the phone's secure storage. The arrival check (spec section 9) runs while the app is closed. Its own refresh-token family; audited.
+         */
+        post: operations["createDeviceSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/devices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Register the phone for push notifications (Expo push token) */
+        post: operations["registerDevice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/devices/remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Stop push to this phone (on sign-out); only the caller's own token */
+        post: operations["removeDevice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me/telegram": {
         parameters: {
             query?: never;
@@ -343,6 +397,30 @@ export interface paths {
          * @description Send only the areas to change. Audited; applies on each employee's next request.
          */
         put: operations["updateEmployeeAccess"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organization/location": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The bakery location and arrival prompt settings (spec section 9)
+         * @description Any member reads it: the phone app registers the geofence from it.
+         */
+        get: operations["getOrganizationLocation"];
+        /**
+         * Set the bakery location, geofence radius and arrival window
+         * @description Admins. Audited. The arrival prompt can be on only when a location is set.
+         */
+        put: operations["updateOrganizationLocation"];
         post?: never;
         delete?: never;
         options?: never;
@@ -598,6 +676,26 @@ export interface paths {
          */
         put: operations["setShiftPlan"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/punch/arrival": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The phone entered the bakery geofence: should it say "You came to work. Start shift"?
+         * @description Spec section 9. No location is sent or stored. Prompts only when the organization has it on, the employee has not turned it off, there is a planned shift within the window around its start, and no shift is running. It never punches: the employee still taps Start Shift.
+         */
+        post: operations["checkArrival"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1806,6 +1904,28 @@ export interface components {
             messages: components["schemas"]["BotMessage"][];
             proposals: components["schemas"]["BotProposal"][];
         };
+        OrganizationLocation: {
+            /** @description The organization's version; send as If-Match. */
+            version: number;
+            enabled: boolean;
+            latitude: number | null;
+            longitude: number | null;
+            /** @description Geofence radius in metres (default 100). */
+            radiusM: number;
+            /** @description Prompt from this many minutes before a planned start. */
+            windowBeforeMin: number;
+            /** @description Until this many minutes after it. */
+            windowAfterMin: number;
+        };
+        ArrivalCheck: {
+            prompt: boolean;
+            /** @enum {string} */
+            reason: "planned_shift" | "off_for_organization" | "off_for_employee" | "already_on_shift" | "no_shift_now";
+            /** @example You came to work. Start shift */
+            message: string | null;
+            /** Format: date-time */
+            plannedStart: string | null;
+        };
         UpdateMeRequest: {
             name?: string;
             /** Format: email */
@@ -2646,6 +2766,8 @@ export interface components {
              * @enum {string}
              */
             ordersView?: "list" | "matrix" | "products";
+            /** @description Spec section 9: show "You came to work. Start shift" on arrival. Default on. */
+            arrivalPrompt?: boolean;
         };
         Member: {
             /**
@@ -2939,6 +3061,86 @@ export interface operations {
             400: components["responses"]["ValidationFailed"];
             401: components["responses"]["Unauthenticated"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    createDeviceSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        refreshToken: string;
+                        /** @description Access token lifetime in seconds. */
+                        expiresIn: number;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    registerDevice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    token: string;
+                    /** @enum {string} */
+                    platform: "ios" | "android";
+                };
+            };
+        };
+        responses: {
+            /** @description Registered. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+        };
+    };
+    removeDevice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    token: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
         };
     };
     getTelegramStatus: {
@@ -3402,6 +3604,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EmployeeAccess"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            428: components["responses"]["PreconditionRequired"];
+        };
+    };
+    getOrganizationLocation: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationLocation"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateOrganizationLocation: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+                /** @description The `version` of the record being edited. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    latitude?: number | null;
+                    longitude?: number | null;
+                    radiusM?: number;
+                    windowBeforeMin?: number;
+                    windowAfterMin?: number;
+                    enabled?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationLocation"];
                 };
             };
             400: components["responses"]["ValidationFailed"];
@@ -4040,6 +4310,32 @@ export interface operations {
                 };
             };
             400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    checkArrival: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArrivalCheck"];
+                };
+            };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];

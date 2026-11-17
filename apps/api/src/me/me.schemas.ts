@@ -11,7 +11,11 @@ export const updateMeSchema = z
     locale: z.enum(['en', 'ko', 'uz']).optional(),
     /** Choices that stay until the person changes them (decided 2026-11-13). */
     preferences: z
-      .strictObject({ ordersView: z.enum(['list', 'matrix', 'products']).optional() })
+      .strictObject({
+        ordersView: z.enum(['list', 'matrix', 'products']).optional(),
+        /** Spec section 9: the employee can turn the arrival prompt off. */
+        arrivalPrompt: z.boolean().optional(),
+      })
       .optional(),
   })
   .refine((v) => Object.values(v).some((x) => x !== undefined), 'Send at least one field.')

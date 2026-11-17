@@ -10,6 +10,7 @@ import {
   useState,
 } from 'react';
 import { get, patch, refresh, type Schemas, session, sessionCall } from './api';
+import { linkPhoneApp, phoneAppOrg, phoneAppSignedOut } from './native';
 
 type Me = Schemas['Me'];
 type Membership = Me['memberships'][number];
@@ -57,6 +58,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const chosen = active.find((m) => m.organization.id === stored) ?? active[0];
       setOrgId(chosen?.organization.id ?? null);
       session.setOrg(chosen?.organization.id ?? null);
+      void linkPhoneApp(data.id, chosen?.organization.id ?? null);
     } catch {
       session.setAccess(null);
       setMe(null);
@@ -95,12 +97,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         await reload();
       },
       signOut: () => {
+        phoneAppSignedOut();
         void sessionCall('logout');
         session.setOrg(null);
         setMe(null);
         setOrgId(null);
       },
       chooseOrg: (id) => {
+        phoneAppOrg(id);
         session.setOrg(id);
         setOrgId(id);
       },

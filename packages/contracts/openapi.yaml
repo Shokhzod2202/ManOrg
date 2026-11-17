@@ -174,6 +174,64 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '409': { $ref: '#/components/responses/Conflict' }
 
+  /me/device-session:
+    post:
+      operationId: createDeviceSession
+      summary: "A separate session for the Haydar phone app's background work"
+      description: "Called by the web app only when it runs inside the phone app, which stores the token in the phone's secure storage. The arrival check (spec section 9) runs while the app is closed. Its own refresh-token family; audited."
+      tags: [account]
+      responses:
+        '201':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [refreshToken, expiresIn]
+                properties:
+                  refreshToken: { type: string }
+                  expiresIn: { type: integer, description: Access token lifetime in seconds. }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /me/devices:
+    post:
+      operationId: registerDevice
+      summary: 'Register the phone for push notifications (Expo push token)'
+      tags: [account]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [token, platform]
+              properties:
+                token: { type: string, minLength: 10, maxLength: 300 }
+                platform: { type: string, enum: [ios, android] }
+      responses:
+        '204': { description: Registered. }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+  /me/devices/remove:
+    post:
+      operationId: removeDevice
+      summary: "Stop push to this phone (on sign-out); only the caller's own token"
+      tags: [account]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [token]
+              properties:
+                token: { type: string, minLength: 10, maxLength: 300 }
+      responses:
+        '204': { description: Removed. }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
   /me/telegram:
     get:
       operationId: getTelegramStatus
@@ -535,6 +593,59 @@ paths:
         '409': { $ref: '#/components/responses/Conflict' }
         '428': { $ref: '#/components/responses/PreconditionRequired' }
 
+  /organization/location:
+    get:
+      operationId: getOrganizationLocation
+      summary: 'The bakery location and arrival prompt settings (spec section 9)'
+      description: 'Any member reads it: the phone app registers the geofence from it.'
+      tags: [organizations]
+      x-tenant-scoped: true
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrganizationLocation' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      operationId: updateOrganizationLocation
+      summary: 'Set the bakery location, geofence radius and arrival window'
+      description: 'Admins. Audited. The arrival prompt can be on only when a location is set.'
+      tags: [organizations]
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                latitude: { type: [number, 'null'], minimum: -90, maximum: 90 }
+                longitude: { type: [number, 'null'], minimum: -180, maximum: 180 }
+                radiusM: { type: integer, minimum: 30, maximum: 1000 }
+                windowBeforeMin: { type: integer, minimum: 0, maximum: 240 }
+                windowAfterMin: { type: integer, minimum: 0, maximum: 240 }
+                enabled: { type: boolean }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrganizationLocation' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
   /organization/bot-access:
     get:
       operationId: getBotAccess
@@ -1051,6 +1162,23 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /punch/arrival:
+    post:
+      operationId: checkArrival
+      summary: 'The phone entered the bakery geofence: should it say "You came to work. Start shift"?'
+      description: 'Spec section 9. No location is sent or stored. Prompts only when the organization has it on, the employee has not turned it off, there is a planned shift within the window around its start, and no shift is running. It never punches: the employee still taps Start Shift.'
+      tags: [shifts]
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ArrivalCheck' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /punch/card:
     get:
       operationId: getPunchCard
@@ -2917,6 +3045,29 @@ components:
         title: { type: string }
         messages: { type: array, items: { $ref: '#/components/schemas/BotMessage' } }
         proposals: { type: array, items: { $ref: '#/components/schemas/BotProposal' } }
+    OrganizationLocation:
+      type: object
+      required: [version, enabled, latitude, longitude, radiusM, windowBeforeMin, windowAfterMin]
+      properties:
+        version: { type: integer, description: "The organization's version; send as If-Match." }
+        enabled: { type: boolean }
+        latitude: { type: [number, 'null'] }
+        longitude: { type: [number, 'null'] }
+        radiusM: { type: integer, description: 'Geofence radius in metres (default 100).' }
+        windowBeforeMin:
+          { type: integer, description: 'Prompt from this many minutes before a planned start.' }
+        windowAfterMin: { type: integer, description: 'Until this many minutes after it.' }
+    ArrivalCheck:
+      type: object
+      required: [prompt, reason, message, plannedStart]
+      properties:
+        prompt: { type: boolean }
+        reason:
+          type: string
+          enum:
+            [planned_shift, off_for_organization, off_for_employee, already_on_shift, no_shift_now]
+        message: { type: [string, 'null'], example: 'You came to work. Start shift' }
+        plannedStart: { type: [string, 'null'], format: date-time }
     UpdateMeRequest:
       type: object
       additionalProperties: false
@@ -4043,6 +4194,9 @@ components:
           type: string
           enum: [list, matrix, products]
           description: 'How the person sees orders; stays until they change it. Default products.'
+        arrivalPrompt:
+          type: boolean
+          description: 'Spec section 9: show "You came to work. Start shift" on arrival. Default on.'
     Member:
       type: object
       required: [id, role, status, version, user, createdAt]

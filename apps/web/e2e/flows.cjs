@@ -220,6 +220,26 @@ async function as(b, email, vp = { width: 1280, height: 900 }) {
     (await mina.locator('section:has(h2:has-text("My teams")) b').allInnerTexts()).join(', '),
   );
 
+  // 10b. The admin switches an Employee access area on and off again (saved on the server).
+  await admin.goto(`${W}/app/settings`);
+  const area = admin
+    .locator('section:has(h2:has-text("Employee access")) input[role=switch]')
+    .nth(2);
+  await area.waitFor();
+  const switchWas = await area.isChecked();
+  await area.click();
+  await admin.waitForTimeout(1200);
+  await admin.reload();
+  const area2 = admin
+    .locator('section:has(h2:has-text("Employee access")) input[role=switch]')
+    .nth(2);
+  await area2.waitFor();
+  const saved = await area2.isChecked();
+  await area2.click();
+  await admin.waitForTimeout(1200);
+  log('10b Employee access switch saved:', saved !== switchWas);
+  if (saved === switchWas) throw new Error('Employee access switch did not save');
+
   // 11. Signing out ends the session on the server too: the old refresh token is refused.
   await admin.goto(`${W}/app/more`);
   const oldToken = (await admin.context().cookies()).find((c) => c.name === 'manorg_rt')?.value;
@@ -238,6 +258,73 @@ async function as(b, email, vp = { width: 1280, height: 900 }) {
   );
   log('11 after sign-out: cookie removed', cookieGone, '| old token replayed ->', replay.status);
   if (!cookieGone || replay.status !== 401) throw new Error('Session still alive after sign-out');
+  // 12. Inside the phone app (simulated bridge): sign-in hands the app its own working session.
+  const phoneCtx = await b.newContext({ viewport: { width: 390, height: 844 } });
+  await phoneCtx.addInitScript(() => {
+    window.__phone = [];
+    window.ReactNativeWebView = { postMessage: (m) => window.__phone.push(JSON.parse(m)) };
+  });
+  const phone = await phoneCtx.newPage();
+  await signIn(phone, W, 'mina@sunrise.test');
+  await phone.waitForFunction(() => window.__phone.some((m) => m.type === 'session'), null, {
+    timeout: 15000,
+  });
+  const handed = (await phone.evaluate(() => window.__phone)).find((m) => m.type === 'session');
+  const deviceRefresh = await fetch(
+    `${process.env.API_URL ?? 'http://localhost:3001'}/api/v1/auth/refresh`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken: handed.refreshToken }),
+    },
+  );
+  log(
+    '12 phone app got a session for org',
+    Boolean(handed.orgId),
+    '| it refreshes:',
+    deviceRefresh.status,
+  );
+  if (deviceRefresh.status !== 200) throw new Error('Device session does not work');
+  await phone.goto(`${W}/app/more`);
+  await phone.click('button:has-text("Sign out") >> visible=true');
+  await phone.waitForFunction(() => window.__phone.some((m) => m.type === 'signed-out'));
+  log('12 phone app told about sign-out');
+
+  // 13. The admin sets the bakery location; the employee sees the arrival reminder switch.
+  const boss = await as(b, 'admin@sunrise.test');
+  await boss.goto(`${W}/app/settings`);
+  await boss.waitForSelector('h2:has-text("Bakery location")');
+  await boss.fill('label:has-text("Latitude") input', '37.566500');
+  await boss.fill('label:has-text("Longitude") input', '126.978000');
+  await boss.click('button:has-text("Save location")');
+  await boss.waitForSelector('text=Saved.');
+  const sw = boss.locator('section:has(h2:has-text("Bakery location")) input[role=switch]');
+  if (!(await sw.isChecked())) await sw.click();
+  await boss.waitForTimeout(1000);
+  log('13 arrival reminder on:', await sw.isChecked());
+  await mina.goto(`${W}/app/settings`);
+  await mina.waitForSelector('h2:has-text("Arrival reminder")');
+  log(
+    '13 employee switch shown, on by default:',
+    await mina
+      .locator('section:has(h2:has-text("Arrival reminder")) input[role=switch]')
+      .isChecked(),
+  );
+
+  // 14. The AI bot (only when a model is configured): preview first, applied on Confirm.
+  await boss.goto(`${W}/app/bot`);
+  await boss.waitForSelector('h1:has-text("Bot")');
+  if (await boss.locator('textarea[aria-label="Message"]').count()) {
+    await boss.fill('textarea[aria-label="Message"]', 'Add ingredient rye flour, 1500 won, 20 kg');
+    await boss.click('button:has-text("Send")');
+    await boss.waitForSelector('.proposal', { timeout: 30000 });
+    await boss.click('.proposal >> nth=-1 >> button:has-text("Confirm")');
+    await boss.waitForSelector('.proposal >> nth=-1 >> text=Applied');
+    log('14 bot proposal confirmed and applied');
+  } else {
+    log('14 bot not configured on this server (skipped)');
+  }
+
   await b.close();
 })().catch((e) => {
   console.error('FAILED', e.message.slice(0, 400));

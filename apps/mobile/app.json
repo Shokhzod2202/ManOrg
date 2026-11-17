@@ -1,11 +1,44 @@
 {
   "expo": {
-    "name": "Organization Management",
+    "name": "Haydar",
     "slug": "manorg",
-    "version": "0.0.0",
+    "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "ios": { "supportsTablet": true, "bundleIdentifier": "app.manorg.mobile" },
-    "android": { "package": "app.manorg.mobile" }
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.manorg.mobile",
+      "infoPlist": {
+        "UIBackgroundModes": ["location", "remote-notification"],
+        "NSLocationWhenInUseUsageDescription": "Haydar reminds you to start your shift when you arrive at the bakery. Your location is never sent or stored.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "To remind you to start your shift when you arrive, Haydar watches only for entering the bakery area, even when the app is closed. Your location is never sent or stored.",
+        "NSCameraUsageDescription": "Take a photo to finish a task."
+      }
+    },
+    "android": {
+      "package": "app.manorg.mobile",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "CAMERA",
+        "POST_NOTIFICATIONS"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "To remind you to start your shift when you arrive, Haydar watches only for entering the bakery area, even when the app is closed. Your location is never sent or stored.",
+          "isAndroidBackgroundLocationEnabled": true
+        }
+      ],
+      "expo-notifications",
+      "expo-secure-store"
+    ],
+    "extra": {
+      "webUrl": "http://localhost:3000",
+      "eas": { "projectId": "" }
+    }
   }
 }

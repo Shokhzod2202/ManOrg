@@ -14,6 +14,8 @@ const TEXT: Record<string, string> = {
   'ingredient.fulfilled': 'An ingredient order was bought.',
   'ingredient.due': 'An ingredient is due to be ordered today.',
   'order.edited': 'An order was changed.',
+  'order.placed': 'A contractor placed an order.',
+  'punch.change_decided': 'Your shift correction was decided.',
   'delivery.completed': 'A delivery is waiting for your confirmation.',
   'delivery.change_requested': 'A contractor asked to change a delivery.',
   'delivery.approx_time_changed': 'The delivery time changed.',

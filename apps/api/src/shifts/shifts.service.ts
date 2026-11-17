@@ -3,8 +3,9 @@ import { actorFor, AuditService } from '../audit/audit.service';
 import { Errors } from '../common/errors';
 import { activeMembers } from '../common/memberships';
 import { type AuthUser, dbContext, orgCan, type OrgContext } from '../common/request-context';
-import { hhmmToTime, localDate, timeToHhmm } from '../common/time';
+import { addDays, hhmmToTime, localDate, timeToHhmm } from '../common/time';
 import { DatabaseService } from '../database/database.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { type Tx } from '../database/prisma-client';
 import { employeeColorIndex } from './colors';
 import {
@@ -25,6 +26,7 @@ export class ShiftsService {
     private readonly db: DatabaseService,
     private readonly audit: AuditService,
     private readonly timesheet: TimesheetService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   // ---------------------------------------------------------------- SHF-1 weekly plans
@@ -163,6 +165,64 @@ export class ShiftsService {
           }
         : null,
     };
+  }
+
+  /**
+   * Spec section 9: the phone calls this when it enters the bakery's geofence. No location is
+   * sent or stored. The answer says whether to show "You came to work. Start shift"; it never
+   * punches (CLAUDE.md rule 6).
+   */
+  arrival(user: AuthUser, org: OrgContext, now = new Date()) {
+    return this.db.run(dbContext(user, org), async (tx) => {
+      const o = await tx.organization.findUniqueOrThrow({
+        where: { id: org.organizationId },
+        select: {
+          timezone: true,
+          latitude: true,
+          longitude: true,
+          arrivalPromptEnabled: true,
+          arrivalWindowBeforeMin: true,
+          arrivalWindowAfterMin: true,
+        },
+      });
+      const no = (reason: string) => ({ prompt: false, reason, message: null, plannedStart: null });
+      if (!o.arrivalPromptEnabled || o.latitude === null || o.longitude === null)
+        return no('off_for_organization');
+      const me = await tx.user.findUniqueOrThrow({
+        where: { id: user.userId },
+        select: { preferences: true },
+      });
+      if ((me.preferences as { arrivalPrompt?: boolean } | null)?.arrivalPrompt === false)
+        return no('off_for_employee');
+      const sessions = buildSessions(await this.recentEvents(tx, org, user.userId, now), now);
+      const last = sessions.at(-1);
+      if (last && last.status !== 'ended') return no('already_on_shift');
+      // Yesterday, today and tomorrow: a window may cross midnight.
+      const today = localDate(o.timezone, now);
+      const templates = await tx.shift.findMany({
+        where: { organizationId: org.organizationId, employeeId: user.userId },
+      });
+      for (const date of [addDays(today, -1), today, addDays(today, 1)]) {
+        const weekday = new Date(`${date}T00:00:00Z`).getUTCDay();
+        const plan = plannedFor(
+          date,
+          templates.find((t) => t.weekday === weekday),
+          o.timezone,
+        );
+        if (!plan) continue;
+        const from = plan.plannedStart.getTime() - o.arrivalWindowBeforeMin * 60_000;
+        const to = plan.plannedStart.getTime() + o.arrivalWindowAfterMin * 60_000;
+        if (now.getTime() >= from && now.getTime() <= to) {
+          return {
+            prompt: true,
+            reason: 'planned_shift',
+            message: 'You came to work. Start shift',
+            plannedStart: plan.plannedStart,
+          };
+        }
+      }
+      return no('no_shift_now');
+    });
   }
 
   private recentEvents(tx: Tx, org: OrgContext, employeeId: string, now: Date) {
@@ -359,6 +419,17 @@ export class ShiftsService {
         entityId: id,
         before: request,
         after,
+      });
+      // Spec section 9: the employee hears the decision (push and in-app).
+      await this.notifications.notify(tx, {
+        organizationId: org.organizationId,
+        userIds: [request.employeeId],
+        type: 'punch.change_decided',
+        payload: {
+          requestId: id,
+          decision: input.decision,
+          shiftDate: request.shiftDate.toISOString().slice(0, 10),
+        },
       });
       return this.presentRequest(tx, org, id);
     });

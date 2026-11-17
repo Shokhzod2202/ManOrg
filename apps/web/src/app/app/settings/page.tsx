@@ -2,7 +2,7 @@
 
 import { type FormEvent, useState } from 'react';
 import { Empty, ErrorBox, Loading, PageHead } from '../../../components/ui';
-import { type ApiError, del, get, patch, post, type Schemas } from '../../../lib/api';
+import { type ApiError, del, get, patch, post, put, type Schemas } from '../../../lib/api';
 import { useSession } from '../../../lib/session';
 import { useApi } from '../../../lib/use-api';
 
@@ -18,6 +18,8 @@ export default function SettingsPage() {
       <PageHead title="Settings" />
       <Account />
       <Telegram />
+      {s.actor === 'employee' ? <ArrivalReminder /> : null}
+      {s.actor === 'org_admin' ? <BakeryLocation /> : null}
       {active.length > 1 ? (
         <section className="card">
           <h2>Organization</h2>
@@ -103,7 +105,7 @@ function Switches<T extends Access | Bot>({
     if (!data) return;
     setErr(null);
     try {
-      setData(await patch<T>(path, { [key]: enabled }, { ifMatch: data.version }));
+      setData(await put<T>(path, { [key]: enabled }, { ifMatch: data.version }));
     } catch (e) {
       setErr(e as ApiError);
       setData(await get<T>(path));
@@ -271,6 +273,194 @@ function Telegram() {
             Telegram opens @{data.botUsername}. Press <b>Start</b> there and come back.
           </span>
         </div>
+      ) : null}
+    </section>
+  );
+}
+
+/** Spec section 9: the employee turns the arrival reminder off or on. */
+function ArrivalReminder() {
+  const s = useSession();
+  const on = s.me?.preferences?.arrivalPrompt !== false;
+  const [err, setErr] = useState<ApiError | null>(null);
+  async function toggle(value: boolean) {
+    setErr(null);
+    try {
+      await patch('/me', { preferences: { arrivalPrompt: value } }, { org: null });
+      await s.reload();
+    } catch (e) {
+      setErr(e as ApiError);
+    }
+  }
+  return (
+    <section className="card">
+      <h2>Arrival reminder</h2>
+      <p className="muted small" style={{ margin: 0 }}>
+        The Haydar phone app can remind you “You came to work. Start shift” when you arrive before a
+        planned shift. It never starts your shift by itself, and your location is never sent or
+        stored.
+      </p>
+      <ErrorBox error={err} />
+      <label className="row between" style={{ minHeight: 44 }}>
+        <span>Remind me when I arrive</span>
+        <input
+          type="checkbox"
+          role="switch"
+          checked={on}
+          onChange={(e) => void toggle(e.target.checked)}
+          style={{ width: 22, height: 22 }}
+        />
+      </label>
+    </section>
+  );
+}
+
+/** Spec section 9: where the bakery is, the radius, and when the arrival reminder may show. */
+function BakeryLocation() {
+  const { data, error, loading, setData } =
+    useApi<Schemas['OrganizationLocation']>('/organization/location');
+  const [form, setForm] = useState<{
+    lat: string;
+    lng: string;
+    radius: number;
+    before: number;
+    after: number;
+  } | null>(null);
+  const [err, setErr] = useState<ApiError | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const f =
+    form ??
+    (data
+      ? {
+          lat: data.latitude?.toString() ?? '',
+          lng: data.longitude?.toString() ?? '',
+          radius: data.radiusM,
+          before: data.windowBeforeMin,
+          after: data.windowAfterMin,
+        }
+      : null);
+
+  async function save(changes: Record<string, unknown>) {
+    if (!data) return;
+    setErr(null);
+    setMsg(null);
+    try {
+      setData(
+        await put<Schemas['OrganizationLocation']>('/organization/location', changes, {
+          ifMatch: data.version,
+        }),
+      );
+      setForm(null);
+      setMsg('Saved.');
+    } catch (e) {
+      setErr(e as ApiError);
+    }
+  }
+
+  function here() {
+    if (!navigator.geolocation) return setMsg('This device cannot share its location.');
+    navigator.geolocation.getCurrentPosition(
+      (p) =>
+        f &&
+        setForm({ ...f, lat: p.coords.latitude.toFixed(6), lng: p.coords.longitude.toFixed(6) }),
+      () => setMsg('Location was not shared. Type the coordinates instead.'),
+      { enableHighAccuracy: true, timeout: 10_000 },
+    );
+  }
+
+  return (
+    <section className="card">
+      <h2>Bakery location</h2>
+      <p className="muted small" style={{ margin: 0 }}>
+        The phone app reminds employees “You came to work. Start shift” when they arrive within the
+        radius before a planned shift. It never punches by itself, and employees&apos; locations are
+        never stored.
+      </p>
+      {loading && !data ? <Loading /> : null}
+      <ErrorBox error={error ?? err} />
+      {msg ? <span className="pill ok">{msg}</span> : null}
+      {data && f ? (
+        <>
+          <label className="row between" style={{ minHeight: 44 }}>
+            <span>Arrival reminder on</span>
+            <input
+              type="checkbox"
+              role="switch"
+              checked={data.enabled}
+              onChange={(e) => void save({ enabled: e.target.checked })}
+              style={{ width: 22, height: 22 }}
+            />
+          </label>
+          <div className="grid2">
+            <label className="field">
+              Latitude
+              <input
+                inputMode="decimal"
+                value={f.lat}
+                onChange={(e) => setForm({ ...f, lat: e.target.value })}
+              />
+            </label>
+            <label className="field">
+              Longitude
+              <input
+                inputMode="decimal"
+                value={f.lng}
+                onChange={(e) => setForm({ ...f, lng: e.target.value })}
+              />
+            </label>
+            <label className="field">
+              Radius (metres)
+              <input
+                type="number"
+                min={30}
+                max={1000}
+                value={f.radius}
+                onChange={(e) => setForm({ ...f, radius: Number(e.target.value) })}
+              />
+            </label>
+            <label className="field">
+              Remind from (minutes before the shift)
+              <input
+                type="number"
+                min={0}
+                max={240}
+                value={f.before}
+                onChange={(e) => setForm({ ...f, before: Number(e.target.value) })}
+              />
+            </label>
+            <label className="field">
+              Until (minutes after the start)
+              <input
+                type="number"
+                min={0}
+                max={240}
+                value={f.after}
+                onChange={(e) => setForm({ ...f, after: Number(e.target.value) })}
+              />
+            </label>
+          </div>
+          <div className="row wrap">
+            <button className="btn ghost" type="button" onClick={here}>
+              Use this device&apos;s location
+            </button>
+            <button
+              className="btn"
+              type="button"
+              disabled={!form}
+              onClick={() =>
+                save({
+                  latitude: f.lat.trim() === '' ? null : Number(f.lat),
+                  longitude: f.lng.trim() === '' ? null : Number(f.lng),
+                  radiusM: f.radius,
+                  windowBeforeMin: f.before,
+                  windowAfterMin: f.after,
+                })
+              }
+            >
+              Save location
+            </button>
+          </div>
+        </>
       ) : null}
     </section>
   );

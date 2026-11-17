@@ -1,4 +1,5 @@
 import { Controller, Get, Put } from '@nestjs/common';
+import { Errors } from '../common/errors';
 import { IfMatchVersion } from '../common/if-match';
 import {
   type AuthUser,
@@ -13,7 +14,7 @@ import {
   type UpdateEmployeeAccessInput,
   updateEmployeeAccessSchema,
 } from '../permissions/employee-access';
-import { SettingsService } from './settings.service';
+import { type LocationInput, locationSchema, SettingsService } from './settings.service';
 
 /**
  * The organization admin's permission settings. Both are changed only by a person by default:
@@ -55,5 +56,24 @@ export class SettingsController {
     @ZodBody(updateBotAccessSchema) body: UpdateBotAccessInput,
   ) {
     return this.settings.update(user, org, 'botAccess', version, body);
+  }
+
+  /** Spec section 9: any member reads it (the phone registers the geofence); admins change it. */
+  @Get('location')
+  @RequireOrg()
+  getLocation(@CurrentUser() user: AuthUser, @CurrentOrg() org: OrgContext) {
+    if (org.organizationType !== 'provider') throw Errors.forbidden();
+    return this.settings.location(user, org);
+  }
+
+  @Put('location')
+  @RequireOrg('location.manage')
+  updateLocation(
+    @CurrentUser() user: AuthUser,
+    @CurrentOrg() org: OrgContext,
+    @IfMatchVersion() version: number,
+    @ZodBody(locationSchema) body: LocationInput,
+  ) {
+    return this.settings.updateLocation(user, org, version, body);
   }
 }

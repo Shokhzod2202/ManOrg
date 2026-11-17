@@ -205,26 +205,32 @@ model RefreshToken {
 }
 
 model Organization {
-  id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name              String
-  type              OrganizationType
-  timezone          String           @default("Asia/Seoul")
-  latitude          Decimal?         @db.Decimal(9, 6)
-  longitude         Decimal?         @db.Decimal(9, 6)
-  geofenceRadiusM   Int              @default(100) @map("geofence_radius_m")
+  id                     String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                   String
+  type                   OrganizationType
+  timezone               String           @default("Asia/Seoul")
+  latitude               Decimal?         @db.Decimal(9, 6)
+  longitude              Decimal?         @db.Decimal(9, 6)
+  geofenceRadiusM        Int              @default(100) @map("geofence_radius_m")
+  /// Spec section 9: the arrival prompt is off until the admin sets the location and turns it on.
+  arrivalPromptEnabled   Boolean          @default(false) @map("arrival_prompt_enabled")
+  /// Prompt only from this many minutes before a planned start...
+  arrivalWindowBeforeMin Int              @default(60) @map("arrival_window_before_min")
+  /// ...until this many minutes after it.
+  arrivalWindowAfterMin  Int              @default(30) @map("arrival_window_after_min")
   /// Open question 2: minutes before a punch difference turns red.
-  punchToleranceMin Int              @default(10) @map("punch_tolerance_min")
+  punchToleranceMin      Int              @default(10) @map("punch_tolerance_min")
   /// Open question 1: order cut-off on the day before delivery, organization time (HH:MM).
-  orderCutoffTime   String           @default("20:00") @map("order_cutoff_time")
+  orderCutoffTime        String           @default("20:00") @map("order_cutoff_time")
   /// Which read-only areas employees may see; missing keys use the defaults in
   /// src/permissions/employee-access.ts. Edited by the organization admin.
-  employeeAccess    Json             @default("{}") @map("employee_access")
+  employeeAccess         Json             @default("{}") @map("employee_access")
   /// Extra powers the admin grants the AI bot; all off by default (decided 2026-11-13).
-  botAccess         Json             @default("{}") @map("bot_access")
-  createdById       String           @map("created_by") @db.Uuid
-  version           Int              @default(1)
-  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt         DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  botAccess              Json             @default("{}") @map("bot_access")
+  createdById            String           @map("created_by") @db.Uuid
+  version                Int              @default(1)
+  createdAt              DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   memberships                Membership[]
   contractorLinksAsBakery    ContractorLink[]           @relation("bakery")
@@ -831,7 +837,9 @@ model Notification {
   payload        Json      @default("{}")
   /// Stops the same reminder being sent twice (e.g. one ingredient due on one day).
   dedupeKey      String?   @map("dedupe_key")
+  /// Set once the phone push was sent, skipped, or given up after three tries.
   sentAt         DateTime? @map("sent_at") @db.Timestamptz(3)
+  pushAttempts   Int       @default(0) @map("push_attempts")
   readAt         DateTime? @map("read_at") @db.Timestamptz(3)
   /// Set once the Telegram bot has sent it, or skipped it (decided 2026-11-13: Telegram alongside the app).
   telegramSentAt DateTime? @map("telegram_sent_at") @db.Timestamptz(3)

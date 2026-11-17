@@ -47,6 +47,10 @@ const schema = z.object({
   BOT_MESSAGES_PER_MINUTE: z.coerce.number().int().positive().default(10),
   BOT_MONTHLY_TOKEN_BUDGET: z.coerce.number().int().positive().default(2_000_000),
   BOT_RETENTION_DAYS: z.coerce.number().int().positive().default(90),
+  /** Phone push through Expo's push service (FCM and APNs behind it). */
+  EXPO_PUSH_URL: z.string().default('https://exp.host/--/api/v2/push/send'),
+  /** Optional: required when "enhanced push security" is on in the Expo project. A secret. */
+  EXPO_ACCESS_TOKEN: z.string().optional(),
   /** Telegram bot (decided 2026-11-13). A secret: only in the server's environment, never in git. */
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   TELEGRAM_BOT_USERNAME: z.string().default('haydar_inc_bot'),

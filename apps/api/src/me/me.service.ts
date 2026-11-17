@@ -110,9 +110,16 @@ export class MeService {
 }
 
 /** Stored preferences with defaults: the orders view starts as the product list. */
-function readPreferences(stored: unknown): { ordersView: 'list' | 'matrix' | 'products' } {
-  const value = (stored as { ordersView?: unknown } | null)?.ordersView;
+function readPreferences(stored: unknown): {
+  ordersView: 'list' | 'matrix' | 'products';
+  arrivalPrompt: boolean;
+} {
+  const p = (stored ?? {}) as { ordersView?: unknown; arrivalPrompt?: unknown };
   return {
-    ordersView: value === 'list' || value === 'matrix' || value === 'products' ? value : 'products',
+    ordersView:
+      p.ordersView === 'list' || p.ordersView === 'matrix' || p.ordersView === 'products'
+        ? p.ordersView
+        : 'products',
+    arrivalPrompt: p.arrivalPrompt !== false,
   };
 }

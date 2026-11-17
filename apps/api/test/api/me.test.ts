@@ -87,6 +87,7 @@ describe('preferences (decided 2026-11-13)', () => {
     const fresh = await api.register('Viewer');
     expect((await api.as(fresh).get('/me').expect(200)).body.preferences).toEqual({
       ordersView: 'products',
+      arrivalPrompt: true,
     });
     await api
       .as(fresh)
@@ -95,6 +96,7 @@ describe('preferences (decided 2026-11-13)', () => {
       .expect(200);
     expect((await api.as(fresh).get('/me').expect(200)).body.preferences).toEqual({
       ordersView: 'matrix',
+      arrivalPrompt: true,
     });
     await api
       .as(fresh)

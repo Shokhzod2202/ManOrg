@@ -21,6 +21,7 @@ const roles = {
       '/app/settings',
       '/app/notifications',
       '/app/more',
+      '/app/bot',
       '/wall',
     ],
   ],

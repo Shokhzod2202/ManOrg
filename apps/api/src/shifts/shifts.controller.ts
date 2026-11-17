@@ -72,6 +72,15 @@ export class ShiftsController {
     return this.shifts.setPlan(user, org, body);
   }
 
+  /** Spec section 9: the phone entered the bakery's geofence; should it prompt Start Shift? */
+  @Post('punch/arrival')
+  @HttpCode(200)
+  @RequireOrg('punch.self')
+  arrival(@CurrentUser() user: AuthUser, @CurrentOrg() org: OrgContext) {
+    providerOnly(org);
+    return this.shifts.arrival(user, org);
+  }
+
   @Get('punch/card')
   @RequireOrg('punch.self')
   card(@CurrentUser() user: AuthUser, @CurrentOrg() org: OrgContext) {

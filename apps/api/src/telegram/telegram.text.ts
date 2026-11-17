@@ -23,7 +23,10 @@ const LINES: Record<string, (p: Payload) => string> = {
     `Ingredient order: <b>${esc(p.ingredient)}</b> × ${esc(p.quantity)} packs`,
   'ingredient.fulfilled': () => 'An ingredient order was bought. Check it when it arrives.',
   'ingredient.due': (p) => `Order today: <b>${esc(p.name)}</b>`,
+  'order.placed': () => 'A contractor placed an order.',
   'order.edited': () => 'Your order was changed by the bakery.',
+  'punch.change_decided': (p) =>
+    `Your shift correction for <b>${esc(p.shiftDate)}</b> was ${p.decision === 'approve' ? 'approved' : 'not approved'}.`,
   'order.change_accepted': (p) =>
     `Change accepted: <b>${esc(p.product)}</b> now ${esc(p.quantity)}`,
   'order.change_rejected': (p) => `Change not accepted: <b>${esc(p.product)}</b>`,
@@ -39,6 +42,7 @@ const LINES: Record<string, (p: Payload) => string> = {
 /** Where the button in the message opens, relative to the web app. */
 const PAGES: Record<string, string> = {
   task: '/app/tasks',
+  punch: '/app/shifts',
   application: '/app/people',
   ingredient: '/app/tasks',
   order: '/app/orders',

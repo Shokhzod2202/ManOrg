@@ -94,6 +94,8 @@ const MATRIX = {
   'orders.acceptAdditions': { employee: 'any', org_admin: 'any', contractor_admin: false },
   'employeeAccess.manage': { employee: false, org_admin: 'any', contractor_admin: false },
   'botAccess.manage': { employee: false, org_admin: 'any', contractor_admin: false },
+  // Phase 2 (spec section 9): the bakery location and the arrival prompt.
+  'location.manage': { employee: false, org_admin: 'any', contractor_admin: false },
   // Phase 2 (spec section 10): the Bot screen is in the admin app only.
   'bot.use': { employee: false, org_admin: 'any', contractor_admin: false },
 

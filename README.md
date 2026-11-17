@@ -67,6 +67,21 @@ connect in **Settings → Telegram → Connect Telegram**, which opens the bot w
    - Development: `TELEGRAM_POLLING=true` (no public URL needed).
 4. Set `WEB_APP_URL` to the https site so messages get an "Open Haydar" button.
 
+## Phone app (apps/mobile)
+
+A thin Expo app: the website in a WebView, plus the arrival reminder and push notifications that
+a web page cannot do while closed. Set `extra.webUrl` (the https site) and `extra.eas.projectId`
+in `apps/mobile/app.json`, then `pnpm --filter @manorg/mobile dev` for a development build, or
+`eas build`. Push needs the Expo project's FCM and APNs credentials. See `docs/PHASE2.md` for the
+manual checks on real phones.
+
+## AI bot
+
+Set `LLM_PROVIDER=anthropic` (Claude, default model `claude-opus-5-5`) or `xai` (Grok, set
+`LLM_MODEL`), and `LLM_API_KEY`, in the server's environment. Admins use it on the Bot screen;
+every change is previewed and applied only on Confirm. Weekly check on the real model (spends
+tokens): `node scripts/bot-live-check.mjs` with `API_URL` and an admin's sign-in.
+
 ## Other commands
 
 ```bash
@@ -81,8 +96,8 @@ pnpm --filter @manorg/web e2e     # browser checks (API and web running); loads 
 
 ## Status
 
-Phases 0 and 1 are done in code: the API and one responsive web app for admins, employees and
+Phases 0, 1 and 2 are done in code: the API and one responsive web app for admins, employees and
 contractors (on a phone it looks like the phone app), with Telegram notifications, scheduled jobs
-on Redis, and the checks from spec section 13 (requirement traceability, tenant isolation,
+on Redis, the AI bot manager, the arrival reminder and a phone app with push, and the checks from spec section 13 (requirement traceability, tenant isolation,
 browser flows, performance). What is left before launch needs accounts, hosting or the pilot day;
 see `docs/PHASE1.md`. Every default and choice the code relies on is in `docs/DECISIONS.md`.

@@ -14,6 +14,7 @@ import { ProductsService } from './products/products.service';
 import { NotificationsModule } from './notifications/notifications.module';
 import { TelegramModule } from './telegram/telegram.module';
 import { JobsModule } from './jobs/jobs.module';
+import { DevicesModule } from './devices/devices.module';
 import { BotController } from './bot/bot.controller';
 import { BotService } from './bot/bot.service';
 import { BotTools } from './bot/tools';
@@ -53,6 +54,7 @@ import { OrgContextGuard } from './permissions/org-context.guard';
     NotificationsModule,
     TelegramModule,
     JobsModule,
+    DevicesModule,
     TasksModule,
     // Before OrdersModule, so GET /orders/due-next is matched before GET /orders/:id.
     DeliveriesModule,
