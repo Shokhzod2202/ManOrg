@@ -237,10 +237,12 @@ describe('admin punch edits (SHF-4)', () => {
       .get(`/punch?from=${date}&to=${date}&employee_id=${w.a.employee.userId}`)
       .expect(200);
     const start = history.body.days[0].sessions[0].events[0];
+    // The history carries what the editor needs: the version to send back.
+    expect(start).toMatchObject({ version: 1, source: expect.any(String) });
     const res = await api
       .as(w.a.admin, w.a.id)
       .patch(`/punch/${start.id}`)
-      .set('If-Match', '1')
+      .set('If-Match', String(start.version))
       .send({ occurredAt: seoul(date, '06:05') })
       .expect(200);
     expect(res.body).toMatchObject({ source: 'admin', version: 2 });
@@ -257,6 +259,8 @@ describe('admin punch edits (SHF-4)', () => {
       .get(`/punch?from=${date}&to=${date}`)
       .expect(200);
     expect(after.body.days[0].flags).toEqual([]);
+    // The employee sees that an admin changed it (section 12).
+    expect(after.body.days[0].sessions[0].events[0]).toMatchObject({ source: 'admin' });
   });
 
   it('is for admins only', async () => {

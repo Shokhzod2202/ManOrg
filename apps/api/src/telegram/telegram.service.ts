@@ -11,7 +11,6 @@ import { notificationText, notificationUrl } from './telegram.text';
 const CODE_TTL_MS = 15 * 60_000;
 /** A notice the bot could not send within a day is skipped rather than sent late. */
 const STALE_MS = 24 * 60 * 60_000;
-const SEND_INTERVAL_MS = 10_000;
 const BATCH = 20;
 
 /** The parts of a Telegram update the bot reads. */
@@ -41,7 +40,6 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
   private readonly client: TelegramClient | null = this.config.TELEGRAM_BOT_TOKEN
     ? new TelegramClient(this.config.TELEGRAM_BOT_TOKEN, this.config.TELEGRAM_API_URL)
     : null;
-  private timer?: NodeJS.Timeout;
   private polling?: AbortController;
   private sending = false;
 
@@ -209,6 +207,10 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
    * Sends unsent notifications to every connected person, oldest first. Each person's rows are
    * read and marked inside their own context, so row-level security still applies.
    */
+  get configured(): boolean {
+    return this.client !== null;
+  }
+
   async sendPending(now = new Date()): Promise<number> {
     if (!this.client || this.sending) return 0;
     this.sending = true;
@@ -277,22 +279,12 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
   // ------------------------------------------------------------------ background work
 
   onModuleInit(): void {
+    // Sending runs as a scheduled job (jobs/jobs.service.ts); only polling lives here.
     if (!this.client) return;
-    if (process.env.JOBS_ENABLED === 'true') {
-      this.timer = setInterval(() => {
-        this.sendPending().catch((error: unknown) =>
-          this.logger.error(
-            'Telegram delivery failed',
-            error instanceof Error ? error.stack : undefined,
-          ),
-        );
-      }, SEND_INTERVAL_MS);
-    }
     if (this.config.TELEGRAM_POLLING === 'true') void this.poll();
   }
 
   onModuleDestroy(): void {
-    if (this.timer) clearInterval(this.timer);
     this.polling?.abort();
   }
 

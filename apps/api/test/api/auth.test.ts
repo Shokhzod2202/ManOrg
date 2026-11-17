@@ -88,6 +88,26 @@ describe('POST /auth/login', () => {
   });
 });
 
+describe('POST /auth/logout', () => {
+  it('ends the session: later tokens from the same sign-in stop working', async () => {
+    const session = await api.register('Leaver');
+    const next = await api.http
+      .post('/api/v1/auth/refresh')
+      .send({ refreshToken: session.refreshToken })
+      .expect(200);
+    await api.http
+      .post('/api/v1/auth/logout')
+      .send({ refreshToken: next.body.tokens.refreshToken })
+      .expect(204);
+    await api.http
+      .post('/api/v1/auth/refresh')
+      .send({ refreshToken: next.body.tokens.refreshToken })
+      .expect(401);
+    // Unknown tokens get the same answer.
+    await api.http.post('/api/v1/auth/logout').send({ refreshToken: 'not-a-token' }).expect(204);
+  });
+});
+
 describe('POST /auth/refresh', () => {
   it('rotates the refresh token and refuses the old one', async () => {
     const session = await api.register('Rotator');
@@ -164,6 +184,31 @@ describe('sign-in rate limit (spec section 12)', () => {
         .send({ email: 'x@example.com', password: 'nope' })
         .expect(429);
       expect(res.body.error.code).toBe('RATE_LIMITED');
+      // Refresh has its own, higher limit: page loads must not sign a bakery out.
+      for (let i = 0; i < 6; i += 1) {
+        await http
+          .post('/api/v1/auth/refresh')
+          .send({ refreshToken: 'unknown-refresh-token' })
+          .expect(401);
+      }
+    } finally {
+      await limited.close();
+    }
+  });
+
+  it('counts each client behind the web server separately (trusted forwarding hop)', async () => {
+    const limited = await createTestApp({ AUTH_RATE_LIMIT_PER_MINUTE: '2' });
+    try {
+      const http = request(limited.getHttpServer());
+      const attempt = (ip: string) =>
+        http
+          .post('/api/v1/auth/login')
+          .set('X-Forwarded-For', ip)
+          .send({ email: 'x@example.com', password: 'nope' });
+      await attempt('203.0.113.1').expect(401);
+      await attempt('203.0.113.1').expect(401);
+      await attempt('203.0.113.1').expect(429);
+      await attempt('203.0.113.2').expect(401);
     } finally {
       await limited.close();
     }

@@ -30,6 +30,12 @@ const schema = z.object({
   /** Public base URL of the API, used in signed file links served by the local driver. */
   PUBLIC_API_URL: z.string().default('http://localhost:3001'),
   SIGNED_URL_TTL_SECONDS: z.coerce.number().int().positive().default(300),
+  /** Redis for scheduled jobs (BullMQ). */
+  REDIS_URL: z.string().default('redis://localhost:6379'),
+  /** `true` on the API instances that should run scheduled jobs; any number may, each job runs once. */
+  JOBS_ENABLED: z.enum(['true', 'false']).default('false'),
+  /** Queue name; separate names keep test runs apart from a running server. */
+  JOBS_QUEUE: z.string().default('manorg-jobs'),
   /** Telegram bot (decided 2026-11-13). A secret: only in the server's environment, never in git. */
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   TELEGRAM_BOT_USERNAME: z.string().default('haydar_inc_bot'),

@@ -68,7 +68,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!s.ready) return;
-    if (!s.me) router.replace('/login');
+    if (!s.me) router.replace('/');
     else if (!s.membership) router.replace('/start');
   }, [s.ready, s.me, s.membership, router]);
 
@@ -103,7 +103,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           className="btn ghost"
           onClick={() => {
             s.signOut();
-            router.replace('/login');
+            router.replace('/');
           }}
         >
           Sign out

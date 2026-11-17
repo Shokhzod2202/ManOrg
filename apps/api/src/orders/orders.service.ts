@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { AuditService, userActor } from '../audit/audit.service';
 import { Errors } from '../common/errors';
 import { type AuthUser, dbContext, orgCan, type OrgContext } from '../common/request-context';
-import { localDate } from '../common/time';
+import { localDate, timeToHhmm } from '../common/time';
 import { DatabaseService } from '../database/database.service';
 import { switchOrganization, type Tx } from '../database/prisma-client';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -558,6 +558,11 @@ export class OrdersService {
         changeRequests: { where: { status: 'open' }, select: { id: true } },
       },
     });
+    // DTM-4: both sides see the standing approximate delivery time on the order.
+    const link = await tx.contractorLink.findFirst({
+      where: { organizationId: o.organizationId, contractorOrgId: o.contractorOrgId },
+      select: { approxStart: true, approxEnd: true },
+    });
     return {
       id: o.id,
       provider: o.bakery,
@@ -571,6 +576,10 @@ export class OrdersService {
         quantity: l.quantity,
       })),
       openChangeRequestIds: o.changeRequests.map((r) => r.id),
+      approxTime:
+        link?.approxStart && link.approxEnd
+          ? { start: timeToHhmm(link.approxStart), end: timeToHhmm(link.approxEnd) }
+          : null,
       version: o.version,
     };
   }

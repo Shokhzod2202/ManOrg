@@ -5,7 +5,7 @@ in `packages/contracts/openapi.yaml`, permission-checked on the server, audited 
 and covered by the tenant-isolation suite. Decisions that change the spec are in
 `docs/DECISIONS.md`.
 
-**API: done. Web app: done.** One responsive Next.js app (`apps/web`) serves admins, employees
+**Phase 1: done in code (API, web app, checks).** One responsive Next.js app (`apps/web`) serves admins, employees
 and contractors; on a phone (under 760 px) it looks like the phone app, with a bottom tab bar and
 cards. The native Expo app is a Phase 2 wrapper (see "Not done yet").
 
@@ -28,25 +28,26 @@ cards. The native Expo app is a Phase 2 wrapper (see "Not done yet").
 
 ## Web screens
 
-| Screen                         | Route                 | Who                         | IDs                                |
-| ------------------------------ | --------------------- | --------------------------- | ---------------------------------- |
-| Sign in, create account        | `/login`, `/register` | everyone                    | ACC-1, ACC-2                       |
-| Start: create or join          | `/start`              | new accounts                | ACC-3 to ACC-6                     |
-| Today (admin dashboard)        | `/app`                | provider admin              | DSH-1, TOD-1                       |
-| Home with punch card           | `/app`                | employee                    | DSH-2, SHF-4, TOD-4                |
-| Orders: List, Matrix, Products | `/app/orders`         | provider admin, employee    | TOD-1 to TOD-7, ORD-4, made ticks  |
-| My orders, change requests     | `/app`, `/app/orders` | contractor                  | ORD-1, ORD-3                       |
-| New order                      | `/app/orders/new`     | contractor                  | ORD-2, 10:00 rule                  |
-| Deliveries                     | `/app/deliveries`     | provider admin, contractor  | DEL-1 to DEL-6, DTM-1              |
-| Shifts calendar, plan, fixes   | `/app/shifts`         | admin; employee (own)       | SHF-1 to SHF-8                     |
-| Output                         | `/app/output`         | employee; admin summary     | OUT-1 to OUT-7, DSH-3              |
-| Tasks with camera photo        | `/app/tasks`          | admin, employee             | TSK-1 to TSK-3, ING-5, ING-6       |
-| Products                       | `/app/products`       | provider admin              | PRD-1 to PRD-3                     |
-| Ingredients and prices         | `/app/ingredients`    | admin; employee (order)     | ING-1 to ING-8                     |
-| People and teams               | `/app/people`         | admins                      | ACC-3, ACC-6 to ACC-8, TEAM-1 to 5 |
-| Settings                       | `/app/settings`       | everyone                    | Employee access, Bot permissions   |
-| Notifications                  | `/app/notifications`  | everyone                    | section 9                          |
-| Wall screen                    | `/wall`               | provider admin (kitchen TV) | TOD-1                              |
+| Screen                                                                                                      | Route                 | Who                         | IDs                                     |
+| ----------------------------------------------------------------------------------------------------------- | --------------------- | --------------------------- | --------------------------------------- |
+| Landing page                                                                                                | `/`                   | visitors                    | ACC-1                                   |
+| Sign in, create account                                                                                     | `/login`, `/register` | everyone                    | ACC-1, ACC-2                            |
+| Start: create or join                                                                                       | `/start`              | new accounts                | ACC-3 to ACC-6                          |
+| Today (admin dashboard)                                                                                     | `/app`                | provider admin              | DSH-1, TOD-1                            |
+| Home with punch card                                                                                        | `/app`                | employee                    | DSH-2, SHF-4, TOD-4                     |
+| Orders: List, Matrix, Products; All, Mine, per employee, per contractor; By day with totals and corrections | `/app/orders`         | provider admin, employee    | TOD-1 to TOD-7, ORD-4, made ticks       |
+| My orders, change requests                                                                                  | `/app`, `/app/orders` | contractor                  | ORD-1, ORD-3                            |
+| New order                                                                                                   | `/app/orders/new`     | contractor                  | ORD-2, 10:00 rule                       |
+| Deliveries, including unordered products                                                                    | `/app/deliveries`     | provider admin, contractor  | DEL-1 to DEL-6, DTM-1                   |
+| Shifts: Day, Week, Month calendar, weekly plan, punch editor, correction requests                           | `/app/shifts`         | admin; employee (own)       | SHF-1 to SHF-8                          |
+| Output and my teams                                                                                         | `/app/output`         | employee; admin summary     | OUT-1 to OUT-7, TEAM-1 to TEAM-5, DSH-3 |
+| Tasks with camera photo                                                                                     | `/app/tasks`          | admin, employee             | TSK-1 to TSK-3, ING-5, ING-6            |
+| Products: add, edit, availability, assign                                                                   | `/app/products`       | provider admin              | PRD-1 to PRD-3                          |
+| Ingredients: add, edit, prices, responsible, order                                                          | `/app/ingredients`    | admin; employee (order)     | ING-1 to ING-8                          |
+| People and teams                                                                                            | `/app/people`         | admins                      | ACC-3, ACC-6 to ACC-8, TEAM-1 to 5      |
+| Settings                                                                                                    | `/app/settings`       | everyone                    | Employee access, Bot permissions        |
+| Notifications                                                                                               | `/app/notifications`  | everyone                    | section 9                               |
+| Wall screen                                                                                                 | `/wall`               | provider admin (kitchen TV) | TOD-1                                   |
 
 Every screen has loading, error and empty states. Browser checks: `apps/web/e2e/flows.cjs`
 (delivery recorded and confirmed, task finished with a camera photo, employee accepts an added
@@ -54,14 +55,28 @@ product, contractor places an order) and `apps/web/e2e/screens.cjs` (every page 
 1440 px and 390 px: no console errors, no failed API calls, no sideways page scroll). Run them
 with the API and web app started and demo data loaded (`pnpm db:demo`).
 
+## Checks (spec section 13)
+
+| Check                                             | How                                                                                                                                                                                                                       | Result                                                                                     |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Every requirement ID has a test                   | `pnpm check:requirements` (also in CI)                                                                                                                                                                                    | 67 of 67 IDs                                                                               |
+| Unit, API integration, tenant isolation, contract | `pnpm test` (CI, with PostgreSQL and Redis)                                                                                                                                                                               | all pass                                                                                   |
+| End-to-end flows of section 5                     | `pnpm --filter @manorg/web e2e`: delivery recorded and confirmed, task with camera photo, contractor change accepted, new order, landing page, session cookie, Mine and By day, punch correction, employee team, sign-out | all pass                                                                                   |
+| Every page, every role, desktop and phone         | same command, `e2e/screens.cjs`: no console errors, no failed API calls, no sideways scroll                                                                                                                               | all pass                                                                                   |
+| Performance                                       | `node scripts/perf.mjs` against an API started with a high sign-in limit: 50 punches at once; month dashboard for 100 employees                                                                                           | 50 punches in 0.18 s (target 60 s); dashboard 0.85 s (target 2 s), on a development server |
+
 ## Not done yet
 
-| Item                                             | Why it is open                                                                                                                   |
-| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
-| Native phone app (Expo)                          | Phase 2: a thin wrapper around the same screens. The website already works as the phone app on a phone.                          |
-| Sign-in tokens in an httpOnly cookie             | The web app keeps tokens in browser storage for now; move to an httpOnly cookie behind a small server route before launch.       |
-| Telegram Mini App                                | Notifications in Telegram are done; opening the app inside Telegram is a later step.                                             |
-| Phone push (FCM, APNs)                           | Needs Firebase and Apple developer accounts.                                                                                     |
-| Redis and BullMQ jobs                            | Ingredient reminders run on an in-process timer (`JOBS_ENABLED=true`); move to BullMQ before running more than one API instance. |
-| Virus scanning of uploads                        | Decided: before launch.                                                                                                          |
-| Updating the Claude Docs spec with the decisions | Waiting for the docs service; all decisions are in `docs/DECISIONS.md`.                                                          |
+Phase 1 is complete in code. What remains needs accounts, people or hosting:
+
+| Item                                             | Why it is open                                                                                                                       |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Pilot day (release gate, section 13)             | One full day of real use by the bakery staff with no data errors.                                                                    |
+| Native phone app (Expo)                          | Phase 2: a thin wrapper around the same screens. The website already works as the phone app on a phone.                              |
+| Phone push (FCM, APNs)                           | Needs Firebase and Apple developer accounts.                                                                                         |
+| Telegram live check and Mini App                 | Notifications are built and tested against a stand-in; the real bot needs its new token on the server. The Mini App is a later step. |
+| Virus scanning of uploads                        | Decided: before launch; needs a scanner service on the host.                                                                         |
+| Hosting: backups, secret manager, https          | Daily backups kept 30 days, secrets in the host's manager (section 12).                                                              |
+| Korean labor and privacy review                  | Section 12: consent wording, retention and the location notice, before launch.                                                       |
+| Optional two-factor sign-in for admins           | Section 12 lists it as optional.                                                                                                     |
+| Updating the Claude Docs spec with the decisions | Waiting for the docs service; all decisions are in `docs/DECISIONS.md`.                                                              |

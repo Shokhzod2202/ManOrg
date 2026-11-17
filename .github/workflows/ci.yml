@@ -30,11 +30,21 @@ jobs:
           --health-interval 5s
           --health-timeout 3s
           --health-retries 20
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
     env:
       DATABASE_URL: postgresql://manorg_app:manorg_app_dev@localhost:5432/manorg
       DATABASE_MIGRATION_URL: postgresql://manorg_owner:manorg_owner_dev@localhost:5432/manorg
       JWT_ACCESS_SECRET: ci-access-secret-not-used-outside-ci
       JWT_REFRESH_SECRET: ci-refresh-secret-not-used-outside-ci
+      REDIS_URL: redis://localhost:6379
     steps:
       - uses: actions/checkout@v4
 
@@ -56,6 +66,9 @@ jobs:
 
       - name: Type check
         run: pnpm typecheck
+
+      - name: Every requirement ID has a test (spec section 13)
+        run: pnpm check:requirements
 
       - name: Create database roles
         env:

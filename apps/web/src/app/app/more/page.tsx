@@ -39,7 +39,7 @@ export default function MorePage() {
         className="btn ghost"
         onClick={() => {
           s.signOut();
-          router.replace('/login');
+          router.replace('/');
         }}
       >
         Sign out

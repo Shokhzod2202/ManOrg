@@ -4,22 +4,30 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { type ApiError, formatDate, post, type Schemas, today } from '../../lib/api';
 import { useApi } from '../../lib/use-api';
-import { Empty, ErrorBox, Loading, PageHead } from '../ui';
+import { AddProduct, Empty, ErrorBox, Loading, PageHead } from '../ui';
 
 type Order = Schemas['Order'];
 
 /** A contractor's upcoming orders. Changes go to the provider as requests (decision 2026-11-13). */
 export function ContractorOrders() {
-  const from = today();
-  const to = today('Asia/Seoul', 60);
+  // Last week too: an order not delivered yet is still due (TOD-2).
+  const from = today('Asia/Seoul', -7);
+  const to = today('Asia/Seoul', 54);
   const { data, error, loading, reload } = useApi<{ items: Order[] }>(
     `/orders?from=${from}&to=${to}`,
   );
   const [editing, setEditing] = useState<string | null>(null);
+  // A delivered order is locked; differences go through Deliveries instead (DEL-5, DEL-6).
+  const deliveries = useApi<{ items: Schemas['Delivery'][] }>(`/deliveries?from=${from}&to=${to}`);
+  const delivered = new Set(
+    (deliveries.data?.items ?? [])
+      .filter((d) => d.status !== 'not_started' && d.status !== 'draft')
+      .map((d) => `${d.provider.id}:${d.deliveryDate}`),
+  );
 
   return (
     <div className="page">
-      <PageHead title="My orders" sub="Upcoming deliveries">
+      <PageHead title="My orders" sub="Upcoming deliveries and last week">
         <Link className="btn" href="/app/orders/new">
           New order
         </Link>
@@ -34,14 +42,25 @@ export function ContractorOrders() {
           <div className="row between wrap">
             <div>
               <h2>{formatDate(o.deliveryDate)}</h2>
-              <span className="muted small">From {o.provider.name}</span>
+              <span className="muted small">
+                From {o.provider.name}
+                {o.approxTime ? ` · about ${o.approxTime.start}–${o.approxTime.end}` : ''}
+              </span>
             </div>
             <div className="row">
               {o.status === 'cancelled' ? <span className="pill">Cancelled</span> : null}
               {o.openChangeRequestIds.length ? (
                 <span className="pill warn">Change waiting</span>
               ) : null}
-              {o.status === 'placed' && editing !== o.id ? (
+              {delivered.has(`${o.provider.id}:${o.deliveryDate}`) ? (
+                <Link className="pill ok" href="/app/deliveries">
+                  Delivered
+                </Link>
+              ) : null}
+              {o.status === 'placed' &&
+              editing !== o.id &&
+              deliveries.data &&
+              !delivered.has(`${o.provider.id}:${o.deliveryDate}`) ? (
                 <button className="btn ghost" onClick={() => setEditing(o.id)}>
                   Request a change
                 </button>
@@ -83,6 +102,13 @@ function ChangeForm({ order, onDone }: { order: Order; onDone: () => void }) {
   const [note, setNote] = useState('');
   const [error, setError] = useState<ApiError | null>(null);
   const [busy, setBusy] = useState(false);
+  const catalog = useApi<{ items: Schemas['CatalogItem'][] }>(
+    `/catalog?provider_id=${order.provider.id}`,
+  );
+  const names = new Map([
+    ...(catalog.data?.items ?? []).map((i) => [i.id, i.name] as const),
+    ...order.lines.map((l) => [l.productId, l.productName] as const),
+  ]);
 
   async function send() {
     setBusy(true);
@@ -110,19 +136,23 @@ function ChangeForm({ order, onDone }: { order: Order; onDone: () => void }) {
         additions can be accepted by staff.
       </p>
       <ErrorBox error={error} />
-      {order.lines.map((l) => (
-        <label key={l.productId} className="row between">
-          <span>{l.productName}</span>
+      {Object.keys(qty).map((id) => (
+        <label key={id} className="row between">
+          <span>{names.get(id) ?? 'Product'}</span>
           <input
             className="input qty"
             type="number"
             min={0}
             inputMode="numeric"
-            value={qty[l.productId] ?? 0}
-            onChange={(e) => setQty({ ...qty, [l.productId]: Math.max(0, Number(e.target.value)) })}
+            value={qty[id] ?? 0}
+            onChange={(e) => setQty({ ...qty, [id]: Math.max(0, Number(e.target.value)) })}
           />
         </label>
       ))}
+      <AddProduct
+        options={(catalog.data?.items ?? []).filter((i) => !(i.id in qty))}
+        onAdd={(id) => setQty({ ...qty, [id]: 1 })}
+      />
       <label className="field">
         Note (optional)
         <textarea maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />

@@ -49,7 +49,13 @@ function presentSession(s: Session, now: Date) {
     endedAt: s.endedAt,
     status: s.status,
     workedMinutes: workedMinutes(s, now),
-    events: s.events.map((e) => ({ id: e.id, eventType: e.eventType, occurredAt: e.occurredAt })),
+    events: s.events.map((e) => ({
+      id: e.id,
+      eventType: e.eventType,
+      occurredAt: e.occurredAt,
+      ...(e.source ? { source: e.source } : {}),
+      ...(e.version !== undefined ? { version: e.version } : {}),
+    })),
   };
 }
 

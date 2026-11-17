@@ -125,6 +125,22 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '429': { $ref: '#/components/responses/RateLimited' }
 
+  /auth/logout:
+    post:
+      operationId: logout
+      summary: Sign out; the refresh token and every token from the same sign-in stop working
+      description: Always 204, whether or not the token was known.
+      tags: [auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RefreshRequest' }
+      responses:
+        '204': { description: Signed out. }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '429': { $ref: '#/components/responses/RateLimited' }
   /me:
     get:
       operationId: getMe
@@ -1150,6 +1166,31 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /colleagues:
+    get:
+      operationId: listColleagues
+      summary: 'Coworkers to build a team from (OUT-4, OUT-5)'
+      description: 'Names of active employees in the bakery, for employees creating their own teams. No emails or other details.'
+      tags: [output]
+      x-tenant-scoped: true
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/PersonRef' }
+                  nextCursor: { $ref: '#/components/schemas/NextCursor' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /teams:
     get:
       operationId: listTeams
@@ -2642,7 +2683,8 @@ components:
         available: { type: boolean, description: 'False when the server has no bot token.' }
         botUsername: { type: string, example: haydar_inc_bot }
         connected: { type: boolean }
-        username: { type: [string, 'null'], description: 'Telegram username, when the person has one.' }
+        username:
+          { type: [string, 'null'], description: 'Telegram username, when the person has one.' }
         connectedAt: { type: [string, 'null'], format: date-time }
     TelegramLink:
       type: object
@@ -3483,6 +3525,11 @@ components:
               productName: { type: string, description: 'Copied when ordered.' }
               quantity: { type: integer }
         openChangeRequestIds: { type: array, items: { type: string, format: uuid } }
+        approxTime:
+          description: 'The standing approximate delivery time for this contractor (DTM-4).'
+          oneOf:
+            - $ref: '#/components/schemas/ApproxTime'
+            - type: 'null'
         version: { type: integer }
     OrderTotals:
       type: object

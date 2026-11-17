@@ -42,6 +42,12 @@ function providerOnly(org: OrgContext): void {
 export class OutputController {
   constructor(private readonly output: OutputService) {}
 
+  @Get('colleagues')
+  @RequireOrg('teams.manage')
+  colleagues(@CurrentUser() user: AuthUser, @CurrentOrg() org: OrgContext) {
+    return this.output.colleagues(user, org);
+  }
+
   @Get('teams')
   @RequireOrg()
   listTeams(@CurrentUser() user: AuthUser, @CurrentOrg() org: OrgContext) {

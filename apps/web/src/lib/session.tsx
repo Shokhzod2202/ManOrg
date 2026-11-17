@@ -9,7 +9,7 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { get, patch, post, type Schemas, session } from './api';
+import { get, patch, refresh, type Schemas, session, sessionCall } from './api';
 
 type Me = Schemas['Me'];
 type Membership = Me['memberships'][number];
@@ -38,7 +38,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [orgId, setOrgId] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
-    if (!session.tokens()) {
+    // Tokens written by older versions of this app are removed from browser storage.
+    try {
+      window.localStorage.removeItem('manorg.tokens');
+    } catch {
+      // Storage blocked: nothing to clean up.
+    }
+    if (!session.access() && !(await refresh())) {
       setMe(null);
       setReady(true);
       return;
@@ -52,7 +58,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setOrgId(chosen?.organization.id ?? null);
       session.setOrg(chosen?.organization.id ?? null);
     } catch {
-      session.setTokens(null);
+      session.setAccess(null);
       setMe(null);
     } finally {
       setReady(true);
@@ -81,25 +87,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       orgId,
       reload,
       signIn: async (email, password) => {
-        const res = await post<Schemas['AuthResult']>(
-          '/auth/login',
-          { email, password },
-          { org: null },
-        );
-        session.setTokens(res.tokens);
+        await sessionCall('login', { email, password });
         await reload();
       },
       register: async (name, email, password) => {
-        const res = await post<Schemas['AuthResult']>(
-          '/auth/register',
-          { name, email, password },
-          { org: null },
-        );
-        session.setTokens(res.tokens);
+        await sessionCall('register', { name, email, password });
         await reload();
       },
       signOut: () => {
-        session.setTokens(null);
+        void sessionCall('logout');
         session.setOrg(null);
         setMe(null);
         setOrgId(null);

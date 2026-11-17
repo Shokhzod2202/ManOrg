@@ -197,3 +197,35 @@ export function PageHead({
     </header>
   );
 }
+
+/** A picker that adds one product to a form; used for unordered delivery lines and order changes. */
+export function AddProduct({
+  options,
+  onAdd,
+  label = 'Add a product…',
+}: {
+  options: { id: string; name: string }[];
+  onAdd: (id: string) => void;
+  label?: string;
+}) {
+  if (!options.length) return null;
+  return (
+    <select
+      className="input"
+      value=""
+      aria-label={label}
+      onChange={(e) => {
+        if (e.target.value) onAdd(e.target.value);
+      }}
+    >
+      <option value="">{label}</option>
+      {[...options]
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((o) => (
+          <option key={o.id} value={o.id}>
+            {o.name}
+          </option>
+        ))}
+    </select>
+  );
+}

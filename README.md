@@ -73,12 +73,16 @@ connect in **Settings → Telegram → Connect Telegram**, which opens the bot w
 pnpm lint && pnpm typecheck && pnpm format:check
 pnpm contracts:gen   # regenerate types after editing packages/contracts/openapi.yaml
 pnpm build
+pnpm check:requirements           # every requirement ID in the spec has a test
+pnpm --filter @manorg/web e2e     # browser checks (API and web running); loads demo data first
+# performance targets (spec section 13), against a second API with a high sign-in limit:
+#   AUTH_RATE_LIMIT_PER_MINUTE=100000 PORT=3002 pnpm --filter @manorg/api dev &  node scripts/perf.mjs
 ```
 
 ## Status
 
-Phase 0 is done. Phase 1: the whole API is built and tested (shifts and punch cards, output and
-teams, tasks with camera photos, products, ingredients, orders with change requests, deliveries,
-Today's Orders, dashboards, in-app notifications); the web and mobile screens are next. See
-`docs/PHASE1.md` for the status by requirement ID and `docs/DECISIONS.md` for every default and
-choice the code relies on.
+Phases 0 and 1 are done in code: the API and one responsive web app for admins, employees and
+contractors (on a phone it looks like the phone app), with Telegram notifications, scheduled jobs
+on Redis, and the checks from spec section 13 (requirement traceability, tenant isolation,
+browser flows, performance). What is left before launch needs accounts, hosting or the pilot day;
+see `docs/PHASE1.md`. Every default and choice the code relies on is in `docs/DECISIONS.md`.

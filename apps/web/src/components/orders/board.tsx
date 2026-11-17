@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { type ApiError, formatDate, post, type Schemas } from '../../lib/api';
 import { useSession } from '../../lib/session';
 import { useApi } from '../../lib/use-api';
@@ -27,7 +27,35 @@ export function OrdersBoard({
   wall?: boolean;
 }) {
   const s = useSession();
-  const { data, error, loading, reload } = useApi<DueNext>('/orders/due-next', refreshMs);
+  const admin = s.actor === 'org_admin';
+  // TOD-3, TOD-5, TOD-6: everything, one employee's assigned products, or one contractor.
+  const [who, setWho] = useState<string>('all');
+  const [contractor, setContractor] = useState<string>('');
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem('manorg.orders.who');
+      if (saved) setWho(saved);
+    } catch {
+      // Storage blocked: start with everything.
+    }
+  }, []);
+  function choose(next: string) {
+    setWho(next);
+    try {
+      window.localStorage.setItem('manorg.orders.who', next);
+    } catch {
+      // Not remembered this time.
+    }
+  }
+  const members = useApi<{ items: Schemas['Member'][] }>(admin && !wall ? '/members' : null);
+  const employees = (members.data?.items ?? []).filter(
+    (m) => m.role === 'employee' && m.status === 'active',
+  );
+  // An employee can only ever ask for their own products.
+  const target = admin || who === 'all' ? who : (s.me?.id ?? 'all');
+  const path =
+    wall || target === 'all' ? '/orders/due-next' : `/employees/${target}/orders/due-next`;
+  const { data, error, loading, reload } = useApi<DueNext>(path, refreshMs);
   const [busy, setBusy] = useState<string | null>(null);
   const [markError, setMarkError] = useState<ApiError | null>(null);
   const view: View = wall ? 'products' : (s.me?.preferences?.ordersView ?? 'products');
@@ -53,8 +81,33 @@ export function OrdersBoard({
   if (error && !data) return <ErrorBox error={error} onRetry={reload} />;
   if (!data) return null;
 
-  const totals = [...data.totals].sort((a, b) => a.productName.localeCompare(b.productName));
-  const orders = [...data.orders].sort(
+  const allOrders = data.orders;
+  const contractors = [...new Map(allOrders.map((o) => [o.contractor.id, o.contractor])).values()];
+  const picked = contractor && contractors.some((c) => c.id === contractor) ? contractor : '';
+  const shownOrders = picked ? allOrders.filter((o) => o.contractor.id === picked) : allOrders;
+  // One contractor: totals are that contractor's lines, so ticks and counts stay honest.
+  const baseTotals = picked
+    ? [
+        ...shownOrders
+          .flatMap((o) => o.lines)
+          .reduce((m, l) => {
+            const t = m.get(l.productId) ?? {
+              productId: l.productId,
+              productName: l.productName,
+              quantity: 0,
+              madeQuantity: 0,
+              done: false,
+            };
+            t.quantity += l.quantity;
+            t.madeQuantity += l.madeQuantity;
+            t.done = t.madeQuantity >= t.quantity;
+            return m.set(l.productId, t);
+          }, new Map<string, Schemas['ProductTotal']>())
+          .values(),
+      ]
+    : data.totals;
+  const totals = [...baseTotals].sort((a, b) => a.productName.localeCompare(b.productName));
+  const orders = [...shownOrders].sort(
     (a, b) =>
       (a.approxTime?.start ?? '99').localeCompare(b.approxTime?.start ?? '99') ||
       a.contractor.name.localeCompare(b.contractor.name),
@@ -85,6 +138,59 @@ export function OrdersBoard({
               </button>
             ))}
           </div>
+        </div>
+      ) : null}
+      {!wall ? (
+        <div className="viewbar">
+          {admin ? (
+            <select
+              className="input"
+              value={who}
+              onChange={(e) => choose(e.target.value)}
+              aria-label="Whose products"
+            >
+              <option value="all">All products</option>
+              {employees.map((m) => (
+                <option key={m.user.id} value={m.user.id}>
+                  {m.user.name}'s products
+                </option>
+              ))}
+            </select>
+          ) : (
+            <div className="tabs" role="tablist" aria-label="Whose products">
+              <button
+                role="tab"
+                aria-selected={who === 'all'}
+                className={who === 'all' ? 'on' : ''}
+                onClick={() => choose('all')}
+              >
+                All
+              </button>
+              <button
+                role="tab"
+                aria-selected={who !== 'all'}
+                className={who !== 'all' ? 'on' : ''}
+                onClick={() => s.me && choose(s.me.id)}
+              >
+                Mine
+              </button>
+            </div>
+          )}
+          {contractors.length > 1 || picked ? (
+            <select
+              className="input"
+              value={picked}
+              onChange={(e) => setContractor(e.target.value)}
+              aria-label="Contractor"
+            >
+              <option value="">All contractors</option>
+              {contractors.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          ) : null}
         </div>
       ) : null}
       <ErrorBox error={markError} />

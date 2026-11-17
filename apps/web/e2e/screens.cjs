@@ -1,6 +1,7 @@
 // Browser checks against a running web app (pnpm dev) with demo data (node scripts/demo-data.mjs).
 // Uses the preinstalled Playwright; screenshots go to SHOTS_DIR (default: the temp folder).
 const { chromium } = require('playwright');
+const { signIn } = require('./sign-in.cjs');
 const OUT = process.env.SHOTS_DIR ?? require('node:os').tmpdir();
 const W0 = process.env.WEB_URL;
 const W = W0 ?? 'http://localhost:3000';
@@ -54,11 +55,7 @@ const only = process.argv[2];
             `${role} ${label} ${page.url()} ${r.status()} ${r.url().replace('http://localhost:3001/api/v1', '')}`,
           );
       });
-      await page.goto(`${W}/login`);
-      await page.fill('input[type=email]', email);
-      await page.fill('input[type=password]', 'Password123!');
-      await page.click('button:has-text("Sign in")');
-      await page.waitForURL('**/app', { timeout: 15000 });
+      await signIn(page, W, email);
       for (const p of pages) {
         await page.goto(W + p);
         await page.waitForTimeout(1800);

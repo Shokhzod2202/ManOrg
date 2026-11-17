@@ -71,4 +71,10 @@ export class AuthService {
     if (!result) throw Errors.unauthenticated('Sign in again.');
     return { tokens: result.pair };
   }
+
+  async logout(input: RefreshInput): Promise<void> {
+    await this.db.run({ organizationId: null, userId: null }, (tx) =>
+      this.tokens.revoke(tx, input.refreshToken),
+    );
+  }
 }

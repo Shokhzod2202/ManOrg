@@ -2,7 +2,7 @@
 
 import { type FormEvent, useState } from 'react';
 import { Empty, ErrorBox, Loading, PageHead } from '../../../components/ui';
-import { type ApiError, formatDate, get, post, put, type Schemas } from '../../../lib/api';
+import { type ApiError, formatDate, get, patch, post, put, type Schemas } from '../../../lib/api';
 import { useSession } from '../../../lib/session';
 import { useApi } from '../../../lib/use-api';
 
@@ -49,7 +49,15 @@ function IngredientCard({
   admin: boolean;
   onChange: () => void;
 }) {
-  const [mode, setMode] = useState<'none' | 'order' | 'price' | 'people'>('none');
+  const [mode, setMode] = useState<'none' | 'order' | 'price' | 'people' | 'edit'>('none');
+  const [f, setF] = useState({
+    name: ing.name,
+    source: ing.source,
+    packQuantity: ing.packQuantity,
+    packUnit: ing.packUnit as string,
+    weekday: ing.orderSchedule ? String(ing.orderSchedule.weekday) : '',
+    time: ing.orderSchedule?.time ?? '18:00',
+  });
   const [packs, setPacks] = useState(1);
   const [note, setNote] = useState('');
   const [price, setPrice] = useState(ing.packPrice ?? 0);
@@ -102,6 +110,11 @@ function IngredientCard({
           Ask to order
         </button>
         {admin ? (
+          <button className="btn ghost" onClick={() => setMode(mode === 'edit' ? 'none' : 'edit')}>
+            Edit
+          </button>
+        ) : null}
+        {admin ? (
           <button
             className="btn ghost"
             onClick={() => setMode(mode === 'price' ? 'none' : 'price')}
@@ -131,6 +144,92 @@ function IngredientCard({
           </button>
         ) : null}
       </div>
+      {mode === 'edit' ? (
+        <div className="stack">
+          <div className="grid2">
+            <label className="field">
+              Name
+              <input
+                value={f.name}
+                maxLength={120}
+                onChange={(e) => setF({ ...f, name: e.target.value })}
+              />
+            </label>
+            <label className="field">
+              Where it is bought
+              <input
+                value={f.source}
+                maxLength={200}
+                onChange={(e) => setF({ ...f, source: e.target.value })}
+              />
+            </label>
+            <label className="field">
+              Pack size
+              <input
+                type="number"
+                min={0.001}
+                step="any"
+                value={f.packQuantity}
+                onChange={(e) => setF({ ...f, packQuantity: Number(e.target.value) })}
+              />
+            </label>
+            <label className="field">
+              Unit
+              <select value={f.packUnit} onChange={(e) => setF({ ...f, packUnit: e.target.value })}>
+                {['g', 'kg', 'pc', 'L', 'mL'].map((u) => (
+                  <option key={u}>{u}</option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              Order day
+              <select value={f.weekday} onChange={(e) => setF({ ...f, weekday: e.target.value })}>
+                <option value="">No fixed day</option>
+                {WEEKDAYS.map((d, i) => (
+                  <option key={d} value={i}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {f.weekday !== '' ? (
+              <label className="field">
+                Order by
+                <input
+                  type="time"
+                  value={f.time}
+                  onChange={(e) => setF({ ...f, time: e.target.value })}
+                />
+              </label>
+            ) : null}
+          </div>
+          <button
+            className="btn"
+            style={{ alignSelf: 'flex-start' }}
+            disabled={!f.name.trim() || !f.source.trim() || !(f.packQuantity > 0)}
+            onClick={() =>
+              run(
+                () =>
+                  patch(
+                    `/ingredients/${ing.id}`,
+                    {
+                      name: f.name.trim(),
+                      source: f.source.trim(),
+                      packQuantity: f.packQuantity,
+                      packUnit: f.packUnit,
+                      orderSchedule:
+                        f.weekday === '' ? null : { weekday: Number(f.weekday), time: f.time },
+                    },
+                    { ifMatch: ing.version },
+                  ),
+                'Saved.',
+              )
+            }
+          >
+            Save
+          </button>
+        </div>
+      ) : null}
       {mode === 'order' ? (
         <div className="row wrap">
           <input

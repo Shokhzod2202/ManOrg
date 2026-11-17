@@ -35,6 +35,17 @@ afterAll(async () => {
 });
 
 describe('teams (TEAM-1, OUT-4, OUT-5)', () => {
+  it('lists coworkers by name only, for employees building a team', async () => {
+    const res = await api.as(w.a.employee, w.a.id).get('/colleagues').expect(200);
+    const names = res.body.items.map((p: { name: string }) => p.name);
+    expect(names).toContain('Joon');
+    expect(Object.keys(res.body.items[0]).sort()).toEqual(['id', 'name']);
+    // Other bakeries never appear; admins and contractors use other screens.
+    const other = await api.as(w.b.employee, w.b.id).get('/colleagues').expect(200);
+    expect(other.body.items.map((p: { name: string }) => p.name)).not.toContain('Joon');
+    await api.as(w.a.admin, w.a.id).get('/colleagues').expect(403);
+  });
+
   it('saves a team with its creator as a member, private to the creator', async () => {
     const res = await api
       .as(w.a.employee, w.a.id)
@@ -75,7 +86,7 @@ describe('teams (TEAM-1, OUT-4, OUT-5)', () => {
 });
 
 describe('PUT /output/{date} (OUT-1, OUT-6, TEAM-2 to TEAM-4)', () => {
-  it('saves Self Bread 30 plus Team A Pilaf 30 and credits the team equally', async () => {
+  it('saves Self Bread 30 plus Team A Pilaf 30 and credits the team equally (TEAM-5)', async () => {
     const res = await api
       .as(w.a.employee, w.a.id)
       .put(`/output/${today()}`)
@@ -96,6 +107,11 @@ describe('PUT /output/{date} (OUT-1, OUT-6, TEAM-2 to TEAM-4)', () => {
           productId: pilaf,
           quantity: 30,
           creditedQuantity: 15,
+          // TEAM-5: the line names who worked on it, so the admin can verify.
+          members: expect.arrayContaining([
+            expect.objectContaining({ id: w.a.employee.userId }),
+            expect.objectContaining({ id: joon.userId }),
+          ]),
         },
       ],
       cleaningHours: 1.5,
@@ -198,7 +214,7 @@ describe('reading output (OUT-2, OUT-3)', () => {
       .expect(200);
   });
 
-  it('puts hours next to output with day totals counting team lines once', async () => {
+  it('puts hours next to output with day totals counting team lines once (OUT-7)', async () => {
     const res = await api
       .as(w.a.admin, w.a.id)
       .get(`/dashboard/shift-output?date=${today()}`)

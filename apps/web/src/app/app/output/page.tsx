@@ -2,7 +2,16 @@
 
 import { useEffect, useState } from 'react';
 import { Empty, ErrorBox, Flag, Loading, PageHead } from '../../../components/ui';
-import { type ApiError, formatMinutes, put, type Schemas, today } from '../../../lib/api';
+import {
+  type ApiError,
+  del,
+  formatMinutes,
+  patch,
+  post,
+  put,
+  type Schemas,
+  today,
+} from '../../../lib/api';
 import { useSession } from '../../../lib/session';
 import { useApi } from '../../../lib/use-api';
 
@@ -175,6 +184,7 @@ function MyOutput() {
           </div>
         </div>
       ) : null}
+      <MyTeams onChange={teams.reload} />
       <button className="btn big" onClick={save} disabled={!list.length}>
         Save output
       </button>
@@ -266,5 +276,119 @@ function AdminOutput() {
         </div>
       ) : null}
     </div>
+  );
+}
+
+/** OUT-4, OUT-5: an employee's own saved teams (admins' shared teams appear too, read-only). */
+function MyTeams({ onChange }: { onChange: () => void }) {
+  const { me } = useSession();
+  const teams = useApi<{ items: Team[] }>('/teams');
+  const people = useApi<{ items: { id: string; name: string }[] }>('/colleagues');
+  const [editing, setEditing] = useState<Team | 'new' | null>(null);
+  const [name, setName] = useState('');
+  const [chosen, setChosen] = useState<Set<string>>(new Set());
+  const [err, setErr] = useState<ApiError | null>(null);
+
+  function start(t: Team | 'new') {
+    setEditing(t);
+    setName(t === 'new' ? '' : t.name);
+    setChosen(new Set(t === 'new' ? [] : t.members.map((m) => m.id).filter((id) => id !== me?.id)));
+  }
+  async function save() {
+    setErr(null);
+    try {
+      const memberIds = [...chosen];
+      if (editing === 'new') await post('/teams', { name: name.trim(), memberIds });
+      else if (editing)
+        await patch(
+          `/teams/${editing.id}`,
+          { name: name.trim(), memberIds },
+          { ifMatch: editing.version },
+        );
+      setEditing(null);
+      teams.reload();
+      onChange();
+    } catch (e) {
+      setErr(e as ApiError);
+    }
+  }
+  async function remove(t: Team) {
+    if (!window.confirm(`Delete team ${t.name}? Output already logged stays.`)) return;
+    try {
+      await del(`/teams/${t.id}`, { ifMatch: t.version });
+      teams.reload();
+      onChange();
+    } catch (e) {
+      setErr(e as ApiError);
+    }
+  }
+  const others = (people.data?.items ?? []).filter((p) => p.id !== me?.id);
+
+  return (
+    <section className="card">
+      <div className="row between">
+        <h2>My teams</h2>
+        <button className="btn ghost" onClick={() => start('new')}>
+          New team
+        </button>
+      </div>
+      <ErrorBox error={teams.error ?? err} />
+      {teams.data && !teams.data.items.length && !editing ? (
+        <Empty>Make a team for people you often work with, then log output for it above.</Empty>
+      ) : null}
+      {teams.data?.items.map((t) => (
+        <div key={t.id} className="row between wrap">
+          <span>
+            <b>{t.name}</b> {t.shared ? <span className="pill blue">From admin</span> : null}
+            <br />
+            <span className="muted small">{t.members.map((m) => m.name).join(', ')}</span>
+          </span>
+          {!t.shared ? (
+            <span className="row">
+              <button className="btn ghost" onClick={() => start(t)}>
+                Edit
+              </button>
+              <button className="btn ghost" onClick={() => remove(t)}>
+                Delete
+              </button>
+            </span>
+          ) : null}
+        </div>
+      ))}
+      {editing ? (
+        <div className="stack" style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+          <label className="field">
+            Team name
+            <input value={name} maxLength={80} onChange={(e) => setName(e.target.value)} />
+          </label>
+          <span className="muted small">You are in the team. Choose who works with you:</span>
+          <div className="row wrap">
+            {others.map((p) => (
+              <label key={p.id} className="chip">
+                <input
+                  type="checkbox"
+                  checked={chosen.has(p.id)}
+                  onChange={(e) => {
+                    const n = new Set(chosen);
+                    if (e.target.checked) n.add(p.id);
+                    else n.delete(p.id);
+                    setChosen(n);
+                  }}
+                />
+                {p.name}
+              </label>
+            ))}
+          </div>
+          <div className="row">
+            <button className="btn" disabled={!name.trim() || !chosen.size} onClick={save}>
+              Save team
+            </button>
+            <button className="btn ghost" onClick={() => setEditing(null)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </section>
   );
 }

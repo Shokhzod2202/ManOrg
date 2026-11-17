@@ -1,4 +1,4 @@
-import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { AuditService, userActor } from '../audit/audit.service';
 import { Errors } from '../common/errors';
 import { type AuthUser, dbContext, orgCan, type OrgContext } from '../common/request-context';
@@ -13,10 +13,7 @@ type Step = 'fulfil' | 'check';
 
 /** ING-5 to ING-7: employees order ingredients to the admin; each order is an admin task. */
 @Injectable()
-export class IngredientOrdersService implements OnModuleInit, OnModuleDestroy {
-  private readonly logger = new Logger('IngredientOrders');
-  private timer: NodeJS.Timeout | undefined;
-
+export class IngredientOrdersService {
   constructor(
     private readonly db: DatabaseService,
     private readonly audit: AuditService,
@@ -207,22 +204,6 @@ export class IngredientOrdersService implements OnModuleInit, OnModuleDestroy {
         select: { id: true, timezone: true },
       }),
     );
-  }
-
-  onModuleInit(): void {
-    if (process.env.JOBS_ENABLED !== 'true') return;
-    this.timer = setInterval(() => {
-      this.sendDueReminders().catch((error: unknown) =>
-        this.logger.error(
-          'Ingredient reminders failed',
-          error instanceof Error ? error.stack : undefined,
-        ),
-      );
-    }, 5 * 60_000);
-  }
-
-  onModuleDestroy(): void {
-    if (this.timer) clearInterval(this.timer);
   }
 
   private async present(tx: Tx, org: OrgContext, id: string) {

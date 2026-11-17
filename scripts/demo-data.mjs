@@ -60,20 +60,27 @@ async function call(tok, org, method, path, body, form) {
   if (!r.ok) throw new Error(`${method} ${path} ${r.status} ${t}`);
   return t ? JSON.parse(t) : null;
 }
+/** Sign-in is rate-limited per minute (spec section 12): wait and retry instead of failing. */
+async function auth(path, body) {
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const r = await fetch(B + path, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (r.status !== 429) return r;
+    console.log('sign-in rate limit reached, waiting 15 s');
+    await new Promise((done) => setTimeout(done, 15_000));
+  }
+  throw new Error(`${path}: still rate-limited`);
+}
 async function login(email) {
-  const r = await fetch(B + '/auth/login', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ email, password: PW }),
-  });
+  const r = await auth('/auth/login', { email, password: PW });
+  if (!r.ok) throw new Error(`login ${email}: ${r.status}`);
   return (await r.json()).tokens.accessToken;
 }
 async function register(name, email) {
-  const r = await fetch(B + '/auth/register', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ name, email, password: PW }),
-  });
+  const r = await auth('/auth/register', { name, email, password: PW });
   if (r.ok) return (await r.json()).tokens.accessToken;
   return login(email);
 }
@@ -199,8 +206,25 @@ for (const [i, [tok, cid]] of ctoks.entries()) {
     .filter((_, j) => (j + i) % (i + 2) !== 0)
     .slice(0, 14 - i)
     .map((p, j) => ({ productId: p.id, quantity: 5 + ((j * 7 + i * 3) % 30) }));
+  // Re-runnable: keep one open order per contractor, on the first free date from the default on.
+  const until = new Date(Date.parse(`${dd.date}T00:00:00Z`) + 20 * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+  const mine = (await call(tok, cid, 'GET', `/orders?from=${dd.date}&to=${until}`)).items.filter(
+    (o) => o.status === 'placed',
+  );
+  const done = new Set(
+    (await call(tok, cid, 'GET', `/deliveries?from=${dd.date}&to=${until}`)).items
+      .filter((d) => d.status !== 'not_started' && d.status !== 'draft')
+      .map((d) => d.deliveryDate),
+  );
+  if (mine.some((o) => !done.has(o.deliveryDate))) continue;
+  const taken = new Set(mine.map((o) => o.deliveryDate));
+  let date = dd.date;
+  while (taken.has(date))
+    date = new Date(Date.parse(`${date}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
   try {
-    await call(tok, cid, 'POST', '/orders', { providerId: bakery, deliveryDate: dd.date, lines });
+    await call(tok, cid, 'POST', '/orders', { providerId: bakery, deliveryDate: date, lines });
   } catch (e) {
     console.log('order skipped', String(e).slice(0, 120));
   }

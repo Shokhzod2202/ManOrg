@@ -22,6 +22,10 @@ export interface PunchEventLike {
   id: string;
   eventType: PunchType;
   occurredAt: Date;
+  /** `admin` when an admin added or edited it; shown so the employee sees manual edits (section 12). */
+  source?: string;
+  /** Row version, sent back as If-Match to edit it (SHF-4). */
+  version?: number;
 }
 
 export type SessionStatus = 'working' | 'paused' | 'ended';

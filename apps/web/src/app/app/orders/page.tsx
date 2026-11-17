@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { ContractorOrders } from '../../../components/home/contractor-orders';
 import { OrdersBoard } from '../../../components/orders/board';
+import { OrdersByDay } from '../../../components/orders/by-day';
 import { ErrorBox, Flag, PageHead } from '../../../components/ui';
 import { type ApiError, formatDate, post, type Schemas } from '../../../lib/api';
 import { useSession } from '../../../lib/session';
@@ -12,15 +13,40 @@ type Change = Schemas['OrderChangeRequest'];
 
 export default function OrdersPage() {
   const { actor } = useSession();
+  const [tab, setTab] = useState<'next' | 'day'>('next');
   if (actor === 'contractor_admin') return <ContractorOrders />;
+  const admin = actor === 'org_admin';
   return (
     <div className="page wide">
       <PageHead
-        title="Orders due next"
-        sub="Selected by delivery due; it does not change at midnight."
-      />
-      <ChangeRequests admin={actor === 'org_admin'} />
-      <OrdersBoard />
+        title={tab === 'next' ? 'Orders due next' : 'Orders by day'}
+        sub={
+          tab === 'next' ? 'Selected by delivery due; it does not change at midnight.' : undefined
+        }
+      >
+        {admin ? (
+          <div className="tabs" role="tablist">
+            <button
+              role="tab"
+              aria-selected={tab === 'next'}
+              className={tab === 'next' ? 'on' : ''}
+              onClick={() => setTab('next')}
+            >
+              Due next
+            </button>
+            <button
+              role="tab"
+              aria-selected={tab === 'day'}
+              className={tab === 'day' ? 'on' : ''}
+              onClick={() => setTab('day')}
+            >
+              By day
+            </button>
+          </div>
+        ) : null}
+      </PageHead>
+      <ChangeRequests admin={admin} />
+      {tab === 'next' ? <OrdersBoard /> : <OrdersByDay canEdit={admin} />}
     </div>
   );
 }

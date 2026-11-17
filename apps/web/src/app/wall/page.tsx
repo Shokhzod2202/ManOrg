@@ -17,7 +17,7 @@ export default function WallPage() {
     return () => clearInterval(t);
   }, []);
   useEffect(() => {
-    if (s.ready && !s.me) router.replace('/login');
+    if (s.ready && !s.me) router.replace('/');
   }, [s.ready, s.me, router]);
   if (!s.ready || !s.membership) return <Loading />;
   return (

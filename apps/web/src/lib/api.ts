@@ -5,13 +5,15 @@ export type { Schemas };
 // Same origin by default: the web server forwards /api/v1 to the API (next.config.ts), so no
 // CORS is needed and a preview link works. NEXT_PUBLIC_API_URL points the browser elsewhere.
 const BASE = `${process.env.NEXT_PUBLIC_API_URL ?? ''}/api/v1`;
-const TOKENS = 'manorg.tokens';
 const ORG = 'manorg.org';
+/** Header the web server's /session routes require: a cross-site form cannot send it. */
+export const SESSION_HEADER = { 'X-Manorg-Session': '1' };
 
-interface Tokens {
-  accessToken: string;
-  refreshToken: string;
-}
+/**
+ * The access token lives in memory only. The refresh token is an httpOnly cookie that only the
+ * web server's /session routes read (app/session/[action]/route.ts), so page scripts never see it.
+ */
+let accessToken: string | null = null;
 
 /** The API's error body: { error: { code, message, fields } }. */
 export class ApiError extends Error {
@@ -45,8 +47,10 @@ function write(key: string, value: unknown): void {
 }
 
 export const session = {
-  tokens: () => read<Tokens>(TOKENS),
-  setTokens: (t: Tokens | null) => write(TOKENS, t),
+  access: () => accessToken,
+  setAccess: (t: string | null) => {
+    accessToken = t;
+  },
   org: () => read<string>(ORG),
   setOrg: (id: string | null) => write(ORG, id),
 };
@@ -62,26 +66,31 @@ export interface CallOptions {
 
 let refreshing: Promise<boolean> | null = null;
 
-async function refresh(): Promise<boolean> {
-  const t = session.tokens();
-  if (!t) return false;
-  refreshing ??= fetch(`${BASE}/auth/refresh`, {
+async function refreshOnce(): Promise<boolean> {
+  const res = await fetch('/session/refresh', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refreshToken: t.refreshToken }),
-  })
-    .then(async (res) => {
-      if (!res.ok) {
-        session.setTokens(null);
-        return false;
-      }
-      const body = (await res.json()) as { tokens: Tokens };
-      session.setTokens(body.tokens);
-      return true;
-    })
-    .finally(() => {
-      refreshing = null;
-    });
+    headers: SESSION_HEADER,
+    credentials: 'same-origin',
+  }).catch(() => null);
+  if (!res?.ok) {
+    accessToken = null;
+    return false;
+  }
+  accessToken = ((await res.json()) as { accessToken: string | null }).accessToken;
+  return accessToken !== null;
+}
+
+/**
+ * Gets a new access token from the cookie. Tabs take turns (Web Locks), because a refresh token
+ * used twice ends the whole session on the server.
+ */
+export function refresh(): Promise<boolean> {
+  if (typeof window === 'undefined') return Promise.resolve(false);
+  refreshing ??= (
+    navigator.locks ? navigator.locks.request('manorg-refresh', () => refreshOnce()) : refreshOnce()
+  ).finally(() => {
+    refreshing = null;
+  });
   return refreshing;
 }
 
@@ -93,8 +102,7 @@ export async function api<T>(
   retried = false,
 ): Promise<T> {
   const headers: Record<string, string> = {};
-  const t = session.tokens();
-  if (t) headers.Authorization = `Bearer ${t.accessToken}`;
+  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
   const org = opts.org === undefined ? session.org() : opts.org;
   if (org) headers['X-Organization-Id'] = org;
   if (opts.ifMatch !== undefined) headers['If-Match'] = `"${opts.ifMatch}"`;
@@ -177,4 +185,44 @@ export function formatTime(iso: string | null | undefined, timeZone = 'Asia/Seou
     minute: '2-digit',
     hourCycle: 'h23',
   }).format(new Date(iso));
+}
+
+/** Sign-in, registration and sign-out go through the web server, which keeps the cookie. */
+export async function sessionCall(
+  action: 'login' | 'register' | 'logout',
+  body?: unknown,
+): Promise<void> {
+  let res: Response;
+  try {
+    res = await fetch(`/session/${action}`, {
+      method: 'POST',
+      headers: { ...SESSION_HEADER, 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify(body ?? {}),
+    });
+  } catch {
+    throw new ApiError(
+      0,
+      'NETWORK',
+      'No connection to the server. Check the internet and try again.',
+    );
+  }
+  if (action === 'logout') {
+    accessToken = null;
+    return;
+  }
+  const data = (await res.json().catch(() => null)) as {
+    accessToken?: string;
+    error?: { code: string; message: string; fields?: Record<string, string[]> };
+  } | null;
+  if (!res.ok || !data?.accessToken) {
+    const e = data?.error;
+    throw new ApiError(
+      res.status,
+      e?.code ?? 'ERROR',
+      e?.message ?? 'Something went wrong. Try again.',
+      e?.fields ?? {},
+    );
+  }
+  accessToken = data.accessToken;
 }

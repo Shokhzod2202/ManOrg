@@ -30,7 +30,7 @@ const sugar = {
   packPrice: 22_500,
 };
 
-describe('POST /ingredients (ING-1)', () => {
+describe('POST /ingredients (ING-1, ING-8)', () => {
   it('adds an ingredient with source, schedule, pack and price, audited', async () => {
     const res = await api.as(w.a.admin, w.a.id).post('/ingredients').send(sugar).expect(201);
     expect(res.body).toMatchObject({
@@ -63,7 +63,7 @@ describe('POST /ingredients (ING-1)', () => {
   });
 });
 
-describe('PATCH /ingredients/{id} (ING-2)', () => {
+describe('PATCH /ingredients/{id} (ING-2, ING-8)', () => {
   it('changes what one pack contains, with If-Match, audited', async () => {
     const created = await api
       .as(w.a.admin, w.a.id)

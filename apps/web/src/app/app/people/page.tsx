@@ -28,6 +28,8 @@ function Applications() {
   const { data, error, reload } = useApi<{ items: Application[] }>('/applications', 60_000);
   const [err, setErr] = useState<ApiError | null>(null);
   async function decide(id: string, ok: boolean) {
+    if (!ok && !window.confirm('Reject this application? They can apply again after 7 days.'))
+      return;
     setErr(null);
     try {
       await post(`/applications/${id}/${ok ? 'approve' : 'reject'}`);

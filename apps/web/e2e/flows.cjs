@@ -1,6 +1,7 @@
 // Browser checks against a running web app (pnpm dev) with demo data (node scripts/demo-data.mjs).
 // Uses the preinstalled Playwright; screenshots go to SHOTS_DIR (default: the temp folder).
 const { chromium } = require('playwright');
+const { signIn } = require('./sign-in.cjs');
 const OUT = process.env.SHOTS_DIR ?? require('node:os').tmpdir();
 const W0 = process.env.WEB_URL;
 const W = W0 ?? 'http://localhost:3000';
@@ -11,11 +12,7 @@ async function as(b, email, vp = { width: 1280, height: 900 }) {
     if (r.url().includes('/api/v1') && r.status() >= 400)
       log('  API', r.status(), r.request().method(), r.url().split('/api/v1')[1]);
   });
-  await page.goto(`${W}/login`);
-  await page.fill('input[type=email]', email);
-  await page.fill('input[type=password]', 'Password123!');
-  await page.click('button:has-text("Sign in")');
-  await page.waitForURL('**/app');
+  await signIn(page, W, email);
   return page;
 }
 (async () => {
@@ -24,8 +21,26 @@ async function as(b, email, vp = { width: 1280, height: 900 }) {
   const admin = await as(b, 'admin@sunrise.test');
   await admin.goto(`${W}/app/deliveries`);
   await admin.waitForTimeout(1500);
-  await admin.click('button:has-text("City Cafe")');
-  await admin.waitForSelector('text=Delivery completed');
+  // Any contractor whose delivery is still open; the check can be re-run on the same data.
+  const LOGINS = {
+    'City Cafe': 'admin@citycafe.test',
+    'Green Deli': 'admin@greendeli.test',
+    'Hotel Lumi': 'admin@lumi.test',
+    'Mart 24': 'admin@mart24.test',
+  };
+  let picked = null;
+  for (const name of Object.keys(LOGINS)) {
+    const button = admin.locator(`button:has-text("${name}")`);
+    if (!(await button.count())) continue;
+    await button.first().click();
+    await admin.waitForTimeout(1200);
+    if (await admin.locator('button:has-text("Delivery completed")').count()) {
+      picked = name;
+      break;
+    }
+  }
+  if (!picked) throw new Error('No open delivery left: run the demo data script again.');
+  log('1 recording delivery for', picked);
   const first = admin.locator('input[aria-label$="delivered"]').first();
   const v = Number(await first.inputValue());
   await first.fill(String(v + 2));
@@ -37,10 +52,10 @@ async function as(b, email, vp = { width: 1280, height: 900 }) {
     fullPage: true,
   });
   // 2. City Cafe confirms.
-  const cafe = await as(b, 'admin@citycafe.test', { width: 390, height: 844 });
+  const cafe = await as(b, LOGINS[picked], { width: 390, height: 844 });
   await cafe.goto(`${W}/app/deliveries`);
   await cafe.waitForSelector('text=Confirm delivery');
-  await cafe.click('text=Confirm delivery');
+  await cafe.locator('text=Confirm delivery').first().click();
   await cafe.waitForSelector('text=Confirmed');
   log('2 contractor confirmed');
   await cafe.screenshot({
@@ -74,13 +89,39 @@ async function as(b, email, vp = { width: 1280, height: 900 }) {
     path: require('node:path').join(OUT, 'flow-task-done.png'),
     fullPage: true,
   });
-  // 5. Mina accepts the added Baguettes; the decrease waits for an admin.
+  // 5. A contractor with an open order asks to add a product; Mina accepts the addition.
+  let lumi = null;
+  let other = null;
+  for (const name of Object.keys(LOGINS)) {
+    if (name === picked) continue;
+    const p = await as(b, LOGINS[name], { width: 390, height: 844 });
+    await p.waitForTimeout(1500);
+    if (await p.locator('button:has-text("Request a change")').count()) {
+      lumi = p;
+      other = name;
+      break;
+    }
+    await p.context().close();
+  }
+  if (!lumi) throw new Error('No contractor has an open order: run the demo data script again.');
+  await lumi.locator('button:has-text("Request a change")').first().click();
+  const addSelect = lumi.locator('select[aria-label="Add a product…"]');
+  const options = await addSelect.locator('option').allInnerTexts();
+  await addSelect.selectOption({ label: options[1] });
+  await lumi.click('button:has-text("Send request")');
+  await lumi.waitForSelector('text=Change waiting');
+  log('5a', other, 'asked to add', options[1]);
   await mina.goto(`${W}/app/orders`);
   await mina.waitForSelector('text=Order changes waiting');
-  await mina.click('button:has-text("Accept")');
+  const before = await mina.locator('button:has-text("Accept")').count();
+  await mina.locator('button:has-text("Accept")').first().click();
   await mina.waitForTimeout(1500);
   log(
-    '5 employee accepted addition; admin-only left:',
+    '5b employee accepted an addition:',
+    before,
+    '->',
+    await mina.locator('button:has-text("Accept")').count(),
+    'accept buttons; admin-only waiting:',
     await mina.locator('text=Waiting for an admin').count(),
   );
   // 6. Green Deli places an order.
@@ -88,18 +129,115 @@ async function as(b, email, vp = { width: 1280, height: 900 }) {
   await deli.goto(`${W}/app/orders/new`);
   await deli.waitForSelector('input[aria-label="Bagel quantity"]');
   if (await deli.locator('text=Yes, today').count()) await deli.click('text=No, tomorrow');
-  const d = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
-  await deli.fill('input[type=date]', d);
   await deli.fill('input[aria-label="Bagel quantity"]', '12');
   await deli.fill('input[aria-label="Scone quantity"]', '6');
-  await deli.click('button:has-text("Place order")');
-  await deli.waitForURL('**/app');
+  // One order per contractor per day: try the following days until one is free.
+  for (let days = 3; ; days += 1) {
+    if (days > 40) throw new Error('No free delivery date found');
+    await deli.fill(
+      'input[type=date]',
+      new Date(Date.now() + days * 86400000).toISOString().slice(0, 10),
+    );
+    await deli.click('button:has-text("Place order")');
+    const placed = await deli.waitForURL('**/app', { timeout: 4000 }).then(
+      () => true,
+      () => false,
+    );
+    if (placed) break;
+  }
   await deli.waitForTimeout(1500);
   log('6 order placed:', (await deli.locator('section.card h2').allInnerTexts()).join(' | '));
   await deli.screenshot({
     path: require('node:path').join(OUT, 'flow-deli-orders.png'),
     fullPage: true,
   });
+  // 7. A visitor lands on the landing page (ACC-1); signed-in tokens never reach page scripts.
+  const visitor = await (await b.newContext()).newPage();
+  await visitor.goto(W);
+  await visitor.waitForSelector('text=Create account');
+  log('7 visitor sees landing page:', await visitor.locator('h1').innerText());
+  const exposed = await admin.evaluate(() => ({
+    cookie: document.cookie.includes('manorg_rt'),
+    stored: Object.keys(localStorage).filter((k) => k.includes('token')),
+  }));
+  const cookies = await admin.context().cookies();
+  const rt = cookies.find((c) => c.name === 'manorg_rt');
+  log(
+    '7 refresh cookie httpOnly:',
+    rt?.httpOnly,
+    'sameSite:',
+    rt?.sameSite,
+    '| visible to scripts:',
+    exposed.cookie,
+    '| tokens in storage:',
+    exposed.stored.length,
+  );
+  if (!rt?.httpOnly || exposed.cookie || exposed.stored.length)
+    throw new Error('Session token exposed to page scripts');
+
+  // 8. Orders: Mine for an employee (TOD-5), By day with production totals for the admin (ORD-4).
+  await mina.goto(`${W}/app/orders`);
+  await mina.click('[role=tab]:has-text("Mine")');
+  await mina.waitForTimeout(1500);
+  const mineCount = await mina.locator('.tile').count();
+  await mina.click('[role=tab]:has-text("All")');
+  await mina.waitForTimeout(1500);
+  log('8 Mine shows', mineCount, 'products; All shows', await mina.locator('.tile').count());
+  await admin.goto(`${W}/app/orders`);
+  await admin.click('[role=tab]:has-text("By day")');
+  await admin.waitForSelector('text=Production totals', { timeout: 10000 }).catch(() => null);
+  log('8 By day shows totals:', (await admin.locator('text=Production totals').count()) > 0);
+
+  // 9. Admin adds a missing punch for Joon yesterday, then corrects it (SHF-4).
+  await admin.goto(`${W}/app/shifts`);
+  await admin.selectOption('#punch-editor select[aria-label="Employee"]', { label: 'Joon Kim' });
+  const yesterday = new Date(Date.now() + 9 * 3600000 - 86400000).toISOString().slice(0, 10);
+  await admin.fill('#punch-editor input[aria-label="Shift date"]', yesterday);
+  await admin.waitForTimeout(1500);
+  if (!(await admin.locator('#punch-editor input[aria-label="Start time"]').count())) {
+    await admin.selectOption('#punch-editor select[aria-label="Punch type"]', 'start');
+    await admin.fill('#punch-editor input[aria-label="Punch time"]', `${yesterday}T06:05`);
+    await admin.click('#punch-editor button:has-text("Add")');
+    await admin.waitForSelector('text=Punch added.');
+  }
+  const startInput = admin.locator('#punch-editor input[aria-label="Start time"]').first();
+  const was = await startInput.inputValue();
+  const earlier = new Date(Date.parse(`${was}:00Z`) - 60_000).toISOString().slice(0, 16);
+  await startInput.fill(earlier);
+  await admin.click('#punch-editor button:has-text("Save")');
+  await admin.waitForSelector('text=Punch corrected.');
+  log('9 punch added and corrected from', was, 'to', earlier);
+
+  // 10. Mina builds her own team (OUT-4, OUT-5).
+  await mina.goto(`${W}/app/output`);
+  await mina.click('button:has-text("New team")');
+  await mina.fill('label:has-text("Team name") input', `Pair ${Date.now() % 1000}`);
+  await mina.locator('.chip input[type=checkbox]').first().check();
+  await mina.click('button:has-text("Save team")');
+  await mina.waitForTimeout(1500);
+  log(
+    '10 Mina teams now:',
+    (await mina.locator('section:has(h2:has-text("My teams")) b').allInnerTexts()).join(', '),
+  );
+
+  // 11. Signing out ends the session on the server too: the old refresh token is refused.
+  await admin.goto(`${W}/app/more`);
+  const oldToken = (await admin.context().cookies()).find((c) => c.name === 'manorg_rt')?.value;
+  await admin.click('button:has-text("Sign out")');
+  await admin.waitForURL(`${W}/`);
+  const cookieGone = !(await admin.context().cookies()).some(
+    (c) => c.name === 'manorg_rt' && c.value,
+  );
+  const replay = await fetch(
+    `${process.env.API_URL ?? 'http://localhost:3001'}/api/v1/auth/refresh`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken: oldToken }),
+    },
+  );
+  log('11 after sign-out: cookie removed', cookieGone, '| old token replayed ->', replay.status);
+  if (!cookieGone || replay.status !== 401) throw new Error('Session still alive after sign-out');
   await b.close();
 })().catch((e) => {
   console.error('FAILED', e.message.slice(0, 400));

@@ -18,7 +18,8 @@
     "db:seed": "pnpm --filter @manorg/api db:seed",
     "infra:up": "docker compose -f infra/docker-compose.yml up -d db redis",
     "infra:down": "docker compose -f infra/docker-compose.yml down",
-    "db:demo": "node scripts/demo-data.mjs"
+    "db:demo": "node scripts/demo-data.mjs",
+    "check:requirements": "node scripts/check-requirements.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -91,6 +91,19 @@ export class TokensService {
     return { userId: row.userId, pair };
   }
 
+  /** Sign-out: ends the token's whole family (this browser's session). Unknown tokens are ignored. */
+  async revoke(tx: Tx, refreshToken: string): Promise<void> {
+    const row = await tx.refreshToken.findUnique({
+      where: { tokenHash: this.hashRefresh(refreshToken) },
+      select: { familyId: true },
+    });
+    if (!row) return;
+    await tx.refreshToken.updateMany({
+      where: { familyId: row.familyId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+  }
+
   private hashRefresh(token: string): string {
     return createHmac('sha256', env().JWT_REFRESH_SECRET).update(token).digest('hex');
   }

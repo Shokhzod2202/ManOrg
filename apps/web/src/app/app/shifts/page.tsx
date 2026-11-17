@@ -7,6 +7,7 @@ import {
   formatDate,
   formatMinutes,
   formatTime,
+  patch,
   post,
   put,
   type Schemas,
@@ -43,18 +44,36 @@ function mondayOf(iso: string) {
   return addDays(iso, wd === 0 ? -6 : 1 - wd);
 }
 
+type Span = 'day' | 'week' | 'month';
+
+function rangeOf(span: Span, anchor: string): { from: string; to: string } {
+  if (span === 'day') return { from: anchor, to: anchor };
+  if (span === 'week') {
+    const from = mondayOf(anchor);
+    return { from, to: addDays(from, 6) };
+  }
+  const from = `${anchor.slice(0, 7)}-01`;
+  const next = new Date(`${from}T00:00:00Z`);
+  next.setUTCMonth(next.getUTCMonth() + 1);
+  return { from, to: addDays(next.toISOString().slice(0, 10), -1) };
+}
+
+function move(span: Span, anchor: string, step: number): string {
+  if (span === 'day') return addDays(anchor, step);
+  if (span === 'week') return addDays(anchor, 7 * step);
+  const d = new Date(`${anchor.slice(0, 7)}-01T00:00:00Z`);
+  d.setUTCMonth(d.getUTCMonth() + step);
+  return d.toISOString().slice(0, 10);
+}
+
+/** SHF-2, SHF-6 to SHF-8: calendar by day, week or month, one colour per person, red for differences. */
 export default function ShiftsPage() {
   const { actor } = useSession();
   const admin = actor === 'org_admin';
-  const [week, setWeek] = useState(mondayOf(today()));
-  const to = addDays(week, 6);
-  const { data, error, loading, reload } = useApi<Dash>(
-    `${admin ? '/dashboard/shifts' : '/dashboard/me'}?from=${week}&to=${to}`,
-    60_000,
-  );
-  const days = Array.from({ length: 7 }, (_, i) => addDays(week, i));
-  const now = today();
+  const [span, setSpan] = useState<Span>('week');
+  const [anchor, setAnchor] = useState(today());
   const [isPhone, setIsPhone] = useState(false);
+  const [pick, setPick] = useState<{ employeeId: string; date: string } | null>(null);
   useEffect(() => {
     const m = window.matchMedia('(max-width: 760px)');
     const on = () => setIsPhone(m.matches);
@@ -62,23 +81,56 @@ export default function ShiftsPage() {
     m.addEventListener('change', on);
     return () => m.removeEventListener('change', on);
   }, []);
-  // On a phone the calendar shows today only (decision 2026-11-14).
-  const shown = isPhone
-    ? days.filter((d) => d === now).concat(days.includes(now) ? [] : [days[0] as string])
-    : days;
+  // On a phone the calendar opens on one day (decision 2026-11-14); week and month stay available.
+  useEffect(() => {
+    if (isPhone) setSpan('day');
+  }, [isPhone]);
+  const { from, to } = rangeOf(span, anchor);
+  const { data, error, loading, reload } = useApi<Dash>(
+    `${admin ? '/dashboard/shifts' : '/dashboard/me'}?from=${from}&to=${to}`,
+    60_000,
+  );
+  const shown: string[] = [];
+  for (let d = from; d <= to; d = addDays(d, 1)) shown.push(d);
+  const now = today();
+  const compact = span === 'month';
 
   return (
     <div className="page wide">
-      <PageHead title="Shifts" sub={`${formatDate(week)} – ${formatDate(to)}`}>
-        <div className="row">
-          <button className="btn ghost" onClick={() => setWeek(addDays(week, -7))}>
-            Previous week
+      <PageHead
+        title="Shifts"
+        sub={from === to ? formatDate(from) : `${formatDate(from)} – ${formatDate(to)}`}
+      >
+        <div className="row wrap" style={{ justifyContent: 'center' }}>
+          <div className="tabs" role="tablist" aria-label="Calendar range">
+            {(['day', 'week', 'month'] as Span[]).map((v) => (
+              <button
+                key={v}
+                role="tab"
+                aria-selected={span === v}
+                className={span === v ? 'on' : ''}
+                onClick={() => setSpan(v)}
+              >
+                {v[0]!.toUpperCase() + v.slice(1)}
+              </button>
+            ))}
+          </div>
+          <button
+            className="btn ghost"
+            onClick={() => setAnchor(move(span, anchor, -1))}
+            aria-label="Previous"
+          >
+            ‹
           </button>
-          <button className="btn ghost" onClick={() => setWeek(mondayOf(today()))}>
-            This week
+          <button className="btn ghost" onClick={() => setAnchor(today())}>
+            Today
           </button>
-          <button className="btn ghost" onClick={() => setWeek(addDays(week, 7))}>
-            Next week
+          <button
+            className="btn ghost"
+            onClick={() => setAnchor(move(span, anchor, 1))}
+            aria-label="Next"
+          >
+            ›
           </button>
         </div>
       </PageHead>
@@ -91,7 +143,8 @@ export default function ShiftsPage() {
           <div
             className="cal"
             style={{
-              gridTemplateColumns: `minmax(130px, 170px) repeat(${shown.length}, minmax(0, 1fr))`,
+              gridTemplateColumns: `minmax(120px, 170px) repeat(${shown.length}, ${compact ? 'minmax(52px, 1fr)' : 'minmax(0, 1fr)'})`,
+              minWidth: compact ? 120 + shown.length * 52 : undefined,
             }}
           >
             <div className="h">Employee</div>
@@ -101,8 +154,8 @@ export default function ShiftsPage() {
                 className="h"
                 style={d === now ? { color: 'var(--primary)' } : undefined}
               >
-                {formatDate(d)}
-                {d === now ? ' · Today' : ''}
+                {compact ? Number(d.slice(8)) : formatDate(d)}
+                {!compact && d === now ? ' · Today' : ''}
               </div>
             ))}
             {data.employees.map((e) => (
@@ -112,10 +165,28 @@ export default function ShiftsPage() {
                 color={COLORS[e.color % COLORS.length] as string}
                 days={e.days}
                 shown={shown}
+                compact={compact}
+                onPick={
+                  admin
+                    ? (date) => {
+                        setPick({ employeeId: e.employee.id, date });
+                        document
+                          .getElementById('punch-editor')
+                          ?.scrollIntoView({ behavior: 'smooth' });
+                      }
+                    : undefined
+                }
               />
             ))}
           </div>
         </div>
+      ) : null}
+      {admin ? (
+        <PunchEditor
+          employees={data?.employees.map((e) => e.employee) ?? []}
+          pick={pick}
+          onChange={reload}
+        />
       ) : null}
       {admin ? <PlanEditor /> : <MyChangeRequest />}
     </div>
@@ -127,11 +198,15 @@ function Row({
   color,
   days,
   shown,
+  compact,
+  onPick,
 }: {
   name: string;
   color: string;
   days: Day[];
   shown: string[];
+  compact: boolean;
+  onPick?: (date: string) => void;
 }) {
   const byDate = new Map(days.map((d) => [d.date, d]));
   return (
@@ -143,10 +218,53 @@ function Row({
         const d = byDate.get(date);
         const s = d?.sessions[0];
         const flagged = Boolean(d?.flags.length);
-        if (!d || (!d.planned && !d.sessions.length)) return <div key={date} />;
+        if (!d || (!d.planned && !d.sessions.length))
+          return (
+            <div key={date}>
+              {onPick ? (
+                <button type="button" className="sr" onClick={() => onPick(date)}>
+                  Add a punch for {name} on {date}
+                </button>
+              ) : null}
+            </div>
+          );
+        if (compact)
+          return (
+            <div key={date} style={{ padding: 3 }}>
+              <button
+                type="button"
+                className={flagged ? 'blk red' : 'blk'}
+                style={{
+                  background: color,
+                  border: 'none',
+                  width: '100%',
+                  cursor: onPick ? 'pointer' : 'default',
+                  font: 'inherit',
+                }}
+                onClick={onPick ? () => onPick(date) : undefined}
+                title={d.flags.map((f) => f.message).join(' ')}
+              >
+                <b>{d.workedMinutes ? `${Math.round(d.workedMinutes / 6) / 10} h` : '—'}</b>
+                {flagged ? <Flag>{d.flags.length}</Flag> : null}
+              </button>
+            </div>
+          );
         return (
           <div key={date}>
-            <div className={flagged ? 'blk red' : 'blk'} style={{ background: color }}>
+            <div
+              className={flagged ? 'blk red' : 'blk'}
+              style={{ background: color, cursor: onPick ? 'pointer' : undefined }}
+              onClick={onPick ? () => onPick(date) : undefined}
+              role={onPick ? 'button' : undefined}
+              tabIndex={onPick ? 0 : undefined}
+              onKeyDown={
+                onPick
+                  ? (e) => {
+                      if (e.key === 'Enter') onPick(date);
+                    }
+                  : undefined
+              }
+            >
               {d.planned ? (
                 <span>
                   Plan {d.planned.startTime}–{d.planned.endTime}
@@ -389,6 +507,169 @@ function MyChangeRequest() {
         </button>
         {msg ? <span className="pill ok">{msg}</span> : null}
       </div>
+    </section>
+  );
+}
+
+/** Times are entered in the organization's time zone (Seoul, UTC+9, no daylight saving). */
+const toLocal = (iso: string) =>
+  new Date(new Date(iso).getTime() + 9 * 3_600_000).toISOString().slice(0, 16);
+const fromLocal = (v: string) => new Date(`${v}:00+09:00`).toISOString();
+
+/** SHF-4: the admin corrects or adds punches; every change is audited and shown to the employee. */
+function PunchEditor({
+  employees,
+  pick,
+  onChange,
+}: {
+  employees: { id: string; name: string }[];
+  pick: { employeeId: string; date: string } | null;
+  onChange: () => void;
+}) {
+  const [who, setWho] = useState('');
+  const [date, setDate] = useState(today());
+  useEffect(() => {
+    if (pick) {
+      setWho(pick.employeeId);
+      setDate(pick.date);
+    }
+  }, [pick]);
+  const sheet = useApi<Schemas['Timesheet']>(
+    who ? `/punch?from=${date}&to=${date}&employee_id=${who}` : null,
+  );
+  const [edits, setEdits] = useState<Record<string, string>>({});
+  const [type, setType] = useState<'start' | 'pause' | 'end'>('start');
+  const [at, setAt] = useState('');
+  const [err, setErr] = useState<ApiError | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const events = (sheet.data?.days ?? []).flatMap((d) => d.sessions.flatMap((x) => x.events));
+
+  async function run(fn: () => Promise<unknown>, done: string) {
+    setErr(null);
+    setMsg(null);
+    try {
+      await fn();
+      setMsg(done);
+      setEdits({});
+      sheet.reload();
+      onChange();
+    } catch (e) {
+      setErr(e as ApiError);
+    }
+  }
+
+  const label = { start: 'Start', pause: 'Pause', end: 'End' } as const;
+  return (
+    <section className="card" id="punch-editor">
+      <h2>Punch card editor</h2>
+      <p className="muted small" style={{ margin: 0 }}>
+        Click a day in the calendar, or choose a person and date. Changes are recorded with the old
+        and new time.
+      </p>
+      <div className="row wrap">
+        <select
+          className="input"
+          value={who}
+          onChange={(e) => setWho(e.target.value)}
+          aria-label="Employee"
+        >
+          <option value="">Choose an employee</option>
+          {employees.map((e) => (
+            <option key={e.id} value={e.id}>
+              {e.name}
+            </option>
+          ))}
+        </select>
+        <input
+          className="input"
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          aria-label="Shift date"
+        />
+      </div>
+      <ErrorBox error={sheet.error ?? err} />
+      {msg ? <span className="pill ok">{msg}</span> : null}
+      {who && sheet.data ? (
+        <>
+          {!events.length ? <Empty>No punches on this day.</Empty> : null}
+          {events.map((ev) => (
+            <div key={ev.id} className="row wrap">
+              <span className="pill" style={{ width: 64, justifyContent: 'center' }}>
+                {label[ev.eventType]}
+              </span>
+              <input
+                className="input"
+                type="datetime-local"
+                value={edits[ev.id] ?? toLocal(ev.occurredAt)}
+                onChange={(e) => setEdits({ ...edits, [ev.id]: e.target.value })}
+                aria-label={`${label[ev.eventType]} time`}
+              />
+              {edits[ev.id] ? (
+                <button
+                  className="btn"
+                  onClick={() =>
+                    run(
+                      () =>
+                        patch(
+                          `/punch/${ev.id}`,
+                          { occurredAt: fromLocal(edits[ev.id]!) },
+                          { ifMatch: ev.version ?? 0 },
+                        ),
+                      'Punch corrected.',
+                    )
+                  }
+                >
+                  Save
+                </button>
+              ) : null}
+              <span className="muted small">
+                {ev.source === 'admin' ? 'Edited by an admin' : ''}
+              </span>
+            </div>
+          ))}
+          <div
+            className="row wrap"
+            style={{ borderTop: '1px solid var(--border)', paddingTop: 10 }}
+          >
+            <b>Add a missing punch</b>
+            <select
+              className="input"
+              value={type}
+              onChange={(e) => setType(e.target.value as typeof type)}
+              aria-label="Punch type"
+            >
+              <option value="start">Start</option>
+              <option value="pause">Pause</option>
+              <option value="end">End</option>
+            </select>
+            <input
+              className="input"
+              type="datetime-local"
+              value={at}
+              onChange={(e) => setAt(e.target.value)}
+              aria-label="Punch time"
+            />
+            <button
+              className="btn ghost"
+              disabled={!at}
+              onClick={() =>
+                run(
+                  () =>
+                    post('/punch-events', {
+                      employeeId: who,
+                      eventType: type,
+                      occurredAt: fromLocal(at),
+                    }),
+                  'Punch added.',
+                )
+              }
+            >
+              Add
+            </button>
+          </div>
+        </>
+      ) : null}
     </section>
   );
 }

@@ -22,7 +22,7 @@ export default function StartPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (s.ready && !s.me) router.replace('/login');
+    if (s.ready && !s.me) router.replace('/');
   }, [s.ready, s.me, router]);
 
   if (!s.ready || !s.me) return <Loading />;
@@ -173,7 +173,7 @@ export default function StartPage() {
           className="btn ghost"
           onClick={() => {
             s.signOut();
-            router.replace('/login');
+            router.replace('/');
           }}
         >
           Sign out

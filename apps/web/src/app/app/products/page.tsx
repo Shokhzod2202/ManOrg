@@ -13,6 +13,7 @@ export default function ProductsPage() {
   const { data, error, loading, reload } = useApi<{ items: Product[] }>('/products');
   const [q, setQ] = useState('');
   const [err, setErr] = useState<ApiError | null>(null);
+  const [editing, setEditing] = useState<Product | null>(null);
   const items = [...(data?.items ?? [])]
     .sort((a, b) => a.name.localeCompare(b.name))
     .filter((p) => p.name.toLowerCase().includes(q.toLowerCase()));
@@ -30,7 +31,18 @@ export default function ProductsPage() {
   return (
     <div className="page">
       <PageHead title="Products" sub={data ? `${data.items.length} products` : undefined} />
-      <NewProduct onCreated={reload} />
+      {editing ? (
+        <ProductForm
+          key={editing.id}
+          product={editing}
+          onDone={() => {
+            setEditing(null);
+            reload();
+          }}
+        />
+      ) : (
+        <ProductForm onDone={reload} />
+      )}
       <input
         className="input"
         placeholder="Search products"
@@ -59,7 +71,17 @@ export default function ProductsPage() {
                   <img className="thumb" src={p.imageUrl} alt="" />
                 </td>
                 <td data-label="Name">
-                  <b>{p.name}</b>
+                  <button
+                    type="button"
+                    className="btn ghost"
+                    onClick={() => {
+                      setEditing(p);
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    aria-label={`Edit ${p.name}`}
+                  >
+                    {p.name}
+                  </button>
                 </td>
                 <td data-label="Minutes per 10">{p.minutesPer10}</td>
                 <td data-label="Ingredients" className="small">
@@ -80,38 +102,51 @@ export default function ProductsPage() {
   );
 }
 
-function NewProduct({ onCreated }: { onCreated: () => void }) {
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState('');
-  const [minutes, setMinutes] = useState(30);
+/** PRD-1, PRD-2: add a product, or edit one; edits are audited on the server. */
+function ProductForm({ product, onDone }: { product?: Product; onDone: () => void }) {
+  const [open, setOpen] = useState(Boolean(product));
+  const [name, setName] = useState(product?.name ?? '');
+  const [minutes, setMinutes] = useState(product?.minutesPer10 ?? 30);
   const [file, setFile] = useState<File | null>(null);
   const [err, setErr] = useState<ApiError | null>(null);
   const [busy, setBusy] = useState(false);
   const ingredients = useApi<{ items: { id: string; name: string }[] }>(
     open ? '/ingredients' : null,
   );
-  const [uses, setUses] = useState<Set<string>>(new Set());
+  const [uses, setUses] = useState<Set<string>>(
+    new Set(product?.ingredients.map((i) => i.id) ?? []),
+  );
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (!file || !uses.size) return;
+    if ((!product && !file) || !uses.size) return;
     setBusy(true);
     setErr(null);
     try {
-      const form = new FormData();
-      form.append('file', file);
-      const img = await api<{ imageKey: string }>('POST', '/product-images', { form });
-      await post('/products', {
+      let imageKey: string | undefined;
+      if (file) {
+        const form = new FormData();
+        form.append('file', file);
+        imageKey = (await api<{ imageKey: string }>('POST', '/product-images', { form })).imageKey;
+      }
+      const body = {
         name: name.trim(),
-        imageKey: img.imageKey,
         minutesPer10: minutes,
-        ingredients: [...uses].map((ingredientId) => ({ ingredientId })),
-      });
+        ingredients: [...uses].map((ingredientId) => {
+          const kept = product?.ingredients.find((i) => i.id === ingredientId);
+          return kept?.quantityPer10
+            ? { ingredientId, quantityPer10: kept.quantityPer10 }
+            : { ingredientId };
+        }),
+        ...(imageKey ? { imageKey } : {}),
+      };
+      if (product) await patch(`/products/${product.id}`, body, { ifMatch: product.version });
+      else await post('/products', body);
       setName('');
       setFile(null);
       setUses(new Set());
       setOpen(false);
-      onCreated();
+      onDone();
     } catch (e2) {
       setErr(e2 as ApiError);
     } finally {
@@ -127,7 +162,7 @@ function NewProduct({ onCreated }: { onCreated: () => void }) {
     );
   return (
     <form className="card" onSubmit={submit}>
-      <h2>New product</h2>
+      <h2>{product ? `Edit ${product.name}` : 'New product'}</h2>
       <ErrorBox error={err} />
       <div className="grid2">
         <label className="field">
@@ -169,19 +204,26 @@ function NewProduct({ onCreated }: { onCreated: () => void }) {
         </div>
       </div>
       <label className="field">
-        Picture (JPEG or PNG)
+        {product ? 'New picture (optional)' : 'Picture (JPEG or PNG)'}
         <input
           type="file"
           accept="image/jpeg,image/png"
-          required
+          required={!product}
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
         />
       </label>
       <div className="row">
         <button className="btn" disabled={busy || !uses.size}>
-          Add product
+          {product ? 'Save' : 'Add product'}
         </button>
-        <button type="button" className="btn ghost" onClick={() => setOpen(false)}>
+        <button
+          type="button"
+          className="btn ghost"
+          onClick={() => {
+            setOpen(false);
+            if (product) onDone();
+          }}
+        >
           Cancel
         </button>
       </div>

@@ -2,7 +2,7 @@
 
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
-import { Empty, ErrorBox, Flag, Loading, PageHead } from '../../../components/ui';
+import { AddProduct, Empty, ErrorBox, Flag, Loading, PageHead } from '../../../components/ui';
 import {
   type ApiError,
   formatDate,
@@ -160,6 +160,7 @@ function DeliveryEditor({
   const [busy, setBusy] = useState(false);
   const [start, setStart] = useState(contractor?.approxTime?.start ?? '');
   const [end, setEnd] = useState(contractor?.approxTime?.end ?? '');
+  const products = useApi<{ items: Schemas['Product'][] }>('/products');
 
   async function load() {
     try {
@@ -191,6 +192,24 @@ function DeliveryEditor({
 
   if (!d) return error ? <ErrorBox error={error} onRetry={load} /> : <Loading />;
   const editable = d.status === 'not_started' || d.status === 'draft';
+  // DEL-4: products added here that were not ordered become unordered lines when saved.
+  const names = new Map((products.data?.items ?? []).map((p) => [p.id, p.name]));
+  const rows = [
+    ...d.lines,
+    ...Object.keys(qty)
+      .filter((id) => !d.lines.some((l) => l.productId === id))
+      .map((id) => ({
+        productId: id,
+        productName: names.get(id) ?? 'Product',
+        orderedQuantity: 0,
+        deliveredQuantity: qty[id] ?? 0,
+        difference: qty[id] ?? 0,
+        isUnordered: true,
+      })),
+  ];
+  const addable = (products.data?.items ?? []).filter(
+    (p) => !rows.some((r) => r.productId === p.id),
+  );
   const save = () =>
     put<Delivery>(`/deliveries/${contractorId}/${date}`, {
       lines: Object.entries(qty).map(([productId, deliveredQuantity]) => ({
@@ -212,8 +231,8 @@ function DeliveryEditor({
         <span className={pillFor(d.status)}>{STATUS[d.status]}</span>
       </div>
       <ErrorBox error={error} />
-      {!d.lines.length ? <Empty>No order for this day.</Empty> : null}
-      {d.lines.length ? (
+      {!rows.length ? <Empty>No order for this day.</Empty> : null}
+      {rows.length ? (
         <table className="t cards">
           <thead>
             <tr>
@@ -224,7 +243,7 @@ function DeliveryEditor({
             </tr>
           </thead>
           <tbody>
-            {d.lines.map((l) => {
+            {rows.map((l) => {
               const delivered = qty[l.productId] ?? l.deliveredQuantity;
               const diff = delivered - l.orderedQuantity;
               return (
@@ -313,7 +332,14 @@ function DeliveryEditor({
           ) : null}
         </div>
       ) : null}
-      {editable && d.lines.length ? (
+      {editable ? (
+        <AddProduct
+          options={addable}
+          label="Add a product that was not ordered…"
+          onAdd={(id) => setQty({ ...qty, [id]: 1 })}
+        />
+      ) : null}
+      {editable && rows.length ? (
         <div className="row wrap">
           <button className="btn ghost" disabled={busy} onClick={() => act(save)}>
             Save draft
