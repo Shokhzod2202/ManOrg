@@ -12,6 +12,7 @@ import { HealthController } from './health/health.controller';
 import { ProductsController } from './products/products.controller';
 import { ProductsService } from './products/products.service';
 import { NotificationsModule } from './notifications/notifications.module';
+import { TelegramModule } from './telegram/telegram.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { DeliveriesModule } from './deliveries/deliveries.module';
 import { OrdersModule } from './orders/orders.module';
@@ -44,6 +45,7 @@ import { OrgContextGuard } from './permissions/org-context.guard';
     ShiftsModule,
     OutputModule,
     NotificationsModule,
+    TelegramModule,
     TasksModule,
     // Before OrdersModule, so GET /orders/due-next is matched before GET /orders/:id.
     DeliveriesModule,

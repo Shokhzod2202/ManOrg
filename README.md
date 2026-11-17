@@ -53,6 +53,20 @@ curl -s localhost:3001/api/v1/auth/login -H 'content-type: application/json' \
 
 Tests use a separate database, `manorg_test`, created and migrated automatically.
 
+## Telegram notifications
+
+The bot (@haydar_inc_bot) sends each person the same notifications they see in the app. People
+connect in **Settings → Telegram → Connect Telegram**, which opens the bot with a one-time code;
+`/stop` in the chat or **Disconnect** in Settings ends it.
+
+1. Put the BotFather token in the server's environment as `TELEGRAM_BOT_TOKEN` (never in git).
+2. Sending runs with the other jobs: `JOBS_ENABLED=true` on one API instance.
+3. Receiving `/start` and `/stop`:
+   - Production (public https API): set `TELEGRAM_WEBHOOK_SECRET`, then register the webhook once:
+     `curl "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" -d url=https://<api-host>/api/v1/telegram/webhook -d secret_token=$TELEGRAM_WEBHOOK_SECRET`
+   - Development: `TELEGRAM_POLLING=true` (no public URL needed).
+4. Set `WEB_APP_URL` to the https site so messages get an "Open Haydar" button.
+
 ## Other commands
 
 ```bash

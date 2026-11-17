@@ -17,6 +17,12 @@ const TEXT: Record<string, string> = {
   'delivery.completed': 'A delivery is waiting for your confirmation.',
   'delivery.change_requested': 'A contractor asked to change a delivery.',
   'delivery.approx_time_changed': 'The delivery time changed.',
+  'delivery.change_approved': 'Your delivery change was approved.',
+  'delivery.change_rejected': 'Your delivery change was not approved.',
+  'order.change_accepted': 'Your order change was accepted.',
+  'order.change_rejected': 'Your order change was not accepted.',
+  'application.approved': 'Your application was approved.',
+  'application.rejected': 'Your application was not approved.',
 };
 
 export default function NotificationsPage() {

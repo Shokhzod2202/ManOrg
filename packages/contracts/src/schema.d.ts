@@ -94,6 +94,70 @@ export interface paths {
         patch: operations["updateMe"];
         trace?: never;
     };
+    "/me/telegram": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Whether this account gets notifications in Telegram
+         * @description Telegram runs alongside the phone app (decided 2026-11-13). The bot sends the same notifications as the app.
+         */
+        get: operations["getTelegramStatus"];
+        put?: never;
+        post?: never;
+        /**
+         * Stop Telegram notifications for this account
+         * @description Audited. The bot says goodbye in the chat; in-app notifications stay.
+         */
+        delete: operations["disconnectTelegram"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/telegram/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * A one-time link that opens the bot and connects this account
+         * @description The link is t.me/<bot>?start=<code>, valid for 15 minutes and usable once; only a hash of the code is stored. Pressing Start in Telegram connects the chat. 503 TELEGRAM_NOT_CONFIGURED when the server has no bot token.
+         */
+        post: operations["createTelegramLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/telegram/webhook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Updates from Telegram (bot commands /start and /stop)
+         * @description Called by Telegram only, checked with the X-Telegram-Bot-Api-Secret-Token header set in setWebhook (TELEGRAM_WEBHOOK_SECRET). 404 when webhooks are not configured. Only private chats are read.
+         */
+        post: operations["telegramWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/organizations": {
         parameters: {
             query?: never;
@@ -1527,6 +1591,23 @@ export interface components {
                 organization: components["schemas"]["OrganizationSummary"];
             }[];
         };
+        TelegramStatus: {
+            /** @description False when the server has no bot token. */
+            available: boolean;
+            /** @example haydar_inc_bot */
+            botUsername: string;
+            connected: boolean;
+            /** @description Telegram username, when the person has one. */
+            username: string | null;
+            /** Format: date-time */
+            connectedAt: string | null;
+        };
+        TelegramLink: {
+            /** @example https://t.me/haydar_inc_bot?start=abc */
+            url: string;
+            /** Format: date-time */
+            expiresAt: string;
+        };
         UpdateMeRequest: {
             name?: string;
             /** Format: email */
@@ -2634,6 +2715,120 @@ export interface operations {
             400: components["responses"]["ValidationFailed"];
             401: components["responses"]["Unauthenticated"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    getTelegramStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelegramStatus"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+        };
+    };
+    disconnectTelegram: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Disconnected. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createTelegramLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelegramLink"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Telegram is not set up on this server. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    telegramWebhook: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Telegram-Bot-Api-Secret-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    update_id: number;
+                    message?: {
+                        text?: string;
+                        chat: {
+                            id: number;
+                            type: string;
+                        };
+                        from?: {
+                            username?: string;
+                        };
+                    };
+                };
+            };
+        };
+        responses: {
+            /** @description Handled. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ok: boolean;
+                    };
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["NotFound"];
         };
     };
     searchOrganizations: {

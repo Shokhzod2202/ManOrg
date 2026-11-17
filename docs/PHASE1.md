@@ -24,6 +24,7 @@ cards. The native Expo app is a Phase 2 wrapper (see "Not done yet").
 | Today's Orders, My Orders          | TOD-1 to TOD-7                   | `/orders/due-next`, `/employees/{id}/orders/due-next`                                                                                                                 | `deliveries`                                             |
 | Dashboards                         | DSH-1, DSH-2                     | `/dashboard/today`, `/dashboard/home`                                                                                                                                 | `dashboards`                                             |
 | Notifications (in-app)             | section 9                        | `/notifications`                                                                                                                                                      | `tasks`, `orders`, `deliveries`, `dashboards`            |
+| Telegram notifications             | decision 2026-11-13              | `/me/telegram`, `/me/telegram/link`, `/telegram/webhook`                                                                                                              | `telegram`                                               |
 
 ## Web screens
 
@@ -55,12 +56,12 @@ with the API and web app started and demo data loaded (`pnpm db:demo`).
 
 ## Not done yet
 
-| Item                                             | Why it is open                                                                                                                                    |
-| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Native phone app (Expo)                          | Phase 2: a thin wrapper around the same screens. The website already works as the phone app on a phone.                                           |
-| Sign-in tokens in an httpOnly cookie             | The web app keeps tokens in browser storage for now; move to an httpOnly cookie behind a small server route before launch.                        |
-| Telegram bot notifications and Mini App          | Decided 2026-11-13 (alongside the phone app); needs a bot token from BotFather. In-app notifications already store everything Telegram will send. |
-| Phone push (FCM, APNs)                           | Needs Firebase and Apple developer accounts.                                                                                                      |
-| Redis and BullMQ jobs                            | Ingredient reminders run on an in-process timer (`JOBS_ENABLED=true`); move to BullMQ before running more than one API instance.                  |
-| Virus scanning of uploads                        | Decided: before launch.                                                                                                                           |
-| Updating the Claude Docs spec with the decisions | Waiting for the docs service; all decisions are in `docs/DECISIONS.md`.                                                                           |
+| Item                                             | Why it is open                                                                                                                   |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| Native phone app (Expo)                          | Phase 2: a thin wrapper around the same screens. The website already works as the phone app on a phone.                          |
+| Sign-in tokens in an httpOnly cookie             | The web app keeps tokens in browser storage for now; move to an httpOnly cookie behind a small server route before launch.       |
+| Telegram Mini App                                | Notifications in Telegram are done; opening the app inside Telegram is a later step.                                             |
+| Phone push (FCM, APNs)                           | Needs Firebase and Apple developer accounts.                                                                                     |
+| Redis and BullMQ jobs                            | Ingredient reminders run on an in-process timer (`JOBS_ENABLED=true`); move to BullMQ before running more than one API instance. |
+| Virus scanning of uploads                        | Decided: before launch.                                                                                                          |
+| Updating the Claude Docs spec with the decisions | Waiting for the docs service; all decisions are in `docs/DECISIONS.md`.                                                          |

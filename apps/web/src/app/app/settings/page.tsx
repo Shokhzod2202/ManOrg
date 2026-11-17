@@ -2,7 +2,7 @@
 
 import { type FormEvent, useState } from 'react';
 import { Empty, ErrorBox, Loading, PageHead } from '../../../components/ui';
-import { type ApiError, get, patch, post, type Schemas } from '../../../lib/api';
+import { type ApiError, del, get, patch, post, type Schemas } from '../../../lib/api';
 import { useSession } from '../../../lib/session';
 import { useApi } from '../../../lib/use-api';
 
@@ -17,6 +17,7 @@ export default function SettingsPage() {
     <div className="page">
       <PageHead title="Settings" />
       <Account />
+      <Telegram />
       {active.length > 1 ? (
         <section className="card">
           <h2>Organization</h2>
@@ -198,6 +199,79 @@ function ApplyToProvider() {
             </button>
           </div>
         ))}
+    </section>
+  );
+}
+
+/** Telegram alongside the app (decided 2026-11-13): the same notifications, in a chat. */
+function Telegram() {
+  const { data, error, loading, reload } = useApi<Schemas['TelegramStatus']>('/me/telegram');
+  const [err, setErr] = useState<ApiError | null>(null);
+  const [waiting, setWaiting] = useState(false);
+
+  async function connect() {
+    setErr(null);
+    // Open the window first so phone browsers do not block it, then point it at the bot.
+    const win = window.open('', '_blank');
+    try {
+      const link = await post<Schemas['TelegramLink']>('/me/telegram/link', undefined, {
+        org: null,
+      });
+      if (win) win.location.href = link.url;
+      else window.location.href = link.url;
+      setWaiting(true);
+      // Check back while the person presses Start in Telegram.
+      for (let i = 0; i < 40; i += 1) {
+        await new Promise((r) => setTimeout(r, 3000));
+        const s = await get<Schemas['TelegramStatus']>('/me/telegram', { org: null });
+        if (s.connected) break;
+      }
+    } catch (e) {
+      win?.close();
+      setErr(e as ApiError);
+    } finally {
+      setWaiting(false);
+      reload();
+    }
+  }
+
+  async function disconnect() {
+    setErr(null);
+    try {
+      await del('/me/telegram', { org: null });
+      reload();
+    } catch (e) {
+      setErr(e as ApiError);
+    }
+  }
+
+  return (
+    <section className="card">
+      <h2>Telegram</h2>
+      <p className="muted small" style={{ margin: 0 }}>
+        Get your notifications in Telegram too: new tasks, order changes, deliveries and reminders.
+      </p>
+      {loading && !data ? <Loading /> : null}
+      <ErrorBox error={error ?? err} />
+      {data && !data.available ? <Empty>Telegram is not set up on this server yet.</Empty> : null}
+      {data?.available && data.connected ? (
+        <div className="row between wrap">
+          <span className="pill ok">Connected{data.username ? ` as @${data.username}` : ''}</span>
+          <button className="btn ghost" onClick={disconnect}>
+            Disconnect
+          </button>
+        </div>
+      ) : null}
+      {data?.available && !data.connected ? (
+        <div className="stack">
+          <button className="btn" onClick={connect} disabled={waiting}>
+            {waiting ? 'Waiting for Telegram…' : 'Connect Telegram'}
+          </button>
+          <span className="muted small">
+            Telegram opens @{data.botUsername}. Press <b>Start</b> there and come back.
+          </span>
+        </div>
+      ) : null}
     </section>
   );
 }

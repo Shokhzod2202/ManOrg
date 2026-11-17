@@ -30,6 +30,16 @@ const schema = z.object({
   /** Public base URL of the API, used in signed file links served by the local driver. */
   PUBLIC_API_URL: z.string().default('http://localhost:3001'),
   SIGNED_URL_TTL_SECONDS: z.coerce.number().int().positive().default(300),
+  /** Telegram bot (decided 2026-11-13). A secret: only in the server's environment, never in git. */
+  TELEGRAM_BOT_TOKEN: z.string().optional(),
+  TELEGRAM_BOT_USERNAME: z.string().default('haydar_inc_bot'),
+  TELEGRAM_API_URL: z.string().default('https://api.telegram.org'),
+  /** Set to receive updates by webhook (production); Telegram sends it back in a header. */
+  TELEGRAM_WEBHOOK_SECRET: z.string().min(16).optional(),
+  /** `true` to fetch updates by long polling (development, or no public URL). */
+  TELEGRAM_POLLING: z.enum(['true', 'false']).default('false'),
+  /** The web app, for links in bot messages. */
+  WEB_APP_URL: z.string().default('http://localhost:3000'),
 });
 
 export type Env = z.infer<typeof schema>;

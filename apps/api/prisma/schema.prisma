@@ -176,9 +176,11 @@ model User {
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  memberships   Membership[]
-  refreshTokens RefreshToken[]
-  deviceTokens  DeviceToken[]
+  memberships       Membership[]
+  refreshTokens     RefreshToken[]
+  deviceTokens      DeviceToken[]
+  telegramLink      TelegramLink?
+  telegramLinkCodes TelegramLinkCode[]
 
   @@map("users")
 }
@@ -829,6 +831,8 @@ model Notification {
   dedupeKey      String?   @map("dedupe_key")
   sentAt         DateTime? @map("sent_at") @db.Timestamptz(3)
   readAt         DateTime? @map("read_at") @db.Timestamptz(3)
+  /// Set once the Telegram bot has sent it, or skipped it (decided 2026-11-13: Telegram alongside the app).
+  telegramSentAt DateTime? @map("telegram_sent_at") @db.Timestamptz(3)
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -873,4 +877,35 @@ model AuditLog {
   @@index([organizationId, at])
   @@index([entity, entityId])
   @@map("audit_log")
+}
+
+/// A person's Telegram chat with the bot; notifications go there too. Account-level, like
+/// device tokens: one chat per user and one user per chat.
+model TelegramLink {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @unique @map("user_id") @db.Uuid
+  chatId    BigInt   @unique @map("chat_id")
+  username  String?
+  linkedAt  DateTime @default(now()) @map("linked_at") @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("telegram_links")
+}
+
+/// One-time code behind the bot's start link; stored hashed, valid for 15 minutes.
+model TelegramLinkCode {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  codeHash  String    @unique @map("code_hash")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("telegram_link_codes")
 }

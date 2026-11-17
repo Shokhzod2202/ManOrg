@@ -13,6 +13,8 @@ const GLOBAL_TABLES = [
   'device_tokens',
   'organizations',
   'refresh_tokens',
+  'telegram_link_codes',
+  'telegram_links',
   'users',
 ];
 

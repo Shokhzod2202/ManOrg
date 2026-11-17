@@ -1,0 +1,58 @@
+/** Escapes text for Telegram's HTML parse mode. */
+export function esc(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+type Payload = Record<string, unknown>;
+
+/** One line per notification type; unknown types still say something useful. */
+const LINES: Record<string, (p: Payload) => string> = {
+  'task.assigned': (p) =>
+    `New task: <b>${esc(p.title)}</b>${p.dueDate ? `\nDue ${esc(p.dueDate)}` : ''}`,
+  'task.completed': (p) => `Task done with a photo: <b>${esc(p.title)}</b>`,
+  'application.created': (p) =>
+    p.kind === 'contractor'
+      ? 'A contractor applied to order from you.'
+      : 'Someone applied to join as an employee.',
+  'application.approved': () => 'Your application was approved. You can sign in and start.',
+  'application.rejected': () => 'Your application was not approved.',
+  'ingredient.ordered': (p) =>
+    `Ingredient order: <b>${esc(p.ingredient)}</b> × ${esc(p.quantity)} packs`,
+  'ingredient.fulfilled': () => 'An ingredient order was bought. Check it when it arrives.',
+  'ingredient.due': (p) => `Order today: <b>${esc(p.name)}</b>`,
+  'order.edited': () => 'Your order was changed by the bakery.',
+  'order.change_accepted': (p) =>
+    `Change accepted: <b>${esc(p.product)}</b> now ${esc(p.quantity)}`,
+  'order.change_rejected': (p) => `Change not accepted: <b>${esc(p.product)}</b>`,
+  'delivery.completed': (p) =>
+    `Delivery for <b>${esc(p.deliveryDate)}</b> is done. Please confirm it.`,
+  'delivery.change_requested': () => 'A contractor asked to change a delivery.',
+  'delivery.change_approved': () => 'Your delivery change was approved.',
+  'delivery.change_rejected': () => 'Your delivery change was not approved.',
+  'delivery.approx_time_changed': (p) =>
+    `New delivery time: about <b>${esc(p.start)}–${esc(p.end)}</b>`,
+};
+
+/** Where the button in the message opens, relative to the web app. */
+const PAGES: Record<string, string> = {
+  task: '/app/tasks',
+  application: '/app/people',
+  ingredient: '/app/tasks',
+  order: '/app/orders',
+  delivery: '/app/deliveries',
+};
+
+export function notificationText(type: string, payload: Payload, organizationName?: string | null) {
+  const line = LINES[type]?.(payload) ?? esc(type.replace(/[._]/g, ' '));
+  return organizationName ? `<b>${esc(organizationName)}</b>\n${line}` : line;
+}
+
+/** A link button only for https sites; Telegram refuses buttons to localhost. */
+export function notificationUrl(type: string, webAppUrl: string): string | undefined {
+  if (!webAppUrl.startsWith('https://')) return undefined;
+  const page = PAGES[type.split('.')[0] ?? ''] ?? '/app';
+  return `${webAppUrl.replace(/\/$/, '')}${page}`;
+}

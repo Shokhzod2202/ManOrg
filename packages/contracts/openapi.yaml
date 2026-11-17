@@ -158,6 +158,96 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '409': { $ref: '#/components/responses/Conflict' }
 
+  /me/telegram:
+    get:
+      operationId: getTelegramStatus
+      summary: Whether this account gets notifications in Telegram
+      description: Telegram runs alongside the phone app (decided 2026-11-13). The bot sends the same notifications as the app.
+      tags: [account]
+      x-tenant-scoped: false
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TelegramStatus' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+    delete:
+      operationId: disconnectTelegram
+      summary: Stop Telegram notifications for this account
+      description: Audited. The bot says goodbye in the chat; in-app notifications stay.
+      tags: [account]
+      responses:
+        '204': { description: Disconnected. }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /me/telegram/link:
+    post:
+      operationId: createTelegramLink
+      summary: A one-time link that opens the bot and connects this account
+      description: 'The link is t.me/<bot>?start=<code>, valid for 15 minutes and usable once; only a hash of the code is stored. Pressing Start in Telegram connects the chat. 503 TELEGRAM_NOT_CONFIGURED when the server has no bot token.'
+      tags: [account]
+      responses:
+        '201':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TelegramLink' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '503':
+          description: Telegram is not set up on this server.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /telegram/webhook:
+    post:
+      operationId: telegramWebhook
+      summary: Updates from Telegram (bot commands /start and /stop)
+      description: 'Called by Telegram only, checked with the X-Telegram-Bot-Api-Secret-Token header set in setWebhook (TELEGRAM_WEBHOOK_SECRET). 404 when webhooks are not configured. Only private chats are read.'
+      tags: [account]
+      security: []
+      parameters:
+        - name: X-Telegram-Bot-Api-Secret-Token
+          in: header
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [update_id]
+              properties:
+                update_id: { type: integer }
+                message:
+                  type: object
+                  required: [chat]
+                  properties:
+                    text: { type: string, maxLength: 4096 }
+                    chat:
+                      type: object
+                      required: [id, type]
+                      properties:
+                        id: { type: integer }
+                        type: { type: string }
+                    from:
+                      type: object
+                      properties:
+                        username: { type: string }
+      responses:
+        '200':
+          description: Handled.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: { type: boolean }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /organizations:
     get:
       operationId: searchOrganizations
@@ -2545,6 +2635,21 @@ components:
               role: { $ref: '#/components/schemas/MembershipRole' }
               status: { $ref: '#/components/schemas/MembershipStatus' }
               organization: { $ref: '#/components/schemas/OrganizationSummary' }
+    TelegramStatus:
+      type: object
+      required: [available, botUsername, connected, username, connectedAt]
+      properties:
+        available: { type: boolean, description: 'False when the server has no bot token.' }
+        botUsername: { type: string, example: haydar_inc_bot }
+        connected: { type: boolean }
+        username: { type: [string, 'null'], description: 'Telegram username, when the person has one.' }
+        connectedAt: { type: [string, 'null'], format: date-time }
+    TelegramLink:
+      type: object
+      required: [url, expiresAt]
+      properties:
+        url: { type: string, example: 'https://t.me/haydar_inc_bot?start=abc' }
+        expiresAt: { type: string, format: date-time }
     UpdateMeRequest:
       type: object
       additionalProperties: false
