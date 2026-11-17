@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { AuditService, userActor } from '../audit/audit.service';
+import { actorFor, AuditService } from '../audit/audit.service';
 import { Errors } from '../common/errors';
 import { type AuthUser, dbContext, type OrgContext } from '../common/request-context';
 import { DatabaseService } from '../database/database.service';
@@ -85,7 +85,7 @@ export class SettingsService {
       if (result.count !== 1) throw Errors.versionConflict();
       await this.audit.record(tx, {
         organizationId: org.organizationId,
-        actor: userActor(user.userId),
+        actor: actorFor(user),
         action: setting.audit,
         entity: 'organization',
         entityId: org.organizationId,

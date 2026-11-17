@@ -8,6 +8,8 @@ import { type Actor, can, type Capability } from '../permissions/permissions';
 
 export interface AuthUser {
   userId: string;
+  /** Set when the AI bot acts for this admin (spec section 10); audit rows then say "bot". */
+  viaBot?: boolean;
 }
 
 /** The caller's verified, active membership in the organization named by X-Organization-Id. */

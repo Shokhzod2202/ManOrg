@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { AuditService, userActor } from '../audit/audit.service';
+import { actorFor, AuditService } from '../audit/audit.service';
 import { Errors } from '../common/errors';
 import { type AuthUser, type OrgContext, dbContext } from '../common/request-context';
 import { DatabaseService } from '../database/database.service';
@@ -100,7 +100,7 @@ export class ApplicationsService {
     });
     await this.audit.record(tx, {
       organizationId: org.organizationId,
-      actor: userActor(user.userId),
+      actor: actorFor(user),
       action: `membership.${decision}`,
       entity: 'membership',
       entityId: before.id,
@@ -148,7 +148,7 @@ export class ApplicationsService {
     });
     await this.audit.record(tx, {
       organizationId: org.organizationId,
-      actor: userActor(user.userId),
+      actor: actorFor(user),
       action: `contractor_link.${decision}`,
       entity: 'contractor_link',
       entityId: before.id,

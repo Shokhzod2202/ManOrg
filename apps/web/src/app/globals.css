@@ -940,3 +940,41 @@ table.t td {
     font-size: 30px;
   }
 }
+
+/* ---------- bot (spec section 10) ---------- */
+.bot-feed {
+  min-height: 320px;
+  max-height: 62vh;
+  overflow-y: auto;
+  gap: 10px;
+}
+.bubble {
+  max-width: 80%;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--surface);
+  white-space: pre-wrap;
+  align-self: flex-start;
+}
+.bubble.me {
+  background: var(--primary);
+  color: #fff;
+  align-self: flex-end;
+}
+.proposal {
+  border: 1px solid var(--warn-border);
+  background: #fffaf0;
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+@media (max-width: 760px) {
+  .bubble {
+    max-width: 92%;
+  }
+  .bot-feed {
+    max-height: none;
+  }
+}

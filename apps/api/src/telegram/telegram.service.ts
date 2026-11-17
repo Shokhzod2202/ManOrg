@@ -1,6 +1,6 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { HttpStatus, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { AuditService, userActor } from '../audit/audit.service';
+import { actorFor, AuditService, userActor } from '../audit/audit.service';
 import { AppError, Errors } from '../common/errors';
 import { type AuthUser } from '../common/request-context';
 import { env } from '../config/env';
@@ -90,7 +90,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       await tx.telegramLink.delete({ where: { id: link.id } });
       await this.audit.record(tx, {
         organizationId: null,
-        actor: userActor(user.userId),
+        actor: actorFor(user),
         action: 'telegram.disconnect',
         entity: 'telegram_link',
         entityId: link.id,

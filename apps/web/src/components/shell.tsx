@@ -25,6 +25,7 @@ export function navFor(actor: Actor | null): Item[] {
       { href: '/app/products', label: 'Products', icon: 'products' },
       { href: '/app/ingredients', label: 'Ingredients', icon: 'ingredients' },
       { href: '/app/people', label: 'People and teams', icon: 'people' },
+      { href: '/app/bot', label: 'Bot', icon: 'bot' },
       { href: '/app/settings', label: 'Settings', icon: 'settings' },
       { href: '/wall', label: 'Wall screen', icon: 'wall' },
     ];

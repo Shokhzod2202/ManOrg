@@ -57,6 +57,12 @@ const PATHS: Record<string, ReactNode> = {
     </>
   ),
   more: <path d="M4 6h16M4 12h16M4 18h16" />,
+  bot: (
+    <>
+      <rect x="4" y="8" width="16" height="12" rx="3" />
+      <path d="M12 8V4M9 13h.01M15 13h.01M9.5 17h5" />
+    </>
+  ),
   bell: (
     <>
       <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />

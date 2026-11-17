@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { AuditService, userActor } from '../audit/audit.service';
+import { actorFor, AuditService } from '../audit/audit.service';
 import { Errors } from '../common/errors';
 import { type AuthUser, dbContext, type OrgContext } from '../common/request-context';
 import { addDays, localDate, timeToHhmm } from '../common/time';
@@ -88,7 +88,7 @@ export class DueNextService {
       }
       await this.audit.record(tx, {
         organizationId: org.organizationId,
-        actor: userActor(user.userId),
+        actor: actorFor(user),
         action: input.made ? 'order.made' : 'order.not_made',
         entity: 'product',
         entityId: input.productId,

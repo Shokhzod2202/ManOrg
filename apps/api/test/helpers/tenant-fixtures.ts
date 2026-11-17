@@ -189,6 +189,26 @@ export async function createTenantWithEveryTable(label: string): Promise<TenantF
     await tx.deliveryChangeRequest.create({
       data: { ...sale, deliveryId: delivery.id, requestedById: contractorAdmin!.id, payload: {} },
     });
+    const conversation = await tx.botConversation.create({
+      data: { ...org, userId: admin!.id, title: 'Add flour' },
+    });
+    await tx.botMessage.create({
+      data: { ...org, conversationId: conversation.id, seq: 1, role: 'user', content: [] },
+    });
+    await tx.botProposal.create({
+      data: {
+        ...org,
+        conversationId: conversation.id,
+        tool: 'upsert_ingredient',
+        input: {},
+        preview: { summary: 'Add flour', rows: 1, changes: [] },
+        rows: 1,
+        expiresAt: new Date(Date.now() + 60_000),
+      },
+    });
+    await tx.botUsage.create({
+      data: { ...org, month: '2026-11', inputTokens: 1, outputTokens: 1 },
+    });
     return {
       productId: product.id,
       ingredientId: ingredient.id,

@@ -36,6 +36,17 @@ const schema = z.object({
   JOBS_ENABLED: z.enum(['true', 'false']).default('false'),
   /** Queue name; separate names keep test runs apart from a running server. */
   JOBS_QUEUE: z.string().default('manorg-jobs'),
+  /** AI bot (spec section 10): the model sits behind a provider interface (open question 12). */
+  LLM_PROVIDER: z.enum(['', 'anthropic', 'xai']).default(''),
+  /** A secret: only in the server environment. For anthropic, ANTHROPIC_API_KEY also works. */
+  LLM_API_KEY: z.string().optional(),
+  LLM_MODEL: z.string().optional(),
+  /** Optional: a gateway in front of the provider's API (also used by local checks). */
+  LLM_BASE_URL: z.string().optional(),
+  LLM_EFFORT: z.enum(['low', 'medium', 'high', 'xhigh', 'max']).default('high'),
+  BOT_MESSAGES_PER_MINUTE: z.coerce.number().int().positive().default(10),
+  BOT_MONTHLY_TOKEN_BUDGET: z.coerce.number().int().positive().default(2_000_000),
+  BOT_RETENTION_DAYS: z.coerce.number().int().positive().default(90),
   /** Telegram bot (decided 2026-11-13). A secret: only in the server's environment, never in git. */
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   TELEGRAM_BOT_USERNAME: z.string().default('haydar_inc_bot'),

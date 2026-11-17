@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { AuditService, userActor } from '../audit/audit.service';
+import { actorFor, AuditService } from '../audit/audit.service';
 import { Errors } from '../common/errors';
 import { activeMembers } from '../common/memberships';
 import { type AuthUser, dbContext, orgCan, type OrgContext } from '../common/request-context';
@@ -90,7 +90,7 @@ export class OutputService {
       });
       await this.audit.record(tx, {
         organizationId: org.organizationId,
-        actor: userActor(user.userId),
+        actor: actorFor(user),
         action: 'team.create',
         entity: 'team',
         entityId: team.id,
@@ -128,7 +128,7 @@ export class OutputService {
       const after = await this.presentTeam(tx, id);
       await this.audit.record(tx, {
         organizationId: org.organizationId,
-        actor: userActor(user.userId),
+        actor: actorFor(user),
         action: 'team.update',
         entity: 'team',
         entityId: id,
@@ -150,7 +150,7 @@ export class OutputService {
       });
       await this.audit.record(tx, {
         organizationId: org.organizationId,
-        actor: userActor(user.userId),
+        actor: actorFor(user),
         action: 'team.delete',
         entity: 'team',
         entityId: id,
@@ -297,7 +297,7 @@ export class OutputService {
       const after = await this.loggedBy(tx, org, target, date);
       await this.audit.record(tx, {
         organizationId: org.organizationId,
-        actor: userActor(user.userId),
+        actor: actorFor(user),
         action: 'output.set',
         entity: 'user',
         entityId: target,

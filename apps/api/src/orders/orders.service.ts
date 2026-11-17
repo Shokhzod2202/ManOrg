@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { AuditService, userActor } from '../audit/audit.service';
+import { actorFor, AuditService } from '../audit/audit.service';
 import { Errors } from '../common/errors';
 import { type AuthUser, dbContext, orgCan, type OrgContext } from '../common/request-context';
 import { localDate, timeToHhmm } from '../common/time';
@@ -120,7 +120,7 @@ export class OrdersService {
       });
       await this.audit.record(tx, {
         organizationId: provider.id,
-        actor: userActor(user.userId),
+        actor: actorFor(user),
         action: 'order.place',
         entity: 'order',
         entityId: order.id,
@@ -190,7 +190,7 @@ export class OrdersService {
       });
       await this.audit.record(tx, {
         organizationId: order.organizationId,
-        actor: userActor(user.userId),
+        actor: actorFor(user),
         action: 'order.change_request',
         entity: 'order',
         entityId: order.id,
@@ -300,7 +300,7 @@ export class OrdersService {
       if (result.count !== 1) throw Errors.versionConflict();
       await this.audit.record(tx, {
         organizationId: org.organizationId,
-        actor: userActor(user.userId),
+        actor: actorFor(user),
         action: 'order.edit',
         entity: 'order',
         entityId: id,
@@ -397,7 +397,7 @@ export class OrdersService {
         });
       await this.audit.record(tx, {
         organizationId: org.organizationId,
-        actor: userActor(user.userId),
+        actor: actorFor(user),
         action: accept ? 'order.change_accept' : 'order.change_reject',
         entity: 'order',
         entityId: order.id,

@@ -33,7 +33,7 @@ describe('scheduled jobs on Redis (BullMQ)', () => {
   it('stores one scheduler per job, so several API instances still run each job once', async () => {
     const names = (await app.get(JobsService).schedulers()).map((s) => s.key ?? s.name).sort();
     // Telegram delivery is scheduled only when a bot token is set.
-    expect(names).toEqual(['ingredient-reminders']);
+    expect(names).toEqual(['bot-retention', 'ingredient-reminders']);
   });
 
   it('runs a job through the worker', async () => {

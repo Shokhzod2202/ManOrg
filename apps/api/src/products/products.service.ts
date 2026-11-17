@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { AuditService, userActor } from '../audit/audit.service';
+import { actorFor, AuditService } from '../audit/audit.service';
 import { Errors } from '../common/errors';
 import { type AuthUser, dbContext, type OrgContext } from '../common/request-context';
 import { DatabaseService } from '../database/database.service';
@@ -32,6 +32,16 @@ export class ProductsService {
     private readonly audit: AuditService,
     private readonly storage: StorageService,
   ) {}
+
+  /**
+   * A plain light-blue picture for products the AI bot adds (it cannot take photos); the admin
+   * replaces it from Products.
+   */
+  async placeholderImage(org: OrgContext): Promise<string> {
+    const key = newKey(org.organizationId, 'product', 'png');
+    await this.storage.put(key, Buffer.from(PLACEHOLDER_PNG, 'base64'), CONTENT_TYPES.png);
+    return key;
+  }
 
   /** Stores a product picture and returns the key to send with the product. */
   async uploadImage(org: OrgContext, file: Express.Multer.File | undefined) {
@@ -86,7 +96,7 @@ export class ProductsService {
       });
       await this.audit.record(tx, {
         organizationId: org.organizationId,
-        actor: userActor(user.userId),
+        actor: actorFor(user),
         action: 'product.create',
         entity: 'product',
         entityId: product.id,
@@ -127,7 +137,7 @@ export class ProductsService {
       const after = await this.find(tx, org, id);
       await this.audit.record(tx, {
         organizationId: org.organizationId,
-        actor: userActor(user.userId),
+        actor: actorFor(user),
         action:
           input.available !== undefined && Object.keys(input).length === 1
             ? 'product.availability_set'
@@ -193,7 +203,7 @@ export class ProductsService {
       }
       await this.audit.record(tx, {
         organizationId: org.organizationId,
-        actor: userActor(user.userId),
+        actor: actorFor(user),
         action: 'employee.products_set',
         entity: 'user',
         entityId: employeeId,
@@ -292,3 +302,7 @@ function snapshot(row: Row) {
     })),
   };
 }
+
+/** 64 x 64 light brand blue, used until a real picture is uploaded. */
+const PLACEHOLDER_PNG =
+  'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAT0lEQVR42u3PMQ0AAAgDsPmXysXNhQRukiY10FTPaxEQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQuCwqyUKkAOW7iwAAAABJRU5ErkJggg==';

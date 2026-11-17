@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
-import { AuditService, userActor } from '../audit/audit.service';
+import { actorFor, AuditService } from '../audit/audit.service';
 import { Errors } from '../common/errors';
 import { type AuthUser, dbContext, type OrgContext } from '../common/request-context';
 import { hhmmToTime, localDate, timeToHhmm, zonedToUtc } from '../common/time';
@@ -85,7 +85,7 @@ export class DeliveriesService {
       }
       await this.audit.record(tx, {
         organizationId: org.organizationId,
-        actor: userActor(user.userId),
+        actor: actorFor(user),
         action: 'contractor_link.approx_time_set',
         entity: 'contractor_link',
         entityId: link.id,
@@ -190,7 +190,7 @@ export class DeliveriesService {
       await tx.delivery.update({ where: { id: delivery.id }, data: { version: { increment: 1 } } });
       await this.audit.record(tx, {
         organizationId: org.organizationId,
-        actor: userActor(user.userId),
+        actor: actorFor(user),
         action: 'delivery.save',
         entity: 'delivery',
         entityId: delivery.id,
@@ -263,7 +263,7 @@ export class DeliveriesService {
       });
       await this.audit.record(tx, {
         organizationId: d.organizationId,
-        actor: userActor(user.userId),
+        actor: actorFor(user),
         action: 'delivery.change_request',
         entity: 'delivery',
         entityId: d.id,
@@ -318,7 +318,7 @@ export class DeliveriesService {
       });
       await this.audit.record(tx, {
         organizationId: org.organizationId,
-        actor: userActor(user.userId),
+        actor: actorFor(user),
         action: approve ? 'delivery.change_approve' : 'delivery.change_reject',
         entity: 'delivery',
         entityId: id,
@@ -411,7 +411,7 @@ export class DeliveriesService {
       if (d.organizationId !== org.organizationId) await switchOrganization(tx, d.organizationId);
       await this.audit.record(tx, {
         organizationId: d.organizationId,
-        actor: userActor(user.userId),
+        actor: actorFor(user),
         action,
         entity: 'delivery',
         entityId: id,

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
-import { AuditService, userActor } from '../audit/audit.service';
+import { actorFor, AuditService } from '../audit/audit.service';
 import { Errors } from '../common/errors';
 import {
   assertNoOpenMembership,
@@ -84,7 +84,7 @@ export class OrganizationsService {
       );
       await this.audit.record(tx, {
         organizationId: org.id,
-        actor: userActor(user.userId),
+        actor: actorFor(user),
         action: 'organization.create',
         entity: 'organization',
         entityId: org.id,
@@ -92,7 +92,7 @@ export class OrganizationsService {
       });
       await this.audit.record(tx, {
         organizationId: org.id,
-        actor: userActor(user.userId),
+        actor: actorFor(user),
         action: 'membership.create',
         entity: 'membership',
         entityId: membership.id,
@@ -164,7 +164,7 @@ export class OrganizationsService {
     // The applicant is not in the organization yet, so the entry is account-level.
     await this.audit.record(tx, {
       organizationId: null,
-      actor: userActor(user.userId),
+      actor: actorFor(user),
       action: 'membership.apply',
       entity: 'membership',
       entityId: membership.id,
@@ -221,7 +221,7 @@ export class OrganizationsService {
     });
     await this.audit.record(tx, {
       organizationId: org.organizationId,
-      actor: userActor(user.userId),
+      actor: actorFor(user),
       action: 'contractor_link.apply',
       entity: 'contractor_link',
       entityId: link.id,

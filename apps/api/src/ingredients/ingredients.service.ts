@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { AuditService, userActor } from '../audit/audit.service';
+import { actorFor, AuditService } from '../audit/audit.service';
 import { Errors } from '../common/errors';
 import { activeMembers } from '../common/memberships';
 import { type AuthUser, dbContext, orgCan, type OrgContext } from '../common/request-context';
@@ -139,7 +139,7 @@ export class IngredientsService {
       });
       await this.audit.record(tx, {
         organizationId: org.organizationId,
-        actor: userActor(user.userId),
+        actor: actorFor(user),
         action: 'ingredient.create',
         entity: 'ingredient',
         entityId: ingredient.id,
@@ -185,7 +185,7 @@ export class IngredientsService {
       const after = await this.find(tx, org, id);
       await this.audit.record(tx, {
         organizationId: org.organizationId,
-        actor: userActor(user.userId),
+        actor: actorFor(user),
         action: 'ingredient.update',
         entity: 'ingredient',
         entityId: id,
@@ -240,7 +240,7 @@ export class IngredientsService {
       }
       await this.audit.record(tx, {
         organizationId: org.organizationId,
-        actor: userActor(user.userId),
+        actor: actorFor(user),
         action: 'ingredient.responsible_set',
         entity: 'ingredient',
         entityId: id,
@@ -270,7 +270,7 @@ export class IngredientsService {
     });
     await this.audit.record(tx, {
       organizationId: org.organizationId,
-      actor: userActor(user.userId),
+      actor: actorFor(user),
       action: 'ingredient.price_set',
       entity: 'ingredient',
       entityId: ingredientId,

@@ -94,6 +94,8 @@ const MATRIX = {
   'orders.acceptAdditions': { employee: 'any', org_admin: 'any', contractor_admin: false },
   'employeeAccess.manage': { employee: false, org_admin: 'any', contractor_admin: false },
   'botAccess.manage': { employee: false, org_admin: 'any', contractor_admin: false },
+  // Phase 2 (spec section 10): the Bot screen is in the admin app only.
+  'bot.use': { employee: false, org_admin: 'any', contractor_admin: false },
 
   // docs/F-001.md section 3 (built after the MVP gate)
   'prices.manage': { employee: false, org_admin: 'any', contractor_admin: false },
@@ -123,6 +125,7 @@ export const BOT_BY_SETTING: Readonly<Partial<Record<Capability, BotAccessKey>>>
 /** Never: the bot cannot widen its own powers or act as a person joining an organization. */
 export const BOT_NEVER: ReadonlySet<Capability> = new Set<Capability>([
   'botAccess.manage',
+  'bot.use',
   'organization.create',
   'organization.apply',
 ]);

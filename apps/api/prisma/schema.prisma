@@ -256,6 +256,8 @@ model Organization {
   ingredientPrices           IngredientPrice[]
   orderChangeRequests        OrderChangeRequest[]
   orderChangeItems           OrderChangeItem[]
+  botConversations           BotConversation[]
+  botUsage                   BotUsage[]
 
   @@index([name])
   @@map("organizations")
@@ -908,4 +910,84 @@ model TelegramLinkCode {
 
   @@index([userId])
   @@map("telegram_link_codes")
+}
+
+/// AI bot conversation of one admin (spec section 10).
+model BotConversation {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  title          String
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  messages     BotMessage[]
+  proposals    BotProposal[]
+
+  @@unique([id, organizationId])
+  @@index([organizationId, userId, updatedAt])
+  @@map("bot_conversations")
+}
+
+/// One turn, tool call or tool result; kept 90 days for review. `native` is the provider's own
+/// assistant content, replayed unchanged (it can carry thinking blocks).
+model BotMessage {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  conversationId String   @map("conversation_id") @db.Uuid
+  seq            Int
+  role           String
+  content        Json
+  native         Json?
+  provider       String?
+  model          String?
+  inputTokens    Int      @default(0) @map("input_tokens")
+  outputTokens   Int      @default(0) @map("output_tokens")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  conversation BotConversation @relation(fields: [conversationId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@unique([conversationId, seq])
+  @@index([organizationId, createdAt])
+  @@map("bot_messages")
+}
+
+/// A write the bot proposed. Nothing changes until the admin confirms it.
+model BotProposal {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  conversationId String    @map("conversation_id") @db.Uuid
+  tool           String
+  input          Json
+  preview        Json
+  rows           Int
+  status         String    @default("pending")
+  result         Json?
+  error          String?
+  decidedBy      String?   @map("decided_by") @db.Uuid
+  decidedAt      DateTime? @map("decided_at") @db.Timestamptz(3)
+  expiresAt      DateTime  @map("expires_at") @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  conversation BotConversation @relation(fields: [conversationId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@index([organizationId, status])
+  @@map("bot_proposals")
+}
+
+/// Tokens used per organization per month (YYYY-MM), for the monthly budget.
+model BotUsage {
+  organizationId String   @map("organization_id") @db.Uuid
+  month          String
+  inputTokens    BigInt   @default(0) @map("input_tokens")
+  outputTokens   BigInt   @default(0) @map("output_tokens")
+  requests       Int      @default(0)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@id([organizationId, month])
+  @@map("bot_usage")
 }

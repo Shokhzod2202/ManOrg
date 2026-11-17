@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { AuditService, userActor } from '../audit/audit.service';
+import { actorFor, AuditService } from '../audit/audit.service';
 import { hashPassword, verifyPassword } from '../auth/password';
 import { Errors } from '../common/errors';
 import { type AuthUser } from '../common/request-context';
@@ -59,7 +59,7 @@ export class MeService {
       }
       await this.audit.record(tx, {
         organizationId: null,
-        actor: userActor(user.userId),
+        actor: actorFor(user),
         action: 'user.update',
         entity: 'user',
         entityId: user.userId,

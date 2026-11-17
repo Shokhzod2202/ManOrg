@@ -69,3 +69,10 @@ export class AuditService {
 export function userActor(userId: string): AuditActor {
   return { type: 'user', id: userId };
 }
+
+/** The audit actor for a request: the person, or the bot acting on that admin's behalf. */
+export function actorFor(user: { userId: string; viaBot?: boolean }): AuditActor {
+  return user.viaBot
+    ? { type: 'bot', id: user.userId, onBehalfOf: user.userId }
+    : { type: 'user', id: user.userId };
+}

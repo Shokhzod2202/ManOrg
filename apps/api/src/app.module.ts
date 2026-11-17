@@ -14,6 +14,11 @@ import { ProductsService } from './products/products.service';
 import { NotificationsModule } from './notifications/notifications.module';
 import { TelegramModule } from './telegram/telegram.module';
 import { JobsModule } from './jobs/jobs.module';
+import { BotController } from './bot/bot.controller';
+import { BotService } from './bot/bot.service';
+import { BotTools } from './bot/tools';
+import { createLlmProvider } from './bot/llm/factory';
+import { LLM_PROVIDER } from './bot/llm/types';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { DeliveriesModule } from './deliveries/deliveries.module';
 import { OrdersModule } from './orders/orders.module';
@@ -63,8 +68,12 @@ import { OrgContextGuard } from './permissions/org-context.guard';
     SettingsController,
     IngredientsController,
     ProductsController,
+    BotController,
   ],
   providers: [
+    BotService,
+    BotTools,
+    { provide: LLM_PROVIDER, useFactory: () => createLlmProvider(env()) },
     MeService,
     OrganizationsService,
     ApplicationsService,

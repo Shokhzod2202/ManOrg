@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { AuditService, userActor } from '../audit/audit.service';
+import { actorFor, AuditService } from '../audit/audit.service';
 import { Errors } from '../common/errors';
 import { type AuthUser, dbContext, orgCan, type OrgContext } from '../common/request-context';
 import { localDate, localTime, timeToHhmm, weekdayIn } from '../common/time';
@@ -56,7 +56,7 @@ export class IngredientOrdersService {
       });
       await this.audit.record(tx, {
         organizationId: org.organizationId,
-        actor: userActor(user.userId),
+        actor: actorFor(user),
         action: 'ingredient_order.create',
         entity: 'ingredient_order',
         entityId: order.id,
@@ -137,7 +137,7 @@ export class IngredientOrdersService {
       const after = await tx.ingredientOrder.findUniqueOrThrow({ where: { id } });
       await this.audit.record(tx, {
         organizationId: org.organizationId,
-        actor: userActor(user.userId),
+        actor: actorFor(user),
         action: `ingredient_order.${step}`,
         entity: 'ingredient_order',
         entityId: id,

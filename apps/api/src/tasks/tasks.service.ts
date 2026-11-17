@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
-import { AuditService, userActor } from '../audit/audit.service';
+import { actorFor, AuditService } from '../audit/audit.service';
 import { Errors } from '../common/errors';
 import { activeMembers } from '../common/memberships';
 import { type AuthUser, dbContext, orgCan, type OrgContext } from '../common/request-context';
@@ -47,7 +47,7 @@ export class TasksService {
       });
       await this.audit.record(tx, {
         organizationId: org.organizationId,
-        actor: userActor(user.userId),
+        actor: actorFor(user),
         action: 'task.create',
         entity: 'task',
         entityId: task.id,
@@ -115,7 +115,7 @@ export class TasksService {
       const after = await tx.task.findUniqueOrThrow({ where: { id } });
       await this.audit.record(tx, {
         organizationId: org.organizationId,
-        actor: userActor(user.userId),
+        actor: actorFor(user),
         action: 'task.update',
         entity: 'task',
         entityId: id,
@@ -226,7 +226,7 @@ export class TasksService {
       });
       await this.audit.record(tx, {
         organizationId: org.organizationId,
-        actor: userActor(user.userId),
+        actor: actorFor(user),
         action: 'task.complete',
         entity: 'task',
         entityId: task.id,

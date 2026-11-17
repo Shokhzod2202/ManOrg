@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { AuditService, userActor } from '../audit/audit.service';
+import { actorFor, AuditService } from '../audit/audit.service';
 import { Errors } from '../common/errors';
 import { activeMembers } from '../common/memberships';
 import { type AuthUser, dbContext, orgCan, type OrgContext } from '../common/request-context';
@@ -77,7 +77,7 @@ export class ShiftsService {
       });
       await this.audit.record(tx, {
         organizationId: org.organizationId,
-        actor: userActor(user.userId),
+        actor: actorFor(user),
         action: 'shift.plan_set',
         entity: 'user',
         entityId: input.employeeId,
@@ -246,7 +246,7 @@ export class ShiftsService {
       const after = await tx.punchEvent.findUniqueOrThrow({ where: { id } });
       await this.audit.record(tx, {
         organizationId: org.organizationId,
-        actor: userActor(user.userId),
+        actor: actorFor(user),
         action: 'punch.edit',
         entity: 'punch_event',
         entityId: id,
@@ -271,7 +271,7 @@ export class ShiftsService {
       });
       await this.audit.record(tx, {
         organizationId: org.organizationId,
-        actor: userActor(user.userId),
+        actor: actorFor(user),
         action: 'punch.add',
         entity: 'punch_event',
         entityId: event.id,
@@ -297,7 +297,7 @@ export class ShiftsService {
       });
       await this.audit.record(tx, {
         organizationId: org.organizationId,
-        actor: userActor(user.userId),
+        actor: actorFor(user),
         action: 'punch_change_request.create',
         entity: 'punch_change_request',
         entityId: request.id,
@@ -353,7 +353,7 @@ export class ShiftsService {
       const after = await tx.punchChangeRequest.findUniqueOrThrow({ where: { id } });
       await this.audit.record(tx, {
         organizationId: org.organizationId,
-        actor: userActor(user.userId),
+        actor: actorFor(user),
         action: `punch_change_request.${input.decision}`,
         entity: 'punch_change_request',
         entityId: id,
@@ -403,7 +403,7 @@ export class ShiftsService {
         });
         await this.audit.record(tx, {
           organizationId: org.organizationId,
-          actor: userActor(user.userId),
+          actor: actorFor(user),
           action: 'punch.edit',
           entity: 'punch_event',
           entityId: event.id,
@@ -422,7 +422,7 @@ export class ShiftsService {
         });
         await this.audit.record(tx, {
           organizationId: org.organizationId,
-          actor: userActor(user.userId),
+          actor: actorFor(user),
           action: 'punch.add',
           entity: 'punch_event',
           entityId: created.id,

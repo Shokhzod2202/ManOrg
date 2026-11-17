@@ -6,6 +6,6 @@ import { DueNextService } from './due-next.service';
 @Module({
   controllers: [DeliveriesController],
   providers: [DeliveriesService, DueNextService],
-  exports: [DueNextService],
+  exports: [DueNextService, DeliveriesService],
 })
 export class DeliveriesModule {}

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { AuditService, userActor } from '../audit/audit.service';
+import { actorFor, AuditService } from '../audit/audit.service';
 import { Errors } from '../common/errors';
 import { assertNoOpenMembership, createMembershipOnce } from '../common/memberships';
 import { pageArgs, toPage } from '../common/pagination';
@@ -86,7 +86,7 @@ export class MembersService {
       );
       await this.audit.record(tx, {
         organizationId: org.organizationId,
-        actor: userActor(user.userId),
+        actor: actorFor(user),
         action: 'membership.create',
         entity: 'membership',
         entityId: membership.id,
@@ -127,7 +127,7 @@ export class MembersService {
       });
       await this.audit.record(tx, {
         organizationId: org.organizationId,
-        actor: userActor(user.userId),
+        actor: actorFor(user),
         action: input.status === 'removed' ? 'membership.remove' : 'membership.role_change',
         entity: 'membership',
         entityId: id,

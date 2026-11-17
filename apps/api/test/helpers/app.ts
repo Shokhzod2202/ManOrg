@@ -9,6 +9,7 @@ import { asOwner } from './db';
 
 export async function createTestApp(
   envOverrides: Record<string, string> = {},
+  providers: { token: unknown; value: unknown }[] = [],
 ): Promise<INestApplication> {
   const saved: Record<string, string | undefined> = {};
   for (const [key, value] of Object.entries(envOverrides)) {
@@ -17,7 +18,11 @@ export async function createTestApp(
   }
   resetEnvCache();
   try {
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    let builder = Test.createTestingModule({ imports: [AppModule] });
+    for (const p of providers) {
+      builder = builder.overrideProvider(p.token as string).useValue(p.value);
+    }
+    const moduleRef = await builder.compile();
     const app = moduleRef.createNestApplication({ logger: false });
     configureApp(app);
     await app.init();
