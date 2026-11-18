@@ -50,7 +50,16 @@ export class OrdersService {
       const products = await tx.product.findMany({
         where: { organizationId: providerId, available: true, deletedAt: null },
         orderBy: [{ name: 'asc' }, { id: 'asc' }],
-        select: { id: true, name: true, imageUrl: true },
+        select: {
+          id: true,
+          name: true,
+          imageUrl: true,
+          prices: {
+            orderBy: [{ effectiveFrom: 'desc' }, { createdAt: 'desc' }],
+            take: 1,
+            select: { unitPrice: true },
+          },
+        },
       });
       return {
         items: await Promise.all(
@@ -58,6 +67,8 @@ export class OrdersService {
             id: p.id,
             name: p.name,
             imageUrl: await this.storage.signedUrl(p.imageUrl),
+            // F-001: the price the contractor will pay per unit delivered.
+            unitPrice: p.prices[0]?.unitPrice ?? null,
           })),
         ),
         nextCursor: null,

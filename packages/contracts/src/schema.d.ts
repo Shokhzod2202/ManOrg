@@ -340,6 +340,280 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/products/{id}/price": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set the unit price in whole won; applies from now on (F-001 FIN-1, FIN-5)
+         * @description Audited. Past deliveries keep the price copied when they were completed.
+         */
+        put: operations["setProductPrice"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/products/{id}/prices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Price history of a product */
+        get: operations["listProductPrices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/finance/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Delivered value, approved and pending payments, outstanding (CFD-3 to CFD-5, AFD-1 to AFD-4)
+         * @description The bakery admin gets every contractor unless contractor_id is given; a contractor admin names the bakery with provider_id and sees only itself. Outstanding counts approved payments only.
+         */
+        get: operations["financeSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/finance/deliveries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Valued deliveries with lines, paid so far and remaining; every contractor when the bakery admin names none (CFD-1, CFD-2, FIN-4, PAY-8) */
+        get: operations["financeDeliveries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/finance/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Deliveries, payments and adjustments, newest first (CFD-6, AFD-5) */
+        get: operations["financeHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Payment review queue (bakery) or own submissions (contractor) (PAY-2, AFD-8) */
+        get: operations["listPayments"];
+        put?: never;
+        /**
+         * Submit a payment confirmation with proof (PAY-1)
+         * @description Contractor admins. Pending until the bakery admin reviews it; audited; the bakery admins are notified.
+         */
+        post: operations["submitPayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payments/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Withdraw a pending submission (contractor, F2) */
+        post: operations["cancelPayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payments/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve with amount, date and full allocation to deliveries (PAY-3, PAY-7, rule 4)
+         * @description Allocations add up to the approved amount and never exceed a delivery's remaining value. 409 PERIOD_CLOSED for a date in a closed period. Audited; the contractor is notified.
+         */
+        post: operations["approvePayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payments/{id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject with a reason (PAY-3) */
+        post: operations["rejectPayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payments/{id}/allocations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Change how an approved payment is split; refused once its period is closed (PAY-5) */
+        put: operations["reallocatePayment"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payments/{id}/reverse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reverse an approved payment (rule 6); a closed period gets an adjustment in the open one */
+        post: operations["reversePayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settlement-schedules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A contractor's settlement periods with their reports (SET-1, SET-4, CFD-7, AFD-7) */
+        get: operations["listSettlementSchedule"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/contractors/{id}/settlement-schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Replace the periods that are not closed (SET-3, SET-5, SET-6)
+         * @description Periods follow each other day by day; the first starts right after the last closed one; a period under way keeps its start. 409 PERIOD_CLOSED when touching a closed period. Audited with old and new dates.
+         */
+        put: operations["setSettlementSchedule"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settlement-reports/{periodId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One period with its line items; the stored snapshot once closed */
+        get: operations["getSettlementReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settlement-reports/{periodId}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Close an ended period in order and store its snapshot (rule 8, SET-2)
+         * @description 409 PERIOD_NOT_ENDED, EARLIER_PERIOD_OPEN or PERIOD_CLOSED. Audited; the contractor admins are notified.
+         */
+        post: operations["closeSettlementPeriod"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/organizations": {
         parameters: {
             query?: never;
@@ -1926,6 +2200,119 @@ export interface components {
             /** Format: date-time */
             plannedStart: string | null;
         };
+        Allocation: {
+            /** Format: uuid */
+            deliveryId: string;
+            amount: number;
+        };
+        FinanceSummary: {
+            /** Format: date */
+            from: string | null;
+            /** Format: date */
+            to: string | null;
+            contractors: {
+                contractor: components["schemas"]["PersonRef"];
+                /** @description In the range, from delivered quantities. */
+                deliveredValue: number;
+                /** @description Approved payments dated in the range. */
+                approvedPayments: number;
+                /** @description Waiting for review; not in the balance. */
+                pendingPayments: number;
+                /** @description Now: delivered value minus approved payments. */
+                outstanding: number;
+            }[];
+            totals: {
+                deliveredValue: number;
+                approvedPayments: number;
+                pendingPayments: number;
+                outstanding: number;
+            };
+        };
+        FinanceDelivery: {
+            contractor?: components["schemas"]["PersonRef"];
+            /** Format: uuid */
+            id: string;
+            /** Format: date */
+            deliveryDate: string;
+            status: string;
+            totalValue: number;
+            paidValue: number;
+            remainingValue: number;
+            lines: {
+                productName: string;
+                deliveredQuantity: number;
+                unitPrice: number | null;
+                lineValue: number | null;
+            }[];
+        };
+        FinanceEvent: {
+            contractor?: components["schemas"]["PersonRef"];
+            /** @enum {string} */
+            kind: "delivery" | "payment" | "adjustment";
+            /** Format: date */
+            date: string;
+            /** Format: uuid */
+            id: string;
+            amount: number;
+            status: string;
+            note: string | null;
+        };
+        Payment: {
+            /** Format: uuid */
+            id: string;
+            provider: components["schemas"]["PersonRef"];
+            contractor: components["schemas"]["PersonRef"];
+            submittedAmount: number;
+            note: string | null;
+            /** @description Short-lived link. */
+            proofUrl: string;
+            proofType: string;
+            /** @enum {string} */
+            status: "pending" | "approved" | "rejected" | "cancelled" | "reversed";
+            approvedAmount: number | null;
+            /** Format: date */
+            paymentDate: string | null;
+            rejectionReason: string | null;
+            reversedReason: string | null;
+            /** Format: date-time */
+            reviewedAt: string | null;
+            allocations: {
+                /** Format: uuid */
+                deliveryId: string;
+                /** Format: date */
+                deliveryDate: string | null;
+                amount: number;
+            }[];
+            version: number;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        SettlementPeriod: {
+            contractor?: components["schemas"]["PersonRef"];
+            /** Format: uuid */
+            id: string;
+            /** Format: date */
+            startDate: string;
+            /** Format: date */
+            endDate: string;
+            /** @enum {string} */
+            kind: "mid_month" | "month_end" | "custom";
+            /** @enum {string} */
+            status: "open" | "closed";
+            /** @description The previous period's closing balance (SET-2). */
+            openingBalance: number;
+            deliveredValue: number;
+            approvedPayments: number;
+            /** @description Corrections to closed periods, counted here (rule 9). */
+            adjustments: number;
+            closingBalance: number;
+            /** Format: date-time */
+            closedAt: string | null;
+        };
+        SettlementReport: components["schemas"]["SettlementPeriod"] & {
+            /** @description The line items; for a closed period, exactly as stored when it was closed. */
+            items: Record<string, never>;
+        };
         UpdateMeRequest: {
             name?: string;
             /** Format: email */
@@ -2087,6 +2474,8 @@ export interface components {
             imageUrl: string;
             /** @description Minutes to prepare 10 units. */
             minutesPer10: number;
+            /** @description F-001: current price per unit in won; hidden from employees unless Finance is open to them. */
+            unitPrice?: number | null;
             available: boolean;
             ingredients: {
                 /** Format: uuid */
@@ -2500,6 +2889,8 @@ export interface components {
             id: string;
             name: string;
             imageUrl: string;
+            /** @description F-001: price per unit delivered, in won. */
+            unitPrice: number | null;
         };
         DefaultDeliveryDate: {
             /** Format: date */
@@ -2650,7 +3041,14 @@ export interface components {
                 /** @description Delivered minus ordered. */
                 difference: number;
                 isUnordered: boolean;
+                /** @description F-001: copied when completed; only for those who see finance. */
+                unitPrice?: number | null;
+                lineValue?: number | null;
             }[];
+            /** @description F-001: set when completed; only for those who see finance. */
+            totalValue?: number | null;
+            paidValue?: number;
+            remainingValue?: number | null;
             pendingChange: {
                 /** Format: uuid */
                 id?: string;
@@ -3457,6 +3855,564 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BotProposal"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    setProductPrice: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    unitPrice: number;
+                };
+            };
+        };
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Product"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listProductPrices: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** Format: uuid */
+                            id: string;
+                            unitPrice: number;
+                            /** Format: date-time */
+                            effectiveFrom: string;
+                            /** Format: uuid */
+                            createdById: string;
+                        }[];
+                        nextCursor: components["schemas"]["NextCursor"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    financeSummary: {
+        parameters: {
+            query?: {
+                contractor_id?: string;
+                provider_id?: string;
+                from?: string;
+                to?: string;
+            };
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FinanceSummary"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    financeDeliveries: {
+        parameters: {
+            query: {
+                contractor_id?: string;
+                provider_id?: string;
+                from: string;
+                to: string;
+            };
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["FinanceDelivery"][];
+                        nextCursor: components["schemas"]["NextCursor"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    financeHistory: {
+        parameters: {
+            query: {
+                contractor_id?: string;
+                provider_id?: string;
+                from: string;
+                to: string;
+            };
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["FinanceEvent"][];
+                        nextCursor: components["schemas"]["NextCursor"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listPayments: {
+        parameters: {
+            query?: {
+                contractor_id?: string;
+                provider_id?: string;
+                status?: "pending" | "approved" | "rejected" | "cancelled" | "reversed";
+            };
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["Payment"][];
+                        nextCursor: components["schemas"]["NextCursor"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    submitPayment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: uuid */
+                    providerId: string;
+                    amount: number;
+                    note?: string;
+                    /**
+                     * Format: binary
+                     * @description JPEG, PNG, WebP or PDF up to 10 MB
+                     */
+                    proof: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Payment"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    cancelPayment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Payment"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    approvePayment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    approvedAmount: number;
+                    /** Format: date */
+                    paymentDate: string;
+                    allocations: components["schemas"]["Allocation"][];
+                };
+            };
+        };
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Payment"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    rejectPayment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    reason: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Payment"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    reallocatePayment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    allocations: components["schemas"]["Allocation"][];
+                };
+            };
+        };
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Payment"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    reversePayment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    reason: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Payment"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listSettlementSchedule: {
+        parameters: {
+            query?: {
+                contractor_id?: string;
+                provider_id?: string;
+            };
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["SettlementPeriod"][];
+                        nextCursor: components["schemas"]["NextCursor"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setSettlementSchedule: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    periods: {
+                        /** Format: date */
+                        startDate: string;
+                        /** Format: date */
+                        endDate: string;
+                        /** @enum {string} */
+                        kind: "mid_month" | "month_end" | "custom";
+                    }[];
+                };
+            };
+        };
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["SettlementPeriod"][];
+                        nextCursor: components["schemas"]["NextCursor"];
+                    };
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getSettlementReport: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                periodId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettlementReport"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    closeSettlementPeriod: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                periodId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettlementReport"];
                 };
             };
             401: components["responses"]["Unauthenticated"];

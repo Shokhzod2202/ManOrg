@@ -16,6 +16,12 @@ export const PUSH_TYPES = new Set([
   'delivery.change_requested',
   'ingredient.ordered',
   'ingredient.due',
+  // F-001 proposed notifications.
+  'payment.submitted',
+  'payment.approved',
+  'payment.rejected',
+  'payment.reversed',
+  'settlement.closed',
 ]);
 const MAX_ATTEMPTS = 3;
 const STALE_MS = 24 * 60 * 60_000;

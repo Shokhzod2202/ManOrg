@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { actorFor, AuditService } from '../audit/audit.service';
 import { Errors } from '../common/errors';
-import { type AuthUser, dbContext, type OrgContext } from '../common/request-context';
+import { type AuthUser, dbContext, orgCan, type OrgContext } from '../common/request-context';
 import { DatabaseService } from '../database/database.service';
 import { type Tx } from '../database/prisma-client';
 import { type Prisma } from '../generated/prisma/client';
@@ -21,6 +21,8 @@ const include = {
     include: { ingredient: { select: { id: true, name: true } } },
     orderBy: { createdAt: 'asc' },
   },
+  // F-001 FIN-1: the latest price row is the current price.
+  prices: { orderBy: [{ effectiveFrom: 'desc' }, { createdAt: 'desc' }], take: 1 },
 } satisfies Prisma.ProductInclude;
 
 type Row = Prisma.ProductGetPayload<{ include: typeof include }>;
@@ -224,7 +226,7 @@ export class ProductsService {
       orderBy: [{ name: 'asc' }, { id: 'asc' }],
       include,
     });
-    return Promise.all(rows.map((r) => this.present(r)));
+    return Promise.all(rows.map((r) => this.present(r, orgCan(org, 'finance.view'))));
   }
 
   private async assertMember(tx: Tx, org: OrgContext, userId: string) {
@@ -271,7 +273,7 @@ export class ProductsService {
     return row;
   }
 
-  private async present(row: Row) {
+  private async present(row: Row, showPrice = true) {
     return {
       id: row.id,
       name: row.name,
@@ -284,9 +286,54 @@ export class ProductsService {
         name: i.ingredient.name,
         quantityPer10: i.quantityPer10 === null ? null : Number(i.quantityPer10.toString()),
       })),
+      ...(showPrice ? { unitPrice: row.prices[0]?.unitPrice ?? null } : {}),
       version: row.version,
       createdAt: row.createdAt,
     };
+  }
+
+  /** F-001 FIN-1, FIN-5: a new price applies from now on; past deliveries keep theirs. Audited. */
+  setPrice(user: AuthUser, org: OrgContext, id: string, unitPrice: number) {
+    return this.db.run(dbContext(user, org), async (tx) => {
+      const before = await this.find(tx, org, id);
+      const row = await tx.productPrice.create({
+        data: {
+          organizationId: org.organizationId,
+          productId: id,
+          unitPrice,
+          createdById: user.userId,
+        },
+      });
+      await this.audit.record(tx, {
+        organizationId: org.organizationId,
+        actor: actorFor(user),
+        action: 'product.price',
+        entity: 'product',
+        entityId: id,
+        before: { unitPrice: before.prices[0]?.unitPrice ?? null },
+        after: { unitPrice, effectiveFrom: row.effectiveFrom },
+      });
+      return this.present(await this.find(tx, org, id));
+    });
+  }
+
+  prices(user: AuthUser, org: OrgContext, id: string) {
+    return this.db.run(dbContext(user, org), async (tx) => {
+      await this.find(tx, org, id);
+      const rows = await tx.productPrice.findMany({
+        where: { productId: id, organizationId: org.organizationId },
+        orderBy: [{ effectiveFrom: 'desc' }, { createdAt: 'desc' }],
+      });
+      return {
+        items: rows.map((r) => ({
+          id: r.id,
+          unitPrice: r.unitPrice,
+          effectiveFrom: r.effectiveFrom,
+          createdById: r.createdById,
+        })),
+        nextCursor: null,
+      };
+    });
   }
 }
 

@@ -138,6 +138,12 @@ export async function createProduct(
       ingredients: [{ ingredientId }],
     })
     .expect(201);
+  // F-001 FIN-1: a product needs a price before it can be delivered.
+  await api
+    .as(admin, orgId)
+    .put(`/products/${product.body.id}/price`)
+    .send({ unitPrice: 1000 })
+    .expect(200);
   return product.body.id as string;
 }
 

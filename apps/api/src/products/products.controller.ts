@@ -29,6 +29,7 @@ import {
   updateProductSchema,
 } from './products.schemas';
 import { MAX_PRODUCT_IMAGE_BYTES, ProductsService } from './products.service';
+import { type SetProductPriceInput, setProductPriceSchema } from './products.schemas';
 
 @Controller()
 export class ProductsController {
@@ -95,6 +96,28 @@ export class ProductsController {
     @Param('id', new ParseUUIDPipe()) id: string,
   ) {
     return this.products.employeeProducts(user, org, id);
+  }
+
+  /** F-001 FIN-1: price per unit in whole won; applies from now on. */
+  @Put('products/:id/price')
+  @RequireOrg('prices.manage')
+  setPrice(
+    @CurrentUser() user: AuthUser,
+    @CurrentOrg() org: OrgContext,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @ZodBody(setProductPriceSchema) body: SetProductPriceInput,
+  ) {
+    return this.products.setPrice(user, org, id, body.unitPrice);
+  }
+
+  @Get('products/:id/prices')
+  @RequireOrg('prices.manage')
+  prices(
+    @CurrentUser() user: AuthUser,
+    @CurrentOrg() org: OrgContext,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.products.prices(user, org, id);
   }
 
   @Put('employees/:id/products')

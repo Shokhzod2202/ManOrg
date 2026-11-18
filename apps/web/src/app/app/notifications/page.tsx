@@ -17,6 +17,11 @@ const TEXT: Record<string, string> = {
   'order.placed': 'A contractor placed an order.',
   'punch.change_decided': 'Your shift correction was decided.',
   'punch.flagged': 'A shift needs a look (red flag).',
+  'payment.submitted': 'A contractor confirmed a payment.',
+  'payment.approved': 'Your payment was approved.',
+  'payment.rejected': 'Your payment was not approved.',
+  'payment.reversed': 'A payment was reversed.',
+  'settlement.closed': 'A settlement period was closed.',
   'delivery.completed': 'A delivery is waiting for your confirmation.',
   'delivery.change_requested': 'A contractor asked to change a delivery.',
   'delivery.approx_time_changed': 'The delivery time changed.',
@@ -34,6 +39,9 @@ function detail(n: N): string {
   if (n.type === 'punch.flagged')
     return `${String(p.name ?? '')}, ${String(p.date ?? '')}: ${String(p.message ?? '')}`;
   if (n.type === 'task.assigned' && p.title) return String(p.title);
+  if (n.type.startsWith('payment.') && p.amount !== undefined)
+    return `${Number(p.amount).toLocaleString()} won${p.reason ? ` · ${String(p.reason)}` : ''}`;
+  if (n.type === 'settlement.closed') return `${String(p.startDate)} – ${String(p.endDate)}`;
   if (n.type === 'ingredient.due' && p.name) return String(p.name);
   if (n.type === 'delivery.completed' && p.deliveryDate)
     return `Delivery for ${String(p.deliveryDate)}`;

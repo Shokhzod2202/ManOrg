@@ -8,6 +8,8 @@ export function esc(value: unknown): string {
 
 type Payload = Record<string, unknown>;
 
+const won = (v: unknown) => `${Number(v ?? 0).toLocaleString('en-US')} won`;
+
 /** One line per notification type; unknown types still say something useful. */
 const LINES: Record<string, (p: Payload) => string> = {
   'task.assigned': (p) =>
@@ -31,6 +33,14 @@ const LINES: Record<string, (p: Payload) => string> = {
   'order.change_accepted': (p) =>
     `Change accepted: <b>${esc(p.product)}</b> now ${esc(p.quantity)}`,
   'order.change_rejected': (p) => `Change not accepted: <b>${esc(p.product)}</b>`,
+  'payment.submitted': (p) =>
+    `A contractor confirmed a payment of <b>${won(p.amount)}</b>. Review it in Finance.`,
+  'payment.approved': (p) => `Your payment of <b>${won(p.amount)}</b> was approved.`,
+  'payment.rejected': (p) =>
+    `Your payment of <b>${won(p.amount)}</b> was not approved: ${esc(p.reason)}`,
+  'payment.reversed': (p) => `A payment of <b>${won(p.amount)}</b> was reversed: ${esc(p.reason)}`,
+  'settlement.closed': (p) =>
+    `Settlement ${esc(p.startDate)} to ${esc(p.endDate)} is closed. Balance: <b>${won(p.closingBalance)}</b>`,
   'delivery.completed': (p) =>
     `Delivery for <b>${esc(p.deliveryDate)}</b> is done. Please confirm it.`,
   'delivery.change_requested': () => 'A contractor asked to change a delivery.',
@@ -48,6 +58,8 @@ const PAGES: Record<string, string> = {
   ingredient: '/app/tasks',
   order: '/app/orders',
   delivery: '/app/deliveries',
+  payment: '/app/finance',
+  settlement: '/app/finance',
 };
 
 export function notificationText(type: string, payload: Payload, organizationName?: string | null) {

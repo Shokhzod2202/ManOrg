@@ -206,6 +206,59 @@ export async function createTenantWithEveryTable(label: string): Promise<TenantF
         expiresAt: new Date(Date.now() + 60_000),
       },
     });
+    await tx.productPrice.create({
+      data: { ...org, productId: product.id, unitPrice: 1000, createdById: admin!.id },
+    });
+    const payment = await tx.payment.create({
+      data: {
+        ...sale,
+        submittedById: contractorAdmin!.id,
+        submittedAmount: 1000,
+        proofKey: 'x',
+        proofType: 'image/png',
+      },
+    });
+    await tx.paymentAllocation.create({
+      data: {
+        ...sale,
+        paymentId: payment.id,
+        deliveryId: delivery.id,
+        amount: 1000,
+        createdById: admin!.id,
+      },
+    });
+    const period = await tx.settlementPeriod.create({
+      data: {
+        ...sale,
+        startDate: new Date('2026-11-01'),
+        endDate: new Date('2026-11-12'),
+        kind: 'mid_month',
+        status: 'closed',
+        createdById: admin!.id,
+      },
+    });
+    await tx.settlementReport.create({
+      data: {
+        ...sale,
+        periodId: period.id,
+        openingBalance: 0,
+        deliveredValue: 0,
+        approvedPayments: 0,
+        adjustments: 0,
+        closingBalance: 0,
+        snapshot: {},
+        closedById: admin!.id,
+      },
+    });
+    await tx.balanceAdjustment.create({
+      data: {
+        ...sale,
+        effectiveDate: new Date('2026-11-13'),
+        amount: 1,
+        reason: 'test',
+        createdById: admin!.id,
+      },
+    });
     await tx.botUsage.create({
       data: { ...org, month: '2026-11', inputTokens: 1, outputTokens: 1 },
     });

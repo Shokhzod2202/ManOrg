@@ -47,3 +47,9 @@ export const setEmployeeProductsSchema = z.strictObject({
 export type CreateProductInput = z.infer<typeof createProductSchema>;
 export type UpdateProductInput = z.infer<typeof updateProductSchema>;
 export type SetEmployeeProductsInput = z.infer<typeof setEmployeeProductsSchema>;
+
+/** F-001 FIN-1: whole won per unit. */
+export const setProductPriceSchema = z.strictObject({
+  unitPrice: z.number().int('Use whole won.').min(0).max(100_000_000),
+});
+export type SetProductPriceInput = z.infer<typeof setProductPriceSchema>;

@@ -4,28 +4,37 @@ import { randomUUID } from 'node:crypto';
  * Storage keys are one flat segment, `<organization id>.<kind>.<uuid>.<ext>`, so they can never
  * contain a path, and the organization a file belongs to is part of its name.
  */
-export type FileKind = 'product' | 'task';
+export type FileKind = 'product' | 'task' | 'payment';
 export type ImageExt = 'jpg' | 'png' | 'webp';
+/** Payment proofs (F-001 PAY-1) may also be PDF. */
+export type FileExt = ImageExt | 'pdf';
 
-const KEY = /^([0-9a-f-]{36})\.(product|task)\.([0-9a-f-]{36})\.(jpg|png|webp)$/;
+const KEY = /^([0-9a-f-]{36})\.(product|task|payment)\.([0-9a-f-]{36})\.(jpg|png|webp|pdf)$/;
 
-export function newKey(organizationId: string, kind: FileKind, ext: ImageExt): string {
+export function newKey(organizationId: string, kind: FileKind, ext: FileExt): string {
   return `${organizationId}.${kind}.${randomUUID()}.${ext}`;
 }
 
 export function parseKey(
   key: string,
-): { organizationId: string; kind: FileKind; ext: ImageExt } | null {
+): { organizationId: string; kind: FileKind; ext: FileExt } | null {
   const m = KEY.exec(key);
   if (!m) return null;
-  return { organizationId: m[1]!, kind: m[2] as FileKind, ext: m[4] as ImageExt };
+  return { organizationId: m[1]!, kind: m[2] as FileKind, ext: m[4] as FileExt };
 }
 
-export const CONTENT_TYPES: Record<ImageExt, string> = {
+export const CONTENT_TYPES: Record<FileExt, string> = {
   jpg: 'image/jpeg',
   png: 'image/png',
   webp: 'image/webp',
+  pdf: 'application/pdf',
 };
+
+/** An image, or a PDF (starts with %PDF-), from the file's first bytes. */
+export function sniffProof(buffer: Buffer): FileExt | null {
+  if (buffer.length >= 5 && buffer.subarray(0, 5).toString('ascii') === '%PDF-') return 'pdf';
+  return sniffImage(buffer);
+}
 
 /** Detects the image type from the file's first bytes; the client's declared type is ignored. */
 export function sniffImage(buffer: Buffer): ImageExt | null {

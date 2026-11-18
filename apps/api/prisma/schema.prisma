@@ -399,6 +399,7 @@ model Product {
   ingredients      ProductIngredient[]
   employeeProducts EmployeeProduct[]
   outputEntries    OutputEntry[]
+  prices           ProductPrice[]
 
   @@unique([id, organizationId])
   @@map("products")
@@ -768,6 +769,8 @@ model Delivery {
   status          DeliveryStatus @default(draft)
   completedAt     DateTime?      @map("completed_at") @db.Timestamptz(3)
   confirmedAt     DateTime?      @map("confirmed_at") @db.Timestamptz(3)
+  /// F-001 FIN-3: sum of the line values, set when completed and kept in step with approved changes.
+  totalValue      Int?           @map("total_value")
   version         Int            @default(1)
   createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -794,6 +797,10 @@ model DeliveryLine {
   orderedQuantity   Int      @default(0) @map("ordered_quantity")
   deliveredQuantity Int      @map("delivered_quantity")
   isUnordered       Boolean  @default(false) @map("is_unordered")
+  /// F-001 FIN-5: the unit price in force when the delivery was completed, copied here.
+  unitPrice         Int?     @map("unit_price")
+  /// Delivered quantity times unit price, in whole won (FIN-2).
+  lineValue         Int?     @map("line_value")
   createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -998,4 +1005,150 @@ model BotUsage {
 
   @@id([organizationId, month])
   @@map("bot_usage")
+}
+
+enum PaymentStatus {
+  pending
+  approved
+  rejected
+  cancelled
+  reversed
+
+  @@map("payment_status")
+}
+
+enum SettlementKind {
+  mid_month
+  month_end
+  custom
+
+  @@map("settlement_kind")
+}
+
+enum PeriodStatus {
+  open
+  closed
+
+  @@map("period_status")
+}
+
+/// F-001 FIN-1: price per unit in whole won, append-only; the current price is the latest.
+model ProductPrice {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  productId      String   @map("product_id") @db.Uuid
+  unitPrice      Int      @map("unit_price")
+  effectiveFrom  DateTime @default(now()) @map("effective_from") @db.Timestamptz(3)
+  createdById    String   @map("created_by") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  product Product @relation(fields: [productId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@index([productId, effectiveFrom])
+  @@map("product_prices")
+}
+
+/// F-001 PAY-1 to PAY-8: a contractor's payment confirmation and its review.
+model Payment {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId  String        @map("organization_id") @db.Uuid
+  contractorOrgId String        @map("contractor_org_id") @db.Uuid
+  submittedById   String        @map("submitted_by") @db.Uuid
+  submittedAmount Int           @map("submitted_amount")
+  note            String?
+  proofKey        String        @map("proof_key")
+  proofType       String        @map("proof_type")
+  status          PaymentStatus @default(pending)
+  approvedAmount  Int?          @map("approved_amount")
+  paymentDate     DateTime?     @map("payment_date") @db.Date
+  reviewedById    String?       @map("reviewed_by") @db.Uuid
+  reviewedAt      DateTime?     @map("reviewed_at") @db.Timestamptz(3)
+  rejectionReason String?       @map("rejection_reason")
+  reversedReason  String?       @map("reversed_reason")
+  reversedAt      DateTime?     @map("reversed_at") @db.Timestamptz(3)
+  version         Int           @default(1)
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  allocations PaymentAllocation[]
+
+  @@unique([id, organizationId, contractorOrgId])
+  @@index([organizationId, contractorOrgId, status])
+  @@map("payments")
+}
+
+/// F-001 PAY-7, PAY-8: how much of an approved payment goes to each delivery.
+model PaymentAllocation {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  contractorOrgId String   @map("contractor_org_id") @db.Uuid
+  paymentId       String   @map("payment_id") @db.Uuid
+  deliveryId      String   @map("delivery_id") @db.Uuid
+  amount          Int
+  createdById     String   @map("created_by") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  payment Payment @relation(fields: [paymentId, organizationId, contractorOrgId], references: [id, organizationId, contractorOrgId], onDelete: Cascade)
+
+  @@index([deliveryId])
+  @@map("payment_allocations")
+}
+
+/// F-001 SET-3, SET-4: one contractor's settlement periods; contiguous, closed ones never change.
+model SettlementPeriod {
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId  String         @map("organization_id") @db.Uuid
+  contractorOrgId String         @map("contractor_org_id") @db.Uuid
+  startDate       DateTime       @map("start_date") @db.Date
+  endDate         DateTime       @map("end_date") @db.Date
+  kind            SettlementKind
+  status          PeriodStatus   @default(open)
+  createdById     String         @map("created_by") @db.Uuid
+  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  report SettlementReport?
+
+  @@unique([id, organizationId, contractorOrgId])
+  @@unique([organizationId, contractorOrgId, startDate])
+  @@map("settlement_periods")
+}
+
+/// F-001 SET-1, rule 8: the snapshot written once when a period is closed.
+model SettlementReport {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId   String   @map("organization_id") @db.Uuid
+  contractorOrgId  String   @map("contractor_org_id") @db.Uuid
+  periodId         String   @unique @map("period_id") @db.Uuid
+  openingBalance   Int      @map("opening_balance")
+  deliveredValue   Int      @map("delivered_value")
+  approvedPayments Int      @map("approved_payments")
+  adjustments      Int
+  closingBalance   Int      @map("closing_balance")
+  snapshot         Json
+  closedById       String   @map("closed_by") @db.Uuid
+  closedAt         DateTime @default(now()) @map("closed_at") @db.Timestamptz(3)
+
+  period SettlementPeriod @relation(fields: [periodId, organizationId, contractorOrgId], references: [id, organizationId, contractorOrgId], onDelete: Restrict)
+
+  @@unique([periodId, organizationId, contractorOrgId])
+  @@map("settlement_reports")
+}
+
+/// F-001 rule 9: a correction to money in a closed period, counted in the next open period.
+model BalanceAdjustment {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  contractorOrgId String   @map("contractor_org_id") @db.Uuid
+  deliveryId      String?  @map("delivery_id") @db.Uuid
+  paymentId       String?  @map("payment_id") @db.Uuid
+  effectiveDate   DateTime @map("effective_date") @db.Date
+  amount          Int
+  reason          String
+  createdById     String   @map("created_by") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([organizationId, contractorOrgId, effectiveDate])
+  @@map("balance_adjustments")
 }

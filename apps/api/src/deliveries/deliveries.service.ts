@@ -2,9 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { actorFor, AuditService } from '../audit/audit.service';
 import { Errors } from '../common/errors';
-import { type AuthUser, dbContext, type OrgContext } from '../common/request-context';
+import { type AuthUser, dbContext, orgCan, type OrgContext } from '../common/request-context';
 import { hhmmToTime, localDate, timeToHhmm, zonedToUtc } from '../common/time';
 import { DatabaseService } from '../database/database.service';
+import { inClosedPeriod, priceDelivery } from '../finance/pricing';
 import { switchOrganization, type Tx } from '../database/prisma-client';
 import { NotificationsService } from '../notifications/notifications.service';
 import {
@@ -116,7 +117,7 @@ export class DeliveriesService {
     return this.db.run(dbContext(user, org), async (tx) => {
       const link = await this.link(tx, org, contractorId);
       const existing = await this.find(tx, org.organizationId, contractorId, date);
-      if (existing) return this.present(tx, existing.id);
+      if (existing) return this.present(tx, existing.id, orgCan(org, 'finance.view'));
       const order = await this.order(tx, org.organizationId, contractorId, date);
       const { timezone } = await this.provider(tx, org.organizationId);
       const time = approx(link);
@@ -212,6 +213,25 @@ export class DeliveriesService {
       'completed',
       'delivery.complete',
       async (tx, d) => {
+        // F-001: the value is fixed now, from the delivered numbers and today's prices.
+        const total = await priceDelivery(tx, d.id, new Date(), false);
+        // A delivery completed after its settlement period closed counts in the open period.
+        if (
+          total !== 0 &&
+          (await inClosedPeriod(tx, org.organizationId, d.contractorOrgId, d.deliveryDate))
+        ) {
+          await tx.balanceAdjustment.create({
+            data: {
+              organizationId: org.organizationId,
+              contractorOrgId: d.contractorOrgId,
+              deliveryId: d.id,
+              effectiveDate: new Date(`${await this.todayFor(tx, org.organizationId)}T00:00:00Z`),
+              amount: total,
+              reason: `Delivery of ${isoOf(d.deliveryDate)} completed after its settlement period was closed`,
+              createdById: user.userId,
+            },
+          });
+        }
         await this.notifications.notify(tx, {
           organizationId: org.organizationId,
           userIds: await this.contractorAdmins(tx, d.contractorOrgId, org.organizationId),
@@ -311,6 +331,28 @@ export class DeliveriesService {
           lines,
           new Map(before.map((l) => [l.productId, l.deliveredQuantity])),
         );
+        // F-001: keep the prices copied at completion; a new line gets today's price. A change to
+        // a delivery whose period is closed becomes an adjustment in the open period (rule 9).
+        if (d.totalValue !== null) {
+          const total = await priceDelivery(tx, id, new Date(), true);
+          const difference = total - d.totalValue;
+          if (
+            difference !== 0 &&
+            (await inClosedPeriod(tx, d.organizationId, d.contractorOrgId, d.deliveryDate))
+          ) {
+            await tx.balanceAdjustment.create({
+              data: {
+                organizationId: d.organizationId,
+                contractorOrgId: d.contractorOrgId,
+                deliveryId: id,
+                effectiveDate: new Date(`${await this.todayFor(tx, d.organizationId)}T00:00:00Z`),
+                amount: difference,
+                reason: `Delivery of ${isoOf(d.deliveryDate)} corrected after its settlement period was closed`,
+                createdById: user.userId,
+              },
+            });
+          }
+        }
       }
       await tx.delivery.update({
         where: { id },
@@ -355,7 +397,9 @@ export class DeliveriesService {
         select: { id: true },
       });
       return {
-        items: await Promise.all(rows.map((r) => this.present(tx, r.id))),
+        items: await Promise.all(
+          rows.map((r) => this.present(tx, r.id, orgCan(org, 'finance.view'))),
+        ),
         nextCursor: null,
       };
     });
@@ -371,7 +415,7 @@ export class DeliveriesService {
         select: { id: true },
       });
       if (!d) throw Errors.notFound('Delivery');
-      return this.present(tx, id);
+      return this.present(tx, id, orgCan(org, 'finance.view'));
     });
   }
 
@@ -532,7 +576,28 @@ export class DeliveriesService {
     return admins.map((a) => a.userId);
   }
 
-  async present(tx: Tx, id: string) {
+  /** F-001 FIN-4, PAY-8: value, paid so far from approved payments, and what remains. */
+  private async money(tx: Tx, deliveryId: string, totalValue: number | null) {
+    const paid = await tx.paymentAllocation.aggregate({
+      where: { deliveryId, payment: { status: 'approved' } },
+      _sum: { amount: true },
+    });
+    const paidValue = paid._sum.amount ?? 0;
+    return {
+      totalValue,
+      paidValue,
+      remainingValue: totalValue === null ? null : totalValue - paidValue,
+    };
+  }
+
+  private async todayFor(tx: Tx, organizationId: string): Promise<string> {
+    const { timezone } = await this.provider(tx, organizationId).catch(() => ({
+      timezone: 'Asia/Seoul',
+    }));
+    return localDate(timezone);
+  }
+
+  async present(tx: Tx, id: string, money = true) {
     const d = await tx.delivery.findUniqueOrThrow({
       where: { id },
       include: {
@@ -580,7 +645,9 @@ export class DeliveriesService {
         deliveredQuantity: l.deliveredQuantity,
         difference: l.deliveredQuantity - l.orderedQuantity,
         isUnordered: l.isUnordered,
+        ...(money ? { unitPrice: l.unitPrice, lineValue: l.lineValue } : {}),
       })),
+      ...(money ? await this.money(tx, d.id, d.totalValue) : {}),
       pendingChange: pending
         ? {
             id: pending.id,

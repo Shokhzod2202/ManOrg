@@ -477,6 +477,567 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+  /products/{id}/price:
+    put:
+      operationId: setProductPrice
+      summary: 'Set the unit price in whole won; applies from now on (F-001 FIN-1, FIN-5)'
+      description: 'Audited. Past deliveries keep the price copied when they were completed.'
+      tags: [finance]
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              {
+                type: object,
+                additionalProperties: false,
+                required: [unitPrice],
+                properties: { unitPrice: { type: integer, minimum: 0, maximum: 100000000 } },
+              }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Product' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /products/{id}/prices:
+    get:
+      operationId: listProductPrices
+      summary: 'Price history of a product'
+      tags: [finance]
+      x-tenant-scoped: true
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                {
+                  type: object,
+                  required: [items, nextCursor],
+                  properties:
+                    {
+                      items:
+                        {
+                          type: array,
+                          items:
+                            {
+                              type: object,
+                              required: [id, unitPrice, effectiveFrom, createdById],
+                              properties:
+                                {
+                                  id: { type: string, format: uuid },
+                                  unitPrice: { type: integer },
+                                  effectiveFrom: { type: string, format: date-time },
+                                  createdById: { type: string, format: uuid },
+                                },
+                            },
+                        },
+                      nextCursor: { $ref: '#/components/schemas/NextCursor' },
+                    },
+                }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /finance/summary:
+    get:
+      operationId: financeSummary
+      summary: 'Delivered value, approved and pending payments, outstanding (CFD-3 to CFD-5, AFD-1 to AFD-4)'
+      description: 'The bakery admin gets every contractor unless contractor_id is given; a contractor admin names the bakery with provider_id and sees only itself. Outstanding counts approved payments only.'
+      tags: [finance]
+      x-tenant-scoped: true
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: contractor_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: provider_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: from
+          in: query
+          required: false
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          required: false
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FinanceSummary' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /finance/deliveries:
+    get:
+      operationId: financeDeliveries
+      summary: 'Valued deliveries with lines, paid so far and remaining; every contractor when the bakery admin names none (CFD-1, CFD-2, FIN-4, PAY-8)'
+      tags: [finance]
+      x-tenant-scoped: true
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: contractor_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: provider_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: from
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          required: true
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                {
+                  type: object,
+                  required: [items, nextCursor],
+                  properties:
+                    {
+                      items:
+                        { type: array, items: { $ref: '#/components/schemas/FinanceDelivery' } },
+                      nextCursor: { $ref: '#/components/schemas/NextCursor' },
+                    },
+                }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /finance/history:
+    get:
+      operationId: financeHistory
+      summary: 'Deliveries, payments and adjustments, newest first (CFD-6, AFD-5)'
+      tags: [finance]
+      x-tenant-scoped: true
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: contractor_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: provider_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: from
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          required: true
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                {
+                  type: object,
+                  required: [items, nextCursor],
+                  properties:
+                    {
+                      items: { type: array, items: { $ref: '#/components/schemas/FinanceEvent' } },
+                      nextCursor: { $ref: '#/components/schemas/NextCursor' },
+                    },
+                }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /payments:
+    post:
+      operationId: submitPayment
+      summary: 'Submit a payment confirmation with proof (PAY-1)'
+      description: 'Contractor admins. Pending until the bakery admin reviews it; audited; the bakery admins are notified.'
+      tags: [finance]
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              {
+                type: object,
+                required: [providerId, amount, proof],
+                properties:
+                  {
+                    providerId: { type: string, format: uuid },
+                    amount: { type: integer, minimum: 1 },
+                    note: { type: string, maxLength: 500 },
+                    proof:
+                      {
+                        type: string,
+                        format: binary,
+                        description: 'JPEG, PNG, WebP or PDF up to 10 MB',
+                      },
+                  },
+              }
+      responses:
+        '201':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Payment' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    get:
+      operationId: listPayments
+      summary: 'Payment review queue (bakery) or own submissions (contractor) (PAY-2, AFD-8)'
+      tags: [finance]
+      x-tenant-scoped: true
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: contractor_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: provider_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: status
+          in: query
+          required: false
+          schema: { type: string, enum: [pending, approved, rejected, cancelled, reversed] }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                {
+                  type: object,
+                  required: [items, nextCursor],
+                  properties:
+                    {
+                      items: { type: array, items: { $ref: '#/components/schemas/Payment' } },
+                      nextCursor: { $ref: '#/components/schemas/NextCursor' },
+                    },
+                }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /payments/{id}/cancel:
+    post:
+      operationId: cancelPayment
+      summary: 'Withdraw a pending submission (contractor, F2)'
+      tags: [finance]
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Payment' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /payments/{id}/approve:
+    post:
+      operationId: approvePayment
+      summary: 'Approve with amount, date and full allocation to deliveries (PAY-3, PAY-7, rule 4)'
+      description: "Allocations add up to the approved amount and never exceed a delivery's remaining value. 409 PERIOD_CLOSED for a date in a closed period. Audited; the contractor is notified."
+      tags: [finance]
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              {
+                type: object,
+                additionalProperties: false,
+                required: [approvedAmount, paymentDate, allocations],
+                properties:
+                  {
+                    approvedAmount: { type: integer, minimum: 1 },
+                    paymentDate: { type: string, format: date },
+                    allocations:
+                      {
+                        type: array,
+                        minItems: 1,
+                        items: { $ref: '#/components/schemas/Allocation' },
+                      },
+                  },
+              }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Payment' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /payments/{id}/reject:
+    post:
+      operationId: rejectPayment
+      summary: 'Reject with a reason (PAY-3)'
+      tags: [finance]
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              {
+                type: object,
+                additionalProperties: false,
+                required: [reason],
+                properties: { reason: { type: string, minLength: 1, maxLength: 500 } },
+              }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Payment' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /payments/{id}/allocations:
+    put:
+      operationId: reallocatePayment
+      summary: 'Change how an approved payment is split; refused once its period is closed (PAY-5)'
+      tags: [finance]
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              {
+                type: object,
+                additionalProperties: false,
+                required: [allocations],
+                properties:
+                  {
+                    allocations:
+                      {
+                        type: array,
+                        minItems: 1,
+                        items: { $ref: '#/components/schemas/Allocation' },
+                      },
+                  },
+              }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Payment' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /payments/{id}/reverse:
+    post:
+      operationId: reversePayment
+      summary: 'Reverse an approved payment (rule 6); a closed period gets an adjustment in the open one'
+      tags: [finance]
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              {
+                type: object,
+                additionalProperties: false,
+                required: [reason],
+                properties: { reason: { type: string, minLength: 1, maxLength: 500 } },
+              }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Payment' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /settlement-schedules:
+    get:
+      operationId: listSettlementSchedule
+      summary: "A contractor's settlement periods with their reports (SET-1, SET-4, CFD-7, AFD-7)"
+      tags: [finance]
+      x-tenant-scoped: true
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: contractor_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: provider_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                {
+                  type: object,
+                  required: [items, nextCursor],
+                  properties:
+                    {
+                      items:
+                        { type: array, items: { $ref: '#/components/schemas/SettlementPeriod' } },
+                      nextCursor: { $ref: '#/components/schemas/NextCursor' },
+                    },
+                }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /contractors/{id}/settlement-schedule:
+    put:
+      operationId: setSettlementSchedule
+      summary: 'Replace the periods that are not closed (SET-3, SET-5, SET-6)'
+      description: 'Periods follow each other day by day; the first starts right after the last closed one; a period under way keeps its start. 409 PERIOD_CLOSED when touching a closed period. Audited with old and new dates.'
+      tags: [finance]
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              {
+                type: object,
+                additionalProperties: false,
+                required: [periods],
+                properties:
+                  {
+                    periods:
+                      {
+                        type: array,
+                        items:
+                          {
+                            type: object,
+                            additionalProperties: false,
+                            required: [startDate, endDate, kind],
+                            properties:
+                              {
+                                startDate: { type: string, format: date },
+                                endDate: { type: string, format: date },
+                                kind: { type: string, enum: [mid_month, month_end, custom] },
+                              },
+                          },
+                      },
+                  },
+              }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                {
+                  type: object,
+                  required: [items, nextCursor],
+                  properties:
+                    {
+                      items:
+                        { type: array, items: { $ref: '#/components/schemas/SettlementPeriod' } },
+                      nextCursor: { $ref: '#/components/schemas/NextCursor' },
+                    },
+                }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /settlement-reports/{periodId}:
+    get:
+      operationId: getSettlementReport
+      summary: 'One period with its line items; the stored snapshot once closed'
+      tags: [finance]
+      x-tenant-scoped: true
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: periodId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SettlementReport' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /settlement-reports/{periodId}/close:
+    post:
+      operationId: closeSettlementPeriod
+      summary: 'Close an ended period in order and store its snapshot (rule 8, SET-2)'
+      description: '409 PERIOD_NOT_ENDED, EARLIER_PERIOD_OPEN or PERIOD_CLOSED. Audited; the contractor admins are notified.'
+      tags: [finance]
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: periodId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SettlementReport' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /organizations:
     get:
       operationId: searchOrganizations
@@ -3068,6 +3629,160 @@ components:
             [planned_shift, off_for_organization, off_for_employee, already_on_shift, no_shift_now]
         message: { type: [string, 'null'], example: 'You came to work. Start shift' }
         plannedStart: { type: [string, 'null'], format: date-time }
+    Allocation:
+      type: object
+      additionalProperties: false
+      required: [deliveryId, amount]
+      properties:
+        deliveryId: { type: string, format: uuid }
+        amount: { type: integer, minimum: 1 }
+    FinanceSummary:
+      type: object
+      required: [from, to, contractors, totals]
+      properties:
+        from: { type: [string, 'null'], format: date }
+        to: { type: [string, 'null'], format: date }
+        contractors:
+          type: array
+          items:
+            type: object
+            required: [contractor, deliveredValue, approvedPayments, pendingPayments, outstanding]
+            properties:
+              contractor: { $ref: '#/components/schemas/PersonRef' }
+              deliveredValue:
+                { type: integer, description: 'In the range, from delivered quantities.' }
+              approvedPayments:
+                { type: integer, description: 'Approved payments dated in the range.' }
+              pendingPayments:
+                { type: integer, description: 'Waiting for review; not in the balance.' }
+              outstanding:
+                { type: integer, description: 'Now: delivered value minus approved payments.' }
+        totals:
+          type: object
+          required: [deliveredValue, approvedPayments, pendingPayments, outstanding]
+          properties:
+            deliveredValue: { type: integer }
+            approvedPayments: { type: integer }
+            pendingPayments: { type: integer }
+            outstanding: { type: integer }
+    FinanceDelivery:
+      type: object
+      required: [id, deliveryDate, status, totalValue, paidValue, remainingValue, lines]
+      properties:
+        contractor: { $ref: '#/components/schemas/PersonRef' }
+        id: { type: string, format: uuid }
+        deliveryDate: { type: string, format: date }
+        status: { type: string }
+        totalValue: { type: integer }
+        paidValue: { type: integer }
+        remainingValue: { type: integer }
+        lines:
+          type: array
+          items:
+            type: object
+            required: [productName, deliveredQuantity, unitPrice, lineValue]
+            properties:
+              productName: { type: string }
+              deliveredQuantity: { type: integer }
+              unitPrice: { type: [integer, 'null'] }
+              lineValue: { type: [integer, 'null'] }
+    FinanceEvent:
+      type: object
+      required: [kind, date, id, amount, status, note]
+      properties:
+        contractor: { $ref: '#/components/schemas/PersonRef' }
+        kind: { type: string, enum: [delivery, payment, adjustment] }
+        date: { type: string, format: date }
+        id: { type: string, format: uuid }
+        amount: { type: integer }
+        status: { type: string }
+        note: { type: [string, 'null'] }
+    Payment:
+      type: object
+      required:
+        [
+          id,
+          provider,
+          contractor,
+          submittedAmount,
+          note,
+          proofUrl,
+          proofType,
+          status,
+          approvedAmount,
+          paymentDate,
+          rejectionReason,
+          reversedReason,
+          reviewedAt,
+          allocations,
+          version,
+          createdAt,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        provider: { $ref: '#/components/schemas/PersonRef' }
+        contractor: { $ref: '#/components/schemas/PersonRef' }
+        submittedAmount: { type: integer }
+        note: { type: [string, 'null'] }
+        proofUrl: { type: string, description: Short-lived link. }
+        proofType: { type: string }
+        status: { type: string, enum: [pending, approved, rejected, cancelled, reversed] }
+        approvedAmount: { type: [integer, 'null'] }
+        paymentDate: { type: [string, 'null'], format: date }
+        rejectionReason: { type: [string, 'null'] }
+        reversedReason: { type: [string, 'null'] }
+        reviewedAt: { type: [string, 'null'], format: date-time }
+        allocations:
+          type: array
+          items:
+            type: object
+            required: [deliveryId, deliveryDate, amount]
+            properties:
+              deliveryId: { type: string, format: uuid }
+              deliveryDate: { type: [string, 'null'], format: date }
+              amount: { type: integer }
+        version: { type: integer }
+        createdAt: { type: string, format: date-time }
+    SettlementPeriod:
+      type: object
+      required:
+        [
+          id,
+          startDate,
+          endDate,
+          kind,
+          status,
+          openingBalance,
+          deliveredValue,
+          approvedPayments,
+          adjustments,
+          closingBalance,
+          closedAt,
+        ]
+      properties:
+        contractor: { $ref: '#/components/schemas/PersonRef' }
+        id: { type: string, format: uuid }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+        kind: { type: string, enum: [mid_month, month_end, custom] }
+        status: { type: string, enum: [open, closed] }
+        openingBalance:
+          { type: integer, description: "The previous period's closing balance (SET-2)." }
+        deliveredValue: { type: integer }
+        approvedPayments: { type: integer }
+        adjustments:
+          { type: integer, description: 'Corrections to closed periods, counted here (rule 9).' }
+        closingBalance: { type: integer }
+        closedAt: { type: [string, 'null'], format: date-time }
+    SettlementReport:
+      allOf:
+        - $ref: '#/components/schemas/SettlementPeriod'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: object
+              description: The line items; for a closed period, exactly as stored when it was closed.
     UpdateMeRequest:
       type: object
       additionalProperties: false
@@ -3295,6 +4010,9 @@ components:
         imageKey: { type: string }
         imageUrl: { type: string, description: Short-lived link to the picture. }
         minutesPer10: { type: integer, description: Minutes to prepare 10 units. }
+        unitPrice:
+          type: [integer, 'null']
+          description: 'F-001: current price per unit in won; hidden from employees unless Finance is open to them.'
         available: { type: boolean }
         ingredients:
           type: array
@@ -3818,11 +4536,13 @@ components:
         createdAt: { type: string, format: date-time }
     CatalogItem:
       type: object
-      required: [id, name, imageUrl]
+      required: [id, name, imageUrl, unitPrice]
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
         imageUrl: { type: string }
+        unitPrice:
+          { type: [integer, 'null'], description: 'F-001: price per unit delivered, in won.' }
     DefaultDeliveryDate:
       type: object
       required: [date, askIfToday, timezone]
@@ -4044,6 +4764,19 @@ components:
               deliveredQuantity: { type: integer }
               difference: { type: integer, description: 'Delivered minus ordered.' }
               isUnordered: { type: boolean }
+              unitPrice:
+                {
+                  type: [integer, 'null'],
+                  description: 'F-001: copied when completed; only for those who see finance.',
+                }
+              lineValue: { type: [integer, 'null'] }
+        totalValue:
+          {
+            type: [integer, 'null'],
+            description: 'F-001: set when completed; only for those who see finance.',
+          }
+        paidValue: { type: integer }
+        remainingValue: { type: [integer, 'null'] }
         pendingChange:
           oneOf:
             - type: object
