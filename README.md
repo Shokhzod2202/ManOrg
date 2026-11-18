@@ -96,8 +96,11 @@ pnpm --filter @manorg/web e2e     # browser checks (API and web running); loads 
 
 ## Status
 
-Phases 0, 1 and 2 are done in code: the API and one responsive web app for admins, employees and
-contractors (on a phone it looks like the phone app), with Telegram notifications, scheduled jobs
-on Redis, the AI bot manager, the arrival reminder and a phone app with push, and the checks from spec section 13 (requirement traceability, tenant isolation,
-browser flows, performance). What is left before launch needs accounts, hosting or the pilot day;
-see `docs/PHASE1.md`. Every default and choice the code relies on is in `docs/DECISIONS.md`.
+Phases 0, 1, 2 and 3 are done in code: the API and one responsive web app for admins, employees
+and contractors (on a phone it looks like the phone app), with Telegram notifications, scheduled
+jobs on Redis, the AI bot manager, the arrival reminder and a phone app with push; in phase 3,
+product prices with payments and settlements (`docs/F-001.md`), repeating tasks, and English,
+Korean and Uzbek. The checks from spec section 13 run for all of it (requirement traceability,
+tenant isolation, browser flows, performance). What is left before launch needs accounts, hosting
+or the pilot day; see `docs/PHASE1.md`, `docs/PHASE2.md` and `docs/PHASE3.md`. Every default and
+choice the code relies on is in `docs/DECISIONS.md`.
