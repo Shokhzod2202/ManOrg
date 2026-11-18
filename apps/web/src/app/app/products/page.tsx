@@ -59,6 +59,7 @@ export default function ProductsPage() {
             <tr>
               <th />
               <th>Name</th>
+              <th>Price</th>
               <th>Minutes per 10</th>
               <th>Ingredients</th>
               <th>Status</th>
@@ -82,6 +83,9 @@ export default function ProductsPage() {
                   >
                     {p.name}
                   </button>
+                </td>
+                <td data-label="Price">
+                  <PriceCell product={p} onSaved={reload} />
                 </td>
                 <td data-label="Minutes per 10">{p.minutesPer10}</td>
                 <td data-label="Ingredients" className="small">
@@ -308,5 +312,60 @@ function AssignProducts({ products }: { products: Product[] }) {
         </>
       ) : null}
     </section>
+  );
+}
+
+/** F-001 FIN-1: price per unit in whole won; a new price applies from now on. */
+function PriceCell({ product, onSaved }: { product: Product; onSaved: () => void }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(product.unitPrice ?? 0);
+  const [err, setErr] = useState<ApiError | null>(null);
+  async function save() {
+    setErr(null);
+    try {
+      await put(`/products/${product.id}/price`, { unitPrice: Math.round(value) });
+      setEditing(false);
+      onSaved();
+    } catch (e) {
+      setErr(e as ApiError);
+    }
+  }
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        className="btn ghost"
+        onClick={() => setEditing(true)}
+        aria-label={`Price of ${product.name}`}
+        style={
+          product.unitPrice === null
+            ? { color: 'var(--flag)', borderColor: 'var(--flag)' }
+            : undefined
+        }
+      >
+        {product.unitPrice == null ? 'Set price' : `₩${product.unitPrice.toLocaleString('en-US')}`}
+      </button>
+    );
+  }
+  return (
+    <span className="row wrap">
+      <input
+        className="input qty"
+        style={{ width: 110 }}
+        type="number"
+        min={0}
+        step={1}
+        value={value}
+        onChange={(e) => setValue(Number(e.target.value))}
+        aria-label={`New price of ${product.name} in won`}
+      />
+      <button type="button" className="btn" onClick={save}>
+        Save
+      </button>
+      <button type="button" className="btn ghost" onClick={() => setEditing(false)}>
+        Cancel
+      </button>
+      {err ? <span className="err small">{err.message}</span> : null}
+    </span>
   );
 }

@@ -51,6 +51,11 @@ export default function NewOrderPage() {
   );
   const count = Object.values(qty).filter((n) => n > 0).length;
   const units = Object.values(qty).reduce((a, b) => a + (b > 0 ? b : 0), 0);
+  // F-001: an estimate; the bill uses what is actually delivered.
+  const estimate = (catalog ?? []).reduce(
+    (sum, i) => sum + (qty[i.id] ?? 0) * (i.unitPrice ?? 0),
+    0,
+  );
 
   async function place() {
     if (!providerId) return;
@@ -143,7 +148,12 @@ export default function NewOrderPage() {
             >
               <span className="row">
                 <img className="thumb" src={i.imageUrl} alt="" />
-                {i.name}
+                <span>
+                  {i.name}
+                  {i.unitPrice !== null ? (
+                    <span className="muted small"> · ₩{i.unitPrice.toLocaleString('en-US')}</span>
+                  ) : null}
+                </span>
               </span>
               <input
                 className="input qty"
@@ -158,6 +168,11 @@ export default function NewOrderPage() {
           ))}
         </div>
       )}
+      {estimate > 0 ? (
+        <p className="muted center small" style={{ margin: 0 }}>
+          About ₩{estimate.toLocaleString('en-US')}. You pay for what is delivered.
+        </p>
+      ) : null}
       <button className="btn big" disabled={busy || !count || !date || askToday} onClick={place}>
         {count
           ? `Place order: ${count} products, ${units} items, ${date ? formatDate(date) : ''}`

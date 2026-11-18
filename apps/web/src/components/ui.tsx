@@ -57,6 +57,13 @@ const PATHS: Record<string, ReactNode> = {
     </>
   ),
   more: <path d="M4 6h16M4 12h16M4 18h16" />,
+  money: (
+    <>
+      <rect x="2" y="6" width="20" height="12" rx="2" />
+      <circle cx="12" cy="12" r="2.5" />
+      <path d="M6 9.5v5M18 9.5v5" />
+    </>
+  ),
   bot: (
     <>
       <rect x="4" y="8" width="16" height="12" rx="3" />

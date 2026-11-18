@@ -21,6 +21,7 @@ const roles = {
       '/app/settings',
       '/app/notifications',
       '/app/more',
+      '/app/finance',
       '/app/bot',
       '/wall',
     ],
@@ -31,7 +32,7 @@ const roles = {
   ],
   cafe: [
     'admin@citycafe.test',
-    ['/app', '/app/orders/new', '/app/deliveries', '/app/people', '/app/settings'],
+    ['/app', '/app/orders/new', '/app/deliveries', '/app/finance', '/app/people', '/app/settings'],
   ],
 };
 const only = process.argv[2];

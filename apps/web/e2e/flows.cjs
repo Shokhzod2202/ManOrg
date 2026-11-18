@@ -325,6 +325,64 @@ async function as(b, email, vp = { width: 1280, height: 900 }) {
     log('14 bot not configured on this server (skipped)');
   }
 
+  // 15. Money (F-001): the contractor confirms a payment with proof; the admin approves and
+  // allocates it oldest first; the outstanding balance drops by that amount.
+  const contractorPage = await as(b, LOGINS[picked]);
+  await contractorPage.goto(`${W}/app/finance`);
+  await contractorPage.waitForSelector('text=Outstanding now');
+  await contractorPage.click('[role=tab]:has-text("Payments")');
+  await contractorPage.waitForSelector('text=Confirm a payment');
+  const owedText = await contractorPage.locator('p:has-text("Outstanding now") b').innerText();
+  const owed = Number(owedText.replace(/[^0-9]/g, ''));
+  const paying = Math.min(1000, owed);
+  if (paying > 0) {
+    await contractorPage.fill('label:has-text("Amount paid") input', String(paying));
+    await contractorPage.setInputFiles(
+      'input[type=file]',
+      require('node:path').join(__dirname, '../public/logo.png'),
+    );
+    await contractorPage.click('button:has-text("Send to the bakery")');
+    await contractorPage.waitForSelector('text=Waiting for review');
+    await boss.goto(`${W}/app/finance`);
+    await boss.click('[role=tab]:has-text("Payments")');
+    await boss.waitForSelector('button:has-text("Review")');
+    await boss.locator('button:has-text("Review")').first().click();
+    await boss.waitForSelector('text=Allocated');
+    await boss.fill('label:has-text("Approved amount") input', String(paying));
+    await boss.click('button:has-text("Oldest first")');
+    await boss.click('form button:has-text("Approve")');
+    await boss.waitForTimeout(1500);
+    await contractorPage.reload();
+    await contractorPage.click('[role=tab]:has-text("Payments")');
+    await contractorPage.waitForSelector('text=Approved');
+    const after = Number(
+      (await contractorPage.locator('p:has-text("Outstanding now") b').innerText()).replace(
+        /[^0-9]/g,
+        '',
+      ),
+    );
+    log('15 payment of', paying, 'approved; outstanding', owed, '->', after);
+    if (after !== owed - paying)
+      throw new Error('Outstanding did not drop by the approved payment');
+  } else {
+    log('15 nothing outstanding (skipped)');
+  }
+  // The admin fills a default settlement schedule for that contractor.
+  await boss.goto(`${W}/app/finance`);
+  await boss.click('[role=tab]:has-text("Settlement")');
+  await boss.selectOption('select[aria-label="Contractor"]', { label: picked });
+  await boss.waitForSelector('text=Fill 1–15 and 16–end');
+  await boss.click('button:has-text("Fill 1–15 and 16–end")');
+  await boss.click('button:has-text("Save schedule")');
+  const scheduleSaved = await boss
+    .waitForSelector('text=Saved. Closed periods are unchanged.', { timeout: 8000 })
+    .then(
+      () => true,
+      () => false,
+    );
+  log('15 settlement schedule saved:', scheduleSaved);
+  if (!scheduleSaved) throw new Error('Settlement schedule did not save');
+
   await b.close();
 })().catch((e) => {
   console.error('FAILED', e.message.slice(0, 400));

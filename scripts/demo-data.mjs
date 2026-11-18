@@ -165,6 +165,12 @@ for (const [i, n] of names.entries()) {
     }),
   );
 }
+// F-001: every product has a price (whole won), or its deliveries cannot be completed.
+for (const [i, p] of products.entries()) {
+  if (p.unitPrice == null) {
+    await A('PUT', `/products/${p.id}/price`, { unitPrice: 1000 + (i % 6) * 500 });
+  }
+}
 console.log('products', products.length);
 
 // More contractors.
