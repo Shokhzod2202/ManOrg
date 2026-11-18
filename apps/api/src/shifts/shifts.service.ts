@@ -225,6 +225,64 @@ export class ShiftsService {
     });
   }
 
+  /**
+   * Spec section 9: "Punch difference flagged red" goes to the admins, in-app only. Runs as a
+   * scheduled job over today and yesterday; each employee, day and kind of flag is sent once.
+   */
+  async notifyFlags(now = new Date()): Promise<number> {
+    const orgs = await this.db.run({ organizationId: null, userId: SYSTEM_USER }, (tx) =>
+      tx.organization.findMany({
+        where: { type: 'provider' },
+        select: { id: true, timezone: true, punchToleranceMin: true },
+      }),
+    );
+    let sent = 0;
+    for (const o of orgs) {
+      const clock = { timezone: o.timezone, punchToleranceMin: o.punchToleranceMin };
+      sent += await this.db.run({ organizationId: o.id, userId: null }, async (tx) => {
+        const members = await tx.membership.findMany({
+          where: { organizationId: o.id, status: 'active', role: 'employee' },
+          select: { userId: true, user: { select: { name: true } } },
+        });
+        if (!members.length) return 0;
+        const today = localDate(clock.timezone, now);
+        const days = await this.timesheet.days(
+          tx,
+          o.id,
+          clock,
+          members.map((m) => m.userId),
+          addDays(today, -1),
+          today,
+          now,
+        );
+        const admins = await this.notifications.admins(tx, o.id);
+        let count = 0;
+        for (const m of members) {
+          for (const d of days.get(m.userId) ?? []) {
+            for (const f of d.flags) {
+              await this.notifications.notify(tx, {
+                organizationId: o.id,
+                userIds: admins,
+                type: 'punch.flagged',
+                payload: {
+                  employeeId: m.userId,
+                  name: m.user.name,
+                  date: d.date,
+                  code: f.code,
+                  message: f.message,
+                },
+                dedupeKey: `punch.flagged:${m.userId}:${d.date}:${f.code}`,
+              });
+              count += 1;
+            }
+          }
+        }
+        return count;
+      });
+    }
+    return sent;
+  }
+
   private recentEvents(tx: Tx, org: OrgContext, employeeId: string, now: Date) {
     return tx.punchEvent.findMany({
       where: {
@@ -590,3 +648,6 @@ function punchMessage(action: string): string {
     }[action] ?? 'Not allowed now.'
   );
 }
+
+/** Reads the organization pool when a job runs without a signed-in person. */
+const SYSTEM_USER = '00000000-0000-4000-8000-000000000000';

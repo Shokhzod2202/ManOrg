@@ -6,6 +6,7 @@ import { ActivityIndicator, Pressable, SafeAreaView, StyleSheet, Text, View } fr
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import { colors, minTouchTarget, spacing } from '@manorg/ui';
 import { stopArrivalWatch, syncArrivalWatch } from './src/arrival';
+import { notificationTarget, parseMessage } from './src/bridge';
 import { registerForPush, unregisterPush } from './src/push';
 import { clearSession, loadSession, saveSession } from './src/session';
 
@@ -23,11 +24,6 @@ Notifications.setNotificationHandler({
   }),
 });
 
-type Message =
-  | { type: 'session'; refreshToken: string; orgId: string | null; origin: string }
-  | { type: 'org'; orgId: string | null }
-  | { type: 'signed-out' };
-
 /**
  * Thin native wrapper: the web app in a WebView, plus the two things a web page cannot do while
  * closed: the arrival reminder (geofence) and push notifications.
@@ -39,24 +35,21 @@ export default function App() {
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    // Tapping a notification opens the page it is about (the punch card for arrivals).
-    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
-      const target =
-        (response.notification.request.content.data as { url?: string } | undefined)?.url ?? '/app';
-      setUrl(`${WEB_URL}${target}?t=${Date.now()}`);
+    // Tapping a notification opens the page it is about (the punch card for arrivals), also when
+    // the tap started the app from closed.
+    const open = (data: unknown) => setUrl(`${notificationTarget(WEB_URL, data)}?t=${Date.now()}`);
+    void Notifications.getLastNotificationResponseAsync().then((r) => {
+      if (r) open(r.notification.request.content.data);
     });
+    const sub = Notifications.addNotificationResponseReceivedListener((r) =>
+      open(r.notification.request.content.data),
+    );
     return () => sub.remove();
   }, []);
 
   async function onMessage(event: WebViewMessageEvent) {
-    let message: Message;
-    try {
-      message = JSON.parse(event.nativeEvent.data) as Message;
-    } catch {
-      return;
-    }
-    // Only our own site may hand over a session.
-    if (!event.nativeEvent.url.startsWith(WEB_URL)) return;
+    const message = parseMessage(event.nativeEvent.data, event.nativeEvent.url, WEB_URL);
+    if (!message) return;
     if (message.type === 'session') {
       await saveSession({
         refreshToken: message.refreshToken,

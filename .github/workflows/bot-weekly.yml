@@ -1,0 +1,38 @@
+name: AI bot weekly check
+
+# Spec section 13: the section 10 scenarios run weekly against the real model. Needs the
+# repository secrets BOT_API_URL, BOT_ADMIN_EMAIL and BOT_ADMIN_PASSWORD (a test bakery admin on a
+# server whose LLM_PROVIDER and key are set); without them the run is skipped. It spends tokens.
+on:
+  schedule:
+    - cron: '17 1 * * 1' # Mondays 10:17 Seoul time
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      API_URL: ${{ secrets.BOT_API_URL }}
+      BOT_ADMIN_EMAIL: ${{ secrets.BOT_ADMIN_EMAIL }}
+      BOT_ADMIN_PASSWORD: ${{ secrets.BOT_ADMIN_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Skip when no test server is configured
+        id: gate
+        run: |
+          if [ -z "$API_URL" ] || [ -z "$BOT_ADMIN_EMAIL" ] || [ -z "$BOT_ADMIN_PASSWORD" ]; then
+            echo "No BOT_API_URL / BOT_ADMIN_EMAIL / BOT_ADMIN_PASSWORD secrets: skipping."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Run the section 10 scenarios on the real model
+        if: steps.gate.outputs.run == 'true'
+        run: node scripts/bot-live-check.mjs

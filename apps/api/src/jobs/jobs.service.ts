@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import { ModuleRef } from '@nestjs/core';
 import { BotService } from '../bot/bot.service';
 import { PushService } from '../devices/push.service';
+import { ShiftsService } from '../shifts/shifts.service';
 import { type ConnectionOptions, Queue, Worker } from 'bullmq';
 import { env } from '../config/env';
 import { IngredientOrdersService } from '../tasks/ingredient-orders.service';
@@ -15,6 +16,8 @@ const SCHEDULE = {
   'telegram-send': 10_000,
   /** Spec section 10: bot conversations and tool calls are kept 90 days. */
   'bot-retention': 24 * 60 * 60_000,
+  /** Spec section 9: punch differences flagged red, to the admins. */
+  'punch-flags': 15 * 60_000,
   /** Spec section 9: phone push, retried three times. */
   'push-send': 15_000,
 } as const;
@@ -55,6 +58,8 @@ export class JobsService implements OnModuleInit, OnModuleDestroy {
   async run(name: JobName): Promise<number> {
     if (name === 'ingredient-reminders') return this.ingredients.sendDueReminders();
     if (name === 'push-send') return this.push.sendPending();
+    if (name === 'punch-flags')
+      return this.moduleRef.get(ShiftsService, { strict: false }).notifyFlags();
     if (name === 'bot-retention')
       return this.moduleRef.get(BotService, { strict: false }).removeOld();
     return this.telegram.sendPending();

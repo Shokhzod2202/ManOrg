@@ -16,6 +16,7 @@ const TEXT: Record<string, string> = {
   'order.edited': 'An order was changed.',
   'order.placed': 'A contractor placed an order.',
   'punch.change_decided': 'Your shift correction was decided.',
+  'punch.flagged': 'A shift needs a look (red flag).',
   'delivery.completed': 'A delivery is waiting for your confirmation.',
   'delivery.change_requested': 'A contractor asked to change a delivery.',
   'delivery.approx_time_changed': 'The delivery time changed.',
@@ -26,6 +27,18 @@ const TEXT: Record<string, string> = {
   'application.approved': 'Your application was approved.',
   'application.rejected': 'Your application was not approved.',
 };
+
+/** The specifics people need at a glance, for the notices that carry them. */
+function detail(n: N): string {
+  const p = n.payload as Record<string, unknown>;
+  if (n.type === 'punch.flagged')
+    return `${String(p.name ?? '')}, ${String(p.date ?? '')}: ${String(p.message ?? '')}`;
+  if (n.type === 'task.assigned' && p.title) return String(p.title);
+  if (n.type === 'ingredient.due' && p.name) return String(p.name);
+  if (n.type === 'delivery.completed' && p.deliveryDate)
+    return `Delivery for ${String(p.deliveryDate)}`;
+  return '';
+}
 
 export default function NotificationsPage() {
   const { data, error, loading, reload } = useApi<{ items: N[] }>('/notifications', 60_000);
@@ -52,6 +65,12 @@ export default function NotificationsPage() {
         >
           <span>
             <b>{TEXT[n.type] ?? n.type}</b>
+            {detail(n) ? (
+              <>
+                <br />
+                <span>{detail(n)}</span>
+              </>
+            ) : null}
             <br />
             <span className="muted small">
               {formatDate(n.createdAt.slice(0, 10))} {formatTime(n.createdAt)}

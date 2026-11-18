@@ -163,6 +163,10 @@ export default function BotPage() {
                 <span>“Add ingredient flour, 1500 won, 20 kg from Seoul Flour Co.”</span>
                 <span>“Put Mina on 06:00 to 14:00 Monday to Friday.”</span>
                 <span>
+                  “Approve the waiting shift corrections and accept City Cafe’s added baguettes.”
+                </span>
+                <span>“Give Joon a task to clean the oven today.”</span>
+                <span>
                   Every change shows a preview first. Nothing changes until you press Confirm.
                 </span>
               </div>

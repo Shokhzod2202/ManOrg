@@ -18,6 +18,7 @@ import { DevicesModule } from './devices/devices.module';
 import { BotController } from './bot/bot.controller';
 import { BotService } from './bot/bot.service';
 import { BotTools } from './bot/tools';
+import { MoreBotTools } from './bot/tools-more';
 import { createLlmProvider } from './bot/llm/factory';
 import { LLM_PROVIDER } from './bot/llm/types';
 import { DashboardModule } from './dashboard/dashboard.module';
@@ -75,6 +76,7 @@ import { OrgContextGuard } from './permissions/org-context.guard';
   providers: [
     BotService,
     BotTools,
+    MoreBotTools,
     { provide: LLM_PROVIDER, useFactory: () => createLlmProvider(env()) },
     MeService,
     OrganizationsService,

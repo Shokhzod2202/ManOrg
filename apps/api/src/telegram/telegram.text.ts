@@ -25,6 +25,7 @@ const LINES: Record<string, (p: Payload) => string> = {
   'ingredient.due': (p) => `Order today: <b>${esc(p.name)}</b>`,
   'order.placed': () => 'A contractor placed an order.',
   'order.edited': () => 'Your order was changed by the bakery.',
+  'punch.flagged': (p) => `<b>${esc(p.name)}</b>, ${esc(p.date)}: ${esc(p.message)}`,
   'punch.change_decided': (p) =>
     `Your shift correction for <b>${esc(p.shiftDate)}</b> was ${p.decision === 'approve' ? 'approved' : 'not approved'}.`,
   'order.change_accepted': (p) =>

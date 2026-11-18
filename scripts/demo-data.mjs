@@ -240,10 +240,11 @@ for (const [i, [tok, cid]] of ctoks.entries()) {
       productId: l.productId,
       quantity: j === 0 ? l.quantity + 10 : j === 1 ? Math.max(1, l.quantity - 3) : l.quantity,
     }));
+    // Re-runs: a delivered order takes no changes (409); that is fine for demo data.
     await call(tok, cid, 'POST', `/orders/${o.id}/change-requests`, {
       lines,
       note: 'Extra for a party',
-    });
+    }).catch((e) => console.log('change request skipped:', String(e).slice(0, 100)));
   }
 }
 
