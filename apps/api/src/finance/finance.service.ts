@@ -103,6 +103,11 @@ export class FinanceService {
     return links.map((l) => l.contractor).sort((a, b) => a.name.localeCompare(b.name));
   }
 
+  /** Today in the bakery's time zone. */
+  todayFor(user: AuthUser, org: OrgContext): Promise<string> {
+    return this.db.run(dbContext(user, org), (tx) => this.today(tx, org.organizationId));
+  }
+
   private async today(tx: Tx, providerId: string): Promise<string> {
     const o = await tx.organization.findUnique({
       where: { id: providerId },

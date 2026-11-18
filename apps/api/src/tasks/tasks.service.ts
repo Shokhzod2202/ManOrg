@@ -283,6 +283,7 @@ export class TasksService {
       assignee: person(task.assigneeId),
       createdBy: person(task.createdById),
       dueDate: task.dueDate ? task.dueDate.toISOString().slice(0, 10) : null,
+      recurringTaskId: task.recurringTaskId,
       status: task.status,
       completedAt: task.completedAt,
       completedBy: person(task.completedById),

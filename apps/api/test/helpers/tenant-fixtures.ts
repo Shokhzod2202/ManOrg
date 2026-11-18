@@ -91,8 +91,25 @@ export async function createTenantWithEveryTable(label: string): Promise<TenantF
     await tx.ingredientResponsibility.create({
       data: { ...org, ingredientId: ingredient.id, employeeId: employee!.id },
     });
+    const rule = await tx.recurringTask.create({
+      data: {
+        ...org,
+        assigneeId: employee!.id,
+        createdById: admin!.id,
+        title: 'Clean ovens',
+        frequency: 'daily',
+        startDate: new Date('2026-01-01T00:00:00Z'),
+      },
+    });
     const task = await tx.task.create({
-      data: { ...org, assigneeId: employee!.id, createdById: admin!.id, title: 'Clean ovens' },
+      data: {
+        ...org,
+        assigneeId: employee!.id,
+        createdById: admin!.id,
+        title: 'Clean ovens',
+        recurringTaskId: rule.id,
+        occurrenceDate: new Date('2026-01-01T00:00:00Z'),
+      },
     });
     await tx.taskPhoto.create({
       data: {

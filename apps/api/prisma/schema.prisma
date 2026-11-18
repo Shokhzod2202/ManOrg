@@ -628,6 +628,9 @@ model Task {
   /// One-time token issued right before the camera opens (TSK-2); hashed.
   captureTokenHash    String?    @map("capture_token_hash")
   captureTokenExpires DateTime?  @map("capture_token_expires") @db.Timestamptz(3)
+  /// Phase 3: the repeating task this one was made from, and the day it is for (made once).
+  recurringTaskId     String?    @map("recurring_task_id") @db.Uuid
+  occurrenceDate      DateTime?  @map("occurrence_date") @db.Date
   version             Int        @default(1)
   createdAt           DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt           DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -637,6 +640,7 @@ model Task {
   ingredientOrders IngredientOrder[]
 
   @@unique([id, organizationId])
+  @@unique([recurringTaskId, occurrenceDate])
   @@index([organizationId, assigneeId, status])
   @@map("tasks")
 }
@@ -1151,4 +1155,36 @@ model BalanceAdjustment {
 
   @@index([organizationId, contractorOrgId, effectiveDate])
   @@map("balance_adjustments")
+}
+
+enum RecurrenceFrequency {
+  daily
+  weekly
+  monthly
+
+  @@map("recurrence_frequency")
+}
+
+/// Phase 3: a task that repeats, e.g. "clean the proofer every Monday". Each due day gets one task.
+model RecurringTask {
+  id             String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String              @map("organization_id") @db.Uuid
+  assigneeId     String              @map("assignee_id") @db.Uuid
+  title          String
+  description    String?
+  frequency      RecurrenceFrequency
+  /// For weekly: 0 = Sunday ... 6 = Saturday.
+  weekdays       Int[]               @default([])
+  /// For monthly: 1 to 31; a shorter month uses its last day.
+  dayOfMonth     Int?                @map("day_of_month")
+  startDate      DateTime            @map("start_date") @db.Date
+  endDate        DateTime?           @map("end_date") @db.Date
+  active         Boolean             @default(true)
+  createdById    String              @map("created_by") @db.Uuid
+  version        Int                 @default(1)
+  createdAt      DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([organizationId, active])
+  @@map("recurring_tasks")
 }

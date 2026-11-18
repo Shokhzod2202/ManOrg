@@ -7,6 +7,7 @@ import {
   type ApiError,
   formatDate,
   formatTime,
+  patch,
   post,
   type Schemas,
   today,
@@ -17,15 +18,26 @@ import { useApi } from '../../../lib/use-api';
 type Task = Schemas['Task'];
 type Member = Schemas['Member'];
 type IngOrder = Schemas['IngredientOrder'];
+type Rule = Schemas['RecurringTask'];
+
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+/** "Every Mon, Wed" and the like. */
+export function repeatText(r: Pick<Rule, 'frequency' | 'weekdays' | 'dayOfMonth'>): string {
+  if (r.frequency === 'daily') return 'Every day';
+  if (r.frequency === 'weekly') return `Every ${r.weekdays.map((d) => WEEKDAYS[d]).join(', ')}`;
+  return r.dayOfMonth === 31 ? 'Every month on the last day' : `Every month on day ${r.dayOfMonth}`;
+}
 
 export default function TasksPage() {
   const { actor } = useSession();
   const admin = actor === 'org_admin';
-  const [status, setStatus] = useState<'open' | 'done'>('open');
+  const [status, setStatus] = useState<'open' | 'done' | 'repeating'>('open');
   const { data, error, loading, reload } = useApi<{ items: Task[] }>(
-    `/tasks?status=${status}`,
+    `/tasks?status=${status === 'repeating' ? 'open' : status}`,
     60_000,
   );
+  const [rulesVersion, setRulesVersion] = useState(0);
 
   return (
     <div className="page">
@@ -47,9 +59,59 @@ export default function TasksPage() {
           >
             Done
           </button>
+          {admin ? (
+            <button
+              role="tab"
+              aria-selected={status === 'repeating'}
+              className={status === 'repeating' ? 'on' : ''}
+              onClick={() => setStatus('repeating')}
+            >
+              Repeating
+            </button>
+          ) : null}
         </div>
       </PageHead>
-      {admin ? <NewTask onCreated={reload} /> : null}
+      {admin ? (
+        <NewTask
+          onCreated={() => {
+            reload();
+            setRulesVersion((v) => v + 1);
+          }}
+        />
+      ) : null}
+      {status === 'repeating' ? (
+        <RepeatingTasks key={rulesVersion} />
+      ) : (
+        <TaskList
+          status={status}
+          data={data}
+          error={error}
+          loading={loading}
+          reload={reload}
+          admin={admin}
+        />
+      )}
+    </div>
+  );
+}
+
+function TaskList({
+  status,
+  data,
+  error,
+  loading,
+  reload,
+  admin,
+}: {
+  status: 'open' | 'done';
+  data: { items: Task[] } | null | undefined;
+  error: ApiError | null;
+  loading: boolean;
+  reload: () => void;
+  admin: boolean;
+}) {
+  return (
+    <>
       <IngredientOrders admin={admin} />
       {loading && !data ? <Loading /> : null}
       <ErrorBox error={error} onRetry={reload} />
@@ -59,7 +121,65 @@ export default function TasksPage() {
       {data?.items.map((t) => (
         <TaskCard key={t.id} task={t} onDone={reload} />
       ))}
-    </div>
+    </>
+  );
+}
+
+/** Phase 3: rules that make a task on each due day; pause, resume or end them. */
+function RepeatingTasks() {
+  const { data, error, loading, reload } = useApi<{ items: Rule[] }>('/recurring-tasks');
+  const [err, setErr] = useState<ApiError | null>(null);
+
+  async function change(r: Rule, body: Partial<Pick<Rule, 'active' | 'endDate'>>) {
+    setErr(null);
+    try {
+      await patch(`/recurring-tasks/${r.id}`, body, { ifMatch: r.version });
+      reload();
+    } catch (e) {
+      setErr(e as ApiError);
+    }
+  }
+
+  return (
+    <>
+      {loading && !data ? <Loading /> : null}
+      <ErrorBox error={error ?? err} onRetry={reload} />
+      {data && !data.items.length ? (
+        <Empty>
+          No repeating tasks. Choose “Repeat” on a new task to make one every day, week or month.
+        </Empty>
+      ) : null}
+      {data?.items.map((r) => {
+        const ended = r.endDate !== null && r.endDate < today();
+        return (
+          <section key={r.id} className="card">
+            <div className="row between wrap">
+              <h2>{r.title}</h2>
+              <span className={r.active && !ended ? 'pill ok' : 'pill'}>
+                {ended ? 'Ended' : r.active ? 'On' : 'Paused'}
+              </span>
+            </div>
+            <span className="muted small">
+              {repeatText(r)} · for {r.assignee?.name ?? 'nobody'} · from {formatDate(r.startDate)}
+              {r.endDate ? ` to ${formatDate(r.endDate)}` : ''}
+              {r.lastMade
+                ? ` · last made ${formatDate(r.lastMade.date)} (${r.lastMade.status === 'done' ? 'done' : 'open'})`
+                : ''}
+            </span>
+            {ended ? null : (
+              <div className="row wrap">
+                <button className="btn ghost" onClick={() => void change(r, { active: !r.active })}>
+                  {r.active ? 'Pause' : 'Resume'}
+                </button>
+                <button className="btn ghost" onClick={() => void change(r, { endDate: today() })}>
+                  End after today
+                </button>
+              </div>
+            )}
+          </section>
+        );
+      })}
+    </>
   );
 }
 
@@ -104,7 +224,14 @@ function TaskCard({ task, onDone }: { task: Task; onDone: () => void }) {
   return (
     <section className="card">
       <div className="row between wrap">
-        <h2>{task.title}</h2>
+        <h2>
+          {task.title}
+          {task.recurringTaskId ? (
+            <span className="pill" style={{ marginLeft: 8, verticalAlign: 'middle' }}>
+              Repeats
+            </span>
+          ) : null}
+        </h2>
         {task.status === 'done' ? (
           <span className="pill ok">
             <Icon name="check" size={14} /> Done
@@ -165,18 +292,32 @@ function NewTask({ onCreated }: { onCreated: () => void }) {
   const [description, setDescription] = useState('');
   const [assigneeId, setAssigneeId] = useState('');
   const [dueDate, setDueDate] = useState(today());
+  const [repeat, setRepeat] = useState<'none' | Rule['frequency']>('none');
+  const [weekdays, setWeekdays] = useState<number[]>([]);
   const [err, setErr] = useState<ApiError | null>(null);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     setErr(null);
+    const common = {
+      title: title.trim(),
+      assigneeId,
+      ...(description.trim() ? { description: description.trim() } : {}),
+    };
     try {
-      await post('/tasks', {
-        title: title.trim(),
-        assigneeId,
-        dueDate,
-        ...(description.trim() ? { description: description.trim() } : {}),
-      });
+      if (repeat === 'none') {
+        await post('/tasks', { ...common, dueDate });
+      } else {
+        await post('/recurring-tasks', {
+          ...common,
+          frequency: repeat,
+          startDate: dueDate,
+          ...(repeat === 'weekly' ? { weekdays } : {}),
+          ...(repeat === 'monthly' ? { dayOfMonth: Number(dueDate.slice(8, 10)) } : {}),
+        });
+      }
+      setRepeat('none');
+      setWeekdays([]);
       setTitle('');
       setDescription('');
       setOpen(false);
@@ -223,7 +364,7 @@ function NewTask({ onCreated }: { onCreated: () => void }) {
           </select>
         </label>
         <label className="field">
-          Due
+          {repeat === 'none' ? 'Due' : 'Starting'}
           <input
             type="date"
             required
@@ -233,8 +374,51 @@ function NewTask({ onCreated }: { onCreated: () => void }) {
           />
         </label>
       </div>
+      <label className="field">
+        Repeat
+        <select
+          value={repeat}
+          onChange={(e) => {
+            const v = e.target.value as typeof repeat;
+            setRepeat(v);
+            if (v === 'weekly' && !weekdays.length)
+              setWeekdays([new Date(`${dueDate}T00:00:00Z`).getUTCDay()]);
+          }}
+        >
+          <option value="none">Does not repeat</option>
+          <option value="daily">Every day</option>
+          <option value="weekly">Every week on…</option>
+          <option value="monthly">Every month on day {Number(dueDate.slice(8, 10))}</option>
+        </select>
+      </label>
+      {repeat === 'weekly' ? (
+        <div className="row wrap" role="group" aria-label="Weekdays">
+          {WEEKDAYS.map((name, i) => (
+            <label key={name} className="row" style={{ gap: 4 }}>
+              <input
+                type="checkbox"
+                checked={weekdays.includes(i)}
+                onChange={(e) =>
+                  setWeekdays(
+                    e.target.checked ? [...weekdays, i].sort() : weekdays.filter((d) => d !== i),
+                  )
+                }
+              />
+              {name}
+            </label>
+          ))}
+        </div>
+      ) : null}
+      {repeat !== 'none' ? (
+        <span className="muted small">
+          A new task is made on each of these days, starting {formatDate(dueDate)}. Finished tasks
+          still need a camera photo.
+        </span>
+      ) : null}
       <div className="row">
-        <button className="btn">Create task</button>
+        <button className="btn" disabled={repeat === 'weekly' && !weekdays.length}>
+          {repeat === 'none' ? 'Create task' : 'Start repeating task'}
+        </button>
         <button type="button" className="btn ghost" onClick={() => setOpen(false)}>
           Cancel
         </button>

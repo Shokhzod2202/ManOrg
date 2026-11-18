@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { LLM_PROVIDER } from '../../src/bot/llm/types';
 import { TOOL_LIST } from '../../src/bot/tools';
 import { addDays, localDate } from '../../src/common/time';
-import { Api, createTestApp } from '../helpers/app';
+import { Api, createTestApp, PNG } from '../helpers/app';
 import { asOwner, disconnectDatabases, resetDatabase } from '../helpers/db';
 import { ScriptedLlm, say } from '../helpers/scripted-llm';
 import { buildWorld, type World } from '../helpers/world';
@@ -19,7 +19,9 @@ const today = () => localDate('Asia/Seoul');
 beforeAll(async () => {
   await resetDatabase();
   llm = new ScriptedLlm();
-  app = await createTestApp({}, [{ token: LLM_PROVIDER, value: llm }]);
+  app = await createTestApp({ BOT_MESSAGES_PER_MINUTE: '100' }, [
+    { token: LLM_PROVIDER, value: llm },
+  ]);
   api = new Api(app);
   w = await buildWorld(api);
 });
@@ -200,6 +202,81 @@ describe('bot: more admin powers, all previewed', () => {
     expect(list.body.items.find((o: { id: string }) => o.id === order.body.id).status).toBe(
       'fulfilled',
     );
+  });
+
+  it('starts and pauses a repeating task (phase 3)', async () => {
+    const p = await propose('create_recurring_task', {
+      title: 'Descale the kettle',
+      assignee_id: w.a.employee.userId,
+      frequency: 'weekly',
+      weekdays: [1, 4],
+      start_date: addDays(today(), 1),
+    });
+    expect(p.summary).toContain(w.a.employee.name);
+    expect((await admin().get('/recurring-tasks').expect(200)).body.items).toHaveLength(0);
+    await confirm(p.id);
+    const rules = (await admin().get('/recurring-tasks').expect(200)).body.items;
+    expect(rules).toMatchObject([{ title: 'Descale the kettle', weekdays: [1, 4], active: true }]);
+    const pause = await propose('change_recurring_task', {
+      recurring_task_id: rules[0].id,
+      active: false,
+    });
+    await confirm(pause.id);
+    expect((await admin().get('/recurring-tasks').expect(200)).body.items[0].active).toBe(false);
+    expect(await botAudit('recurring_task.create')).toBe(1);
+    expect(await botAudit('recurring_task.update')).toBe(1);
+  });
+
+  it('sets a product price and approves a payment oldest delivery first (F-001)', async () => {
+    const price = await propose('set_product_price', {
+      product_id: w.a.productId,
+      unit_price: 1500,
+    });
+    expect(price.changes[0]).toMatchObject({ before: '1000 won', after: '1500 won' });
+    await confirm(price.id);
+    expect(await botAudit('product.price')).toBe(1);
+
+    // Two past deliveries of 10 at 1,500 won, and a payment of 20,000 won.
+    const dates = [addDays(today(), -9), addDays(today(), -8)];
+    for (const date of dates) {
+      await asOwner({ organizationId: w.a.id, userId: w.a.admin.userId }, (tx) =>
+        tx.order.create({
+          data: {
+            organizationId: w.a.id,
+            contractorOrgId: w.contractor.id,
+            deliveryDate: new Date(`${date}T00:00:00Z`),
+            placedById: w.contractor.admin.userId,
+            lines: {
+              create: [{ productId: w.a.productId, productName: 'Alpha Bread', quantity: 10 }],
+            },
+          },
+        }),
+      );
+      const saved = await admin()
+        .put(`/deliveries/${w.contractor.id}/${date}`)
+        .send({ lines: [{ productId: w.a.productId, deliveredQuantity: 10 }] })
+        .expect(200);
+      await admin().post(`/deliveries/${saved.body.id}/complete`).expect(200);
+    }
+    const paid = await api
+      .as(w.contractor.admin, w.contractor.id)
+      .post('/payments')
+      .field('providerId', w.a.id)
+      .field('amount', '20000')
+      .attach('proof', PNG, 'receipt.png')
+      .expect(201);
+    const p = await propose('decide_payment', { payment_id: paid.body.id, decision: 'approve' });
+    expect(p.changes.map((c) => c.after)).toEqual(['15000 won paid', '5000 won paid']);
+    expect(
+      (await admin().get(`/finance/summary?contractor_id=${w.contractor.id}`).expect(200)).body
+        .contractors[0].outstanding,
+    ).toBe(30_000);
+    await confirm(p.id);
+    expect(
+      (await admin().get(`/finance/summary?contractor_id=${w.contractor.id}`).expect(200)).body
+        .contractors[0].outstanding,
+    ).toBe(10_000);
+    expect(await botAudit('payment.approve')).toBe(1);
   });
 
   it('still has no tool that deletes, or changes roles or its own permissions', async () => {

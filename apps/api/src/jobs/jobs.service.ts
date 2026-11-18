@@ -6,6 +6,7 @@ import { ShiftsService } from '../shifts/shifts.service';
 import { type ConnectionOptions, Queue, Worker } from 'bullmq';
 import { env } from '../config/env';
 import { IngredientOrdersService } from '../tasks/ingredient-orders.service';
+import { RecurringTasksService } from '../tasks/recurring-tasks.service';
 import { TelegramService } from '../telegram/telegram.service';
 
 /** Repeating work, by job name: what it does and how often. */
@@ -20,6 +21,8 @@ const SCHEDULE = {
   'punch-flags': 15 * 60_000,
   /** Spec section 9: phone push, retried three times. */
   'push-send': 15_000,
+  /** Phase 3: repeating tasks make each due day's task. */
+  'recurring-tasks': 15 * 60_000,
 } as const;
 export type JobName = keyof typeof SCHEDULE;
 
@@ -58,6 +61,8 @@ export class JobsService implements OnModuleInit, OnModuleDestroy {
   async run(name: JobName): Promise<number> {
     if (name === 'ingredient-reminders') return this.ingredients.sendDueReminders();
     if (name === 'push-send') return this.push.sendPending();
+    if (name === 'recurring-tasks')
+      return this.moduleRef.get(RecurringTasksService, { strict: false }).generate();
     if (name === 'punch-flags')
       return this.moduleRef.get(ShiftsService, { strict: false }).notifyFlags();
     if (name === 'bot-retention')

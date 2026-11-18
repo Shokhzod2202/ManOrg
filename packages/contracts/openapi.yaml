@@ -2270,6 +2270,83 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /recurring-tasks:
+    get:
+      operationId: listRecurringTasks
+      summary: 'Repeating tasks (phase 3)'
+      description: 'Rules that make an ordinary task on each due day. Admins with tasks.manage.'
+      tags: [tasks]
+      x-tenant-scoped: true
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/RecurringTask' }
+                  nextCursor: { $ref: '#/components/schemas/NextCursor' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      operationId: createRecurringTask
+      summary: 'Start a repeating task'
+      description: 'Daily, weekly on chosen weekdays (0 = Sunday), or monthly on a day (31 means the last day of shorter months). A rule due today makes today’s task at once; a job every 15 minutes makes the rest, once per day. Audited.'
+      tags: [tasks]
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateRecurringTaskRequest' }
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RecurringTask' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /recurring-tasks/{id}:
+    patch:
+      operationId: updateRecurringTask
+      summary: 'Change, pause or resume a repeating task'
+      description: 'Tasks already made are not changed. Audited.'
+      tags: [tasks]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateRecurringTaskRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RecurringTask' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+
   /tasks/{id}:
     get:
       operationId: getTask
@@ -4399,6 +4476,7 @@ components:
           assignee,
           createdBy,
           dueDate,
+          recurringTaskId,
           status,
           completedAt,
           completedBy,
@@ -4422,6 +4500,10 @@ components:
             - $ref: '#/components/schemas/PersonRef'
             - type: 'null'
         dueDate: { type: [string, 'null'], format: date }
+        recurringTaskId:
+          description: Set when a repeating task made this task (phase 3).
+          type: [string, 'null']
+          format: uuid
         status: { type: string, enum: [open, done] }
         completedAt: { type: [string, 'null'], format: date-time }
         completedBy:
@@ -4449,6 +4531,75 @@ components:
         description: { type: string, maxLength: 2000 }
         assigneeId: { type: string, format: uuid }
         dueDate: { type: string, format: date }
+    RecurringTask:
+      type: object
+      required:
+        [
+          id,
+          title,
+          description,
+          assignee,
+          frequency,
+          weekdays,
+          dayOfMonth,
+          startDate,
+          endDate,
+          active,
+          lastMade,
+          version,
+          createdAt,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        description: { type: [string, 'null'] }
+        assignee:
+          oneOf:
+            - $ref: '#/components/schemas/PersonRef'
+            - type: 'null'
+        frequency: { type: string, enum: [daily, weekly, monthly] }
+        weekdays: { type: array, items: { type: integer, minimum: 0, maximum: 6 } }
+        dayOfMonth: { type: [integer, 'null'], minimum: 1, maximum: 31 }
+        startDate: { type: string, format: date }
+        endDate: { type: [string, 'null'], format: date }
+        active: { type: boolean }
+        lastMade:
+          oneOf:
+            - type: object
+              required: [date, status]
+              properties:
+                date: { type: string, format: date }
+                status: { type: string, enum: [open, done] }
+            - type: 'null'
+        version: { type: integer }
+        createdAt: { type: string, format: date-time }
+    CreateRecurringTaskRequest:
+      type: object
+      additionalProperties: false
+      required: [title, assigneeId, frequency, startDate]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: [string, 'null'], maxLength: 2000 }
+        assigneeId: { type: string, format: uuid }
+        frequency: { type: string, enum: [daily, weekly, monthly] }
+        weekdays: { type: array, maxItems: 7, items: { type: integer, minimum: 0, maximum: 6 } }
+        dayOfMonth: { type: [integer, 'null'], minimum: 1, maximum: 31 }
+        startDate: { type: string, format: date }
+        endDate: { type: [string, 'null'], format: date }
+    UpdateRecurringTaskRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: [string, 'null'], maxLength: 2000 }
+        assigneeId: { type: string, format: uuid }
+        frequency: { type: string, enum: [daily, weekly, monthly] }
+        weekdays: { type: array, maxItems: 7, items: { type: integer, minimum: 0, maximum: 6 } }
+        dayOfMonth: { type: [integer, 'null'], minimum: 1, maximum: 31 }
+        startDate: { type: string, format: date }
+        endDate: { type: [string, 'null'], format: date }
+        active: { type: boolean }
     UpdateTaskRequest:
       type: object
       additionalProperties: false

@@ -1287,6 +1287,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/recurring-tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Repeating tasks (phase 3)
+         * @description Rules that make an ordinary task on each due day. Admins with tasks.manage.
+         */
+        get: operations["listRecurringTasks"];
+        put?: never;
+        /**
+         * Start a repeating task
+         * @description Daily, weekly on chosen weekdays (0 = Sunday), or monthly on a day (31 means the last day of shorter months). A rule due today makes today’s task at once; a job every 15 minutes makes the rest, once per day. Audited.
+         */
+        post: operations["createRecurringTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/recurring-tasks/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change, pause or resume a repeating task
+         * @description Tasks already made are not changed. Audited.
+         */
+        patch: operations["updateRecurringTask"];
+        trace?: never;
+    };
     "/tasks/{id}": {
         parameters: {
             query?: never;
@@ -2791,6 +2835,11 @@ export interface components {
             createdBy: components["schemas"]["PersonRef"] | null;
             /** Format: date */
             dueDate: string | null;
+            /**
+             * Format: uuid
+             * @description Set when a repeating task made this task (phase 3).
+             */
+            recurringTaskId: string | null;
             /** @enum {string} */
             status: "open" | "done";
             /** Format: date-time */
@@ -2820,6 +2869,60 @@ export interface components {
             assigneeId: string;
             /** Format: date */
             dueDate: string;
+        };
+        RecurringTask: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            description: string | null;
+            assignee: components["schemas"]["PersonRef"] | null;
+            /** @enum {string} */
+            frequency: "daily" | "weekly" | "monthly";
+            weekdays: number[];
+            dayOfMonth: number | null;
+            /** Format: date */
+            startDate: string;
+            /** Format: date */
+            endDate: string | null;
+            active: boolean;
+            lastMade: {
+                /** Format: date */
+                date: string;
+                /** @enum {string} */
+                status: "open" | "done";
+            } | null;
+            version: number;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        CreateRecurringTaskRequest: {
+            title: string;
+            description?: string | null;
+            /** Format: uuid */
+            assigneeId: string;
+            /** @enum {string} */
+            frequency: "daily" | "weekly" | "monthly";
+            weekdays?: number[];
+            dayOfMonth?: number | null;
+            /** Format: date */
+            startDate: string;
+            /** Format: date */
+            endDate?: string | null;
+        };
+        UpdateRecurringTaskRequest: {
+            title?: string;
+            description?: string | null;
+            /** Format: uuid */
+            assigneeId?: string;
+            /** @enum {string} */
+            frequency?: "daily" | "weekly" | "monthly";
+            weekdays?: number[];
+            dayOfMonth?: number | null;
+            /** Format: date */
+            startDate?: string;
+            /** Format: date */
+            endDate?: string | null;
+            active?: boolean;
         };
         UpdateTaskRequest: {
             title?: string;
@@ -5922,6 +6025,104 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    listRecurringTasks: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["RecurringTask"][];
+                        nextCursor: components["schemas"]["NextCursor"];
+                    };
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createRecurringTask: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateRecurringTaskRequest"];
+            };
+        };
+        responses: {
+            /** @description Created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecurringTask"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateRecurringTask: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+                /** @description The `version` of the record being edited. */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateRecurringTaskRequest"];
+            };
+        };
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecurringTask"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            428: components["responses"]["PreconditionRequired"];
         };
     };
     getTask: {

@@ -1,14 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { orgCan } from '../common/request-context';
-import { isoDate } from '../common/time';
+import { addDays, isoDate } from '../common/time';
 import { DueNextService } from '../deliveries/due-next.service';
+import { FinanceService } from '../finance/finance.service';
 import { IngredientsService } from '../ingredients/ingredients.service';
 import { OrdersService } from '../orders/orders.service';
 import { type Capability } from '../permissions/permissions';
 import { ProductsService } from '../products/products.service';
 import { ShiftsService } from '../shifts/shifts.service';
 import { IngredientOrdersService } from '../tasks/ingredient-orders.service';
+import { RecurringTasksService } from '../tasks/recurring-tasks.service';
 import { TasksService } from '../tasks/tasks.service';
 import { type LlmTool } from './llm/types';
 import { type BotCtx, type Preview, ToolInputError } from './tool-types';
@@ -51,6 +53,49 @@ const madeInput = z.strictObject({
   product_id: uuid,
   contractor_id: uuid.optional().describe('Leave out for every contractor'),
   made: z.boolean(),
+});
+
+// Phase 3.
+const recurringInput = z.strictObject({
+  title: z.string().trim().min(1).max(200),
+  description: z.string().trim().max(2000).optional(),
+  assignee_id: uuid,
+  frequency: z.enum(['daily', 'weekly', 'monthly']),
+  weekdays: z
+    .array(z.number().int().min(0).max(6))
+    .max(7)
+    .optional()
+    .describe('For weekly: 0 = Sunday … 6 = Saturday'),
+  day_of_month: z
+    .number()
+    .int()
+    .min(1)
+    .max(31)
+    .optional()
+    .describe('For monthly; 31 means the last day of shorter months'),
+  start_date: isoDate,
+  end_date: isoDate.optional(),
+});
+const recurringChangeInput = z.strictObject({
+  recurring_task_id: uuid,
+  active: z.boolean().optional().describe('false pauses, true resumes'),
+  end_date: isoDate.nullable().optional().describe('Last day it makes a task; null for no end'),
+});
+const priceInput = z.strictObject({
+  product_id: uuid,
+  unit_price: z.number().int().min(0).max(100_000_000).describe('Whole won per piece'),
+});
+const paymentInput = z.strictObject({
+  payment_id: uuid,
+  decision: z.enum(['approve', 'reject']),
+  approved_amount: z
+    .number()
+    .int()
+    .min(1)
+    .optional()
+    .describe('Whole won; leave out to approve the amount the contractor submitted'),
+  payment_date: isoDate.optional().describe('Leave out for today'),
+  reason: z.string().trim().min(1).max(500).optional().describe('Needed to reject'),
 });
 
 function schemaOf(schema: z.ZodType): Record<string, unknown> {
@@ -129,6 +174,42 @@ export const MORE_TOOLS: Record<string, { schema: z.ZodType; def: LlmTool; caps:
       ingredientOrderInput,
     ),
   },
+  create_recurring_task: {
+    schema: recurringInput,
+    caps: ['tasks.manage'],
+    def: def(
+      'create_recurring_task',
+      'Propose a repeating task: one ordinary task for the employee every day, every week on chosen weekdays, or every month on a day, from start_date.',
+      recurringInput,
+    ),
+  },
+  change_recurring_task: {
+    schema: recurringChangeInput,
+    caps: ['tasks.manage'],
+    def: def(
+      'change_recurring_task',
+      'Propose pausing, resuming or ending a repeating task (see search_data repeating_tasks). Tasks already made stay.',
+      recurringChangeInput,
+    ),
+  },
+  set_product_price: {
+    schema: priceInput,
+    caps: ['prices.manage'],
+    def: def(
+      'set_product_price',
+      'Propose a new unit price for a product. It applies to deliveries completed from now on; earlier deliveries keep their price.',
+      priceInput,
+    ),
+  },
+  decide_payment: {
+    schema: paymentInput,
+    caps: ['payments.review'],
+    def: def(
+      'decide_payment',
+      "Propose approving a contractor's pending payment (allocated to their oldest unpaid deliveries first) or rejecting it with a reason (see search_data payments).",
+      paymentInput,
+    ),
+  },
   mark_made: {
     schema: madeInput,
     caps: ['orders.markMade'],
@@ -152,7 +233,49 @@ export class MoreBotTools {
     private readonly ingredients: IngredientsService,
     private readonly ingredientOrders: IngredientOrdersService,
     private readonly dueNext: DueNextService,
+    private readonly recurring: RecurringTasksService,
+    private readonly finance: FinanceService,
   ) {}
+
+  private async pendingPayment(ctx: BotCtx, id: string) {
+    const list = (await this.finance.listPayments(ctx.user, ctx.org, { status: 'pending' }))
+      .items as {
+      id: string;
+      submittedAmount: number;
+      contractor: { id: string; name: string } | null;
+    }[];
+    const p = list.find((x) => x.id === id);
+    if (!p) throw new ToolInputError('No pending payment with that id.');
+    return p;
+  }
+
+  /** Rule 4 of F-001: the approved amount goes to the oldest deliveries with something left. */
+  private async oldestFirst(ctx: BotCtx, contractorId: string, amount: number) {
+    const today = await this.finance.todayFor(ctx.user, ctx.org);
+    const list = (
+      await this.finance.deliveries(ctx.user, ctx.org, {
+        contractor_id: contractorId,
+        from: addDays(today, -369),
+        to: addDays(today, 30),
+      })
+    ).items as { id: string; deliveryDate: string; remainingValue: number }[];
+    let left = amount;
+    const allocations: { deliveryId: string; amount: number; date: string }[] = [];
+    for (const d of [...list]
+      .filter((x) => x.remainingValue > 0)
+      .sort((a, b) => a.deliveryDate.localeCompare(b.deliveryDate))) {
+      if (left <= 0) break;
+      const take = Math.min(left, d.remainingValue);
+      allocations.push({ deliveryId: d.id, amount: take, date: d.deliveryDate });
+      left -= take;
+    }
+    if (left > 0) {
+      throw new ToolInputError(
+        `Only ${amount - left} won is left to pay on this contractor's deliveries; approve at most that.`,
+      );
+    }
+    return { allocations, today };
+  }
 
   private async employeeName(ctx: BotCtx, id: string): Promise<string> {
     const plans = (await this.shifts.listPlans(ctx.user, ctx.org)).items;
@@ -315,6 +438,91 @@ export class MoreBotTools {
         }
         return one(`${o.ingredient.name} × ${o.quantity} packs`, o.ingredient.name, o.status, next);
       }
+      case 'create_recurring_task': {
+        const r = raw as z.infer<typeof recurringInput>;
+        const who = await this.employeeName(ctx, r.assignee_id);
+        if (r.frequency === 'weekly' && !r.weekdays?.length)
+          throw new ToolInputError('Give weekdays for a weekly task.');
+        if (r.frequency === 'monthly' && !r.day_of_month)
+          throw new ToolInputError('Give day_of_month for a monthly task.');
+        const when =
+          r.frequency === 'daily'
+            ? 'every day'
+            : r.frequency === 'weekly'
+              ? `every ${r.weekdays!.map((d) => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d]).join(', ')}`
+              : `every month on day ${r.day_of_month}`;
+        return one(`Repeating task for ${who}`, r.title, null, {
+          for: who,
+          repeats: when,
+          from: r.start_date,
+          until: r.end_date ?? 'no end',
+        });
+      }
+      case 'change_recurring_task': {
+        const c = raw as z.infer<typeof recurringChangeInput>;
+        if (c.active === undefined && c.end_date === undefined)
+          throw new ToolInputError('Give active or end_date.');
+        const rules = (await this.recurring.list(ctx.user, ctx.org)).items;
+        const r = rules.find((x) => x.id === c.recurring_task_id);
+        if (!r) throw new ToolInputError('No repeating task with that id.');
+        return one(
+          `Change the repeating task "${r.title}"`,
+          r.title,
+          { on: r.active, until: r.endDate ?? 'no end' },
+          {
+            on: c.active ?? r.active,
+            until: c.end_date === undefined ? (r.endDate ?? 'no end') : (c.end_date ?? 'no end'),
+          },
+          { ...c, _version: r.version },
+        );
+      }
+      case 'set_product_price': {
+        const p = raw as z.infer<typeof priceInput>;
+        const product = (await this.products.list(ctx.user, ctx.org)).items.find(
+          (x) => x.id === p.product_id,
+        ) as { name: string; unitPrice?: number | null } | undefined;
+        if (!product) throw new ToolInputError('No product with that id in this organization.');
+        return one(
+          `New price for ${product.name}`,
+          product.name,
+          product.unitPrice == null ? 'no price' : `${product.unitPrice} won`,
+          `${p.unit_price} won`,
+        );
+      }
+      case 'decide_payment': {
+        const d = raw as z.infer<typeof paymentInput>;
+        const pay = await this.pendingPayment(ctx, d.payment_id);
+        const who = pay.contractor?.name ?? 'Contractor';
+        if (d.decision === 'reject') {
+          if (!d.reason) throw new ToolInputError('Give a reason to reject.');
+          return one(`Reject ${who}'s payment`, who, `${pay.submittedAmount} won pending`, {
+            rejected: d.reason,
+          });
+        }
+        const amount = d.approved_amount ?? pay.submittedAmount;
+        const { allocations, today } = await this.oldestFirst(ctx, pay.contractor!.id, amount);
+        const paymentDate = d.payment_date ?? today;
+        return {
+          input: {
+            payment_id: d.payment_id,
+            decision: 'approve',
+            _approve: {
+              approvedAmount: amount,
+              paymentDate,
+              allocations: allocations.map((a) => ({ deliveryId: a.deliveryId, amount: a.amount })),
+            },
+          },
+          preview: {
+            summary: `Approve ${amount} won from ${who}${amount !== pay.submittedAmount ? ` (submitted ${pay.submittedAmount})` : ''}, paid ${paymentDate}`,
+            rows: allocations.length,
+            changes: allocations.map((a) => ({
+              label: `Delivery ${a.date}`,
+              before: 'unpaid part',
+              after: `${a.amount} won paid`,
+            })),
+          },
+        };
+      }
       case 'mark_made': {
         const m = raw as z.infer<typeof madeInput>;
         const due = await this.dueNext.dueNext(ctx.user, ctx.org, m.contractor_id);
@@ -372,6 +580,41 @@ export class MoreBotTools {
       case 'advance_ingredient_order': {
         const a = input as z.infer<typeof ingredientOrderInput>;
         return this.ingredientOrders.advance(user, org, a.order_id, a.step);
+      }
+      case 'create_recurring_task': {
+        const r = input as z.infer<typeof recurringInput>;
+        return this.recurring.create(user, org, {
+          title: r.title,
+          assigneeId: r.assignee_id,
+          frequency: r.frequency,
+          startDate: r.start_date,
+          ...(r.description ? { description: r.description } : {}),
+          ...(r.weekdays ? { weekdays: r.weekdays } : {}),
+          ...(r.day_of_month ? { dayOfMonth: r.day_of_month } : {}),
+          ...(r.end_date ? { endDate: r.end_date } : {}),
+        });
+      }
+      case 'change_recurring_task': {
+        const c = input as z.infer<typeof recurringChangeInput> & { _version: number };
+        return this.recurring.update(user, org, c.recurring_task_id, c._version, {
+          ...(c.active !== undefined ? { active: c.active } : {}),
+          ...(c.end_date !== undefined ? { endDate: c.end_date } : {}),
+        });
+      }
+      case 'set_product_price': {
+        const p = input as z.infer<typeof priceInput>;
+        return this.products.setPrice(user, org, p.product_id, p.unit_price);
+      }
+      case 'decide_payment': {
+        const d = input as z.infer<typeof paymentInput> & {
+          _approve?: {
+            approvedAmount: number;
+            paymentDate: string;
+            allocations: { deliveryId: string; amount: number }[];
+          };
+        };
+        if (d.decision === 'reject') return this.finance.reject(user, org, d.payment_id, d.reason!);
+        return this.finance.approve(user, org, d.payment_id, d._approve!);
       }
       case 'mark_made': {
         const m = input as z.infer<typeof madeInput>;
