@@ -1,4 +1,5 @@
-// Spec section 13: every requirement ID in section 3 needs at least one automated test.
+// Spec section 13: every requirement ID in section 3, and in section 2 of the F-001 change log
+// (phase 3), needs at least one automated test.
 // Lists each ID with the test files that name it; fails when an ID has none. Ranges such as
 // "DTM-1 to DTM-6" in a test name count for every ID inside them.
 import { readdirSync, readFileSync, statSync } from 'node:fs';
@@ -7,7 +8,15 @@ import { join, relative } from 'node:path';
 const root = new URL('..', import.meta.url).pathname;
 const spec = readFileSync(join(root, 'docs/SPEC.md'), 'utf8');
 const section3 = spec.slice(spec.indexOf('## 3. Functional requirements'), spec.indexOf('## 4.'));
-const ids = [...new Set([...section3.matchAll(/^\| ([A-Z]+-\d+) \|/gm)].map((m) => m[1]))];
+const f001 = readFileSync(join(root, 'docs/F-001.md'), 'utf8');
+const f001Requirements = f001.slice(f001.indexOf('## 2. Requirements'), f001.indexOf('## 3.'));
+const ids = [
+  ...new Set(
+    [section3, f001Requirements].flatMap((text) =>
+      [...text.matchAll(/^\| ([A-Z]+-\d+) +\|/gm)].map((m) => m[1]),
+    ),
+  ),
+];
 
 const TEST_DIRS = ['apps/api/test', 'apps/api/src', 'apps/web/e2e', 'apps/web/src', 'packages'];
 const isTest = (f) => /\.test\.tsx?$|e2e\/.*\.cjs$/.test(f);
