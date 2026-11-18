@@ -7,6 +7,7 @@ import { AuthFrame } from '../../components/auth-frame';
 import { ErrorBox, Field } from '../../components/ui';
 import { type ApiError } from '../../lib/api';
 import { useSession } from '../../lib/session';
+import { t } from '../../lib/i18n';
 
 export default function LoginPage() {
   const s = useSession();
@@ -34,10 +35,10 @@ export default function LoginPage() {
   }
 
   return (
-    <AuthFrame title="Sign in">
+    <AuthFrame title={t('Sign in')}>
       <form className="stack" onSubmit={submit}>
         <ErrorBox error={error} />
-        <Field label="Email" error={error?.fields?.email}>
+        <Field label={t('Email')} error={error?.fields?.email}>
           <input
             type="email"
             autoComplete="email"
@@ -46,7 +47,7 @@ export default function LoginPage() {
             onChange={(e) => setEmail(e.target.value)}
           />
         </Field>
-        <Field label="Password" error={error?.fields?.password}>
+        <Field label={t('Password')} error={error?.fields?.password}>
           <input
             type="password"
             autoComplete="current-password"
@@ -56,10 +57,10 @@ export default function LoginPage() {
           />
         </Field>
         <button className="btn big" disabled={busy}>
-          {busy ? 'Signing in…' : 'Sign in'}
+          {busy ? t('Signing in…') : t('Sign in')}
         </button>
         <p className="muted center">
-          New here? <Link href="/register">Create an account</Link>
+          {t('New here?')} <Link href="/register">{t('Create an account')}</Link>
         </p>
       </form>
     </AuthFrame>

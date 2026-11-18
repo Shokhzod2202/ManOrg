@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Icon, Loading } from '../components/ui';
 import { useSession } from '../lib/session';
+import { LanguagePicker, t } from '../lib/i18n';
 
 const POINTS = [
   {
@@ -61,22 +62,26 @@ export default function Landing() {
             HAYDAR
           </b>
         </div>
-        <Link className="btn ghost" href="/login">
-          Sign in
-        </Link>
+        <div className="row">
+          <LanguagePicker />
+          <Link className="btn ghost" href="/login">
+            {t('Sign in')}
+          </Link>
+        </div>
       </header>
       <section className="hero">
-        <h1>Run your bakery’s day in one place</h1>
+        <h1>{t('Run your bakery’s day in one place')}</h1>
         <p className="muted">
-          Shifts, output, tasks, ingredient ordering, next-day orders and deliveries for your team
-          and your contractors.
+          {t(
+            'Shifts, output, tasks, ingredient ordering, next-day orders and deliveries for your team and your contractors.',
+          )}
         </p>
         <div className="row wrap" style={{ justifyContent: 'center' }}>
           <Link className="btn" href="/register" style={{ minWidth: 200 }}>
-            Create account
+            {t('Create account')}
           </Link>
           <Link className="btn ghost" href="/login" style={{ minWidth: 200 }}>
-            Sign in
+            {t('Sign in')}
           </Link>
         </div>
       </section>
@@ -86,9 +91,9 @@ export default function Landing() {
             <span style={{ color: 'var(--primary)' }}>
               <Icon name={p.icon} size={28} />
             </span>
-            <h2>{p.title}</h2>
+            <h2>{t(p.title)}</h2>
             <p className="muted" style={{ margin: 0 }}>
-              {p.text}
+              {t(p.text)}
             </p>
           </div>
         ))}

@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { type ReactNode, useEffect } from 'react';
 import { type Actor, useSession } from '../lib/session';
 import { Icon, Loading } from './ui';
+import { t } from '../lib/i18n';
 
 interface Item {
   href: string;
@@ -83,7 +84,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="shell">
-      <nav className="side" aria-label="Main">
+      <nav className="side" aria-label={t('Main')}>
         <Brand sub={orgName} />
         {items.map((i) => (
           <Link
@@ -93,13 +94,13 @@ export function AppShell({ children }: { children: ReactNode }) {
             aria-current={isOn(i.href) ? 'page' : undefined}
           >
             <Icon name={i.icon} />
-            {i.label}
+            {t(i.label)}
           </Link>
         ))}
         <span className="grow" />
         <Link href="/app/notifications">
           <Icon name="bell" />
-          Notifications
+          {t('Notifications')}
         </Link>
         <button
           type="button"
@@ -109,7 +110,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             router.replace('/');
           }}
         >
-          Sign out
+          {t('Sign out')}
         </button>
       </nav>
       <header className="topbar">
@@ -122,7 +123,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
         <Link
           href="/app/notifications"
-          aria-label="Notifications"
+          aria-label={t('Notifications')}
           className="btn ghost"
           style={{ padding: 0, width: 44 }}
         >
@@ -130,7 +131,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </Link>
       </header>
       <main className="main">{children}</main>
-      <nav className="tabbar" aria-label="Main">
+      <nav className="tabbar" aria-label={t('Main')}>
         {tabs.map((i) => (
           <Link
             key={i.href}
@@ -139,7 +140,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             aria-current={isOn(i.href) ? 'page' : undefined}
           >
             <Icon name={i.icon} size={22} />
-            {i.label}
+            {t(i.label)}
           </Link>
         ))}
       </nav>

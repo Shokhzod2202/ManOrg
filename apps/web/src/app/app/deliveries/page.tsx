@@ -15,6 +15,7 @@ import {
 } from '../../../lib/api';
 import { useSession } from '../../../lib/session';
 import { useApi } from '../../../lib/use-api';
+import { t } from '../../../lib/i18n';
 
 type Delivery = Schemas['Delivery'];
 type Contractor = Schemas['ContractorWithTime'];
@@ -61,13 +62,13 @@ function ProviderDeliveries() {
 
   return (
     <div className="page wide">
-      <PageHead title="Deliveries">
+      <PageHead title={t('Deliveries')}>
         <input
           className="input"
           type="date"
           value={date}
           onChange={(e) => setDate(e.target.value)}
-          aria-label="Delivery date"
+          aria-label={t('Delivery date')}
         />
       </PageHead>
       <ErrorBox
@@ -79,7 +80,7 @@ function ProviderDeliveries() {
       />
       {contractors.loading ? <Loading /> : null}
       {contractors.data && !contractors.data.items.length ? (
-        <Empty>No approved contractors yet. Approve applications under People.</Empty>
+        <Empty>{t('No approved contractors yet. Approve applications under People.')}</Empty>
       ) : null}
       <div className="grid2" style={{ alignItems: 'start' }}>
         <section className="card" style={{ padding: 8 }}>
@@ -113,11 +114,11 @@ function ProviderDeliveries() {
                     <span className="muted small">
                       {c.approxTime
                         ? `About ${c.approxTime.start}–${c.approxTime.end}`
-                        : 'No time set'}
+                        : t('No time set')}
                     </span>
                   </span>
                   <span className={pillFor(d?.status ?? 'not_started')}>
-                    {STATUS[d?.status ?? 'not_started']}
+                    {t(STATUS[d?.status ?? 'not_started'])}
                   </span>
                 </button>
               );
@@ -133,7 +134,7 @@ function ProviderDeliveries() {
             onTimeChange={contractors.reload}
           />
         ) : (
-          <Empty>Choose a contractor to record what was delivered.</Empty>
+          <Empty>{t('Choose a contractor to record what was delivered.')}</Empty>
         )}
       </div>
     </div>
@@ -200,7 +201,7 @@ function DeliveryEditor({
       .filter((id) => !d.lines.some((l) => l.productId === id))
       .map((id) => ({
         productId: id,
-        productName: names.get(id) ?? 'Product',
+        productName: names.get(id) ?? t('Product'),
         orderedQuantity: 0,
         deliveredQuantity: qty[id] ?? 0,
         difference: qty[id] ?? 0,
@@ -228,18 +229,18 @@ function DeliveryEditor({
             {d.window?.start ? ` · ${formatTime(d.window.start)}–${formatTime(d.window.end)}` : ''}
           </span>
         </div>
-        <span className={pillFor(d.status)}>{STATUS[d.status]}</span>
+        <span className={pillFor(d.status)}>{t(STATUS[d.status])}</span>
       </div>
       <ErrorBox error={error} />
-      {!rows.length ? <Empty>No order for this day.</Empty> : null}
+      {!rows.length ? <Empty>{t('No order for this day.')}</Empty> : null}
       {rows.length ? (
         <table className="t cards">
           <thead>
             <tr>
-              <th>Product</th>
-              <th>Ordered</th>
-              <th>Delivered</th>
-              <th>Difference</th>
+              <th>{t('Product')}</th>
+              <th>{t('Ordered')}</th>
+              <th>{t('Delivered')}</th>
+              <th>{t('Difference')}</th>
             </tr>
           </thead>
           <tbody>
@@ -248,16 +249,16 @@ function DeliveryEditor({
               const diff = delivered - l.orderedQuantity;
               return (
                 <tr key={l.productId}>
-                  <td data-label="Product">
+                  <td data-label={t('Product')}>
                     <b>{l.productName}</b>
                     {l.isUnordered ? (
                       <span className="pill warn" style={{ marginLeft: 6 }}>
-                        Not ordered
+                        {t('Not ordered')}
                       </span>
                     ) : null}
                   </td>
-                  <td data-label="Ordered">{l.orderedQuantity}</td>
-                  <td data-label="Delivered">
+                  <td data-label={t('Ordered')}>{l.orderedQuantity}</td>
+                  <td data-label={t('Delivered')}>
                     {editable ? (
                       <input
                         className="input qty"
@@ -274,7 +275,7 @@ function DeliveryEditor({
                       <b>{l.deliveredQuantity}</b>
                     )}
                   </td>
-                  <td data-label="Difference">
+                  <td data-label={t('Difference')}>
                     {diff === 0 ? (
                       <span className="muted">0</span>
                     ) : (
@@ -292,11 +293,11 @@ function DeliveryEditor({
           className="stack"
           style={{ background: 'var(--warn-bg)', borderRadius: 10, padding: 12 }}
         >
-          <b>The contractor asks for a change</b>
+          <b>{t('The contractor asks for a change')}</b>
           {d.pendingChange.reason ? <span>“{d.pendingChange.reason}”</span> : null}
           {d.pendingChange.lines?.map((l) => (
             <span key={l.productId}>
-              {d.lines.find((x) => x.productId === l.productId)?.productName ?? 'Product'}:{' '}
+              {d.lines.find((x) => x.productId === l.productId)?.productName ?? t('Product')}:{' '}
               {l.deliveredQuantity}
             </span>
           ))}
@@ -313,7 +314,7 @@ function DeliveryEditor({
                   )
                 }
               >
-                Approve
+                {t('Approve')}
               </button>
               <button
                 className="btn ghost"
@@ -326,7 +327,7 @@ function DeliveryEditor({
                   )
                 }
               >
-                Reject
+                {t('Reject')}
               </button>
             </div>
           ) : null}
@@ -335,14 +336,14 @@ function DeliveryEditor({
       {editable ? (
         <AddProduct
           options={addable}
-          label="Add a product that was not ordered…"
+          label={t('Add a product that was not ordered…')}
           onAdd={(id) => setQty({ ...qty, [id]: 1 })}
         />
       ) : null}
       {editable && rows.length ? (
         <div className="row wrap">
           <button className="btn ghost" disabled={busy} onClick={() => act(save)}>
-            Save draft
+            {t('Save draft')}
           </button>
           <button
             className="btn"
@@ -354,27 +355,29 @@ function DeliveryEditor({
               })
             }
           >
-            Delivery completed
+            {t('Delivery completed')}
           </button>
         </div>
       ) : null}
       {isAdmin ? (
         <details>
-          <summary className="muted">Approximate delivery time for {d.contractor.name}</summary>
+          <summary className="muted">
+            {t('Approximate delivery time for {name}', { name: d.contractor.name ?? '' })}
+          </summary>
           <div className="row wrap" style={{ marginTop: 8 }}>
             <input
               className="input"
               type="time"
               value={start}
               onChange={(e) => setStart(e.target.value)}
-              aria-label="From"
+              aria-label={t('From')}
             />
             <input
               className="input"
               type="time"
               value={end}
               onChange={(e) => setEnd(e.target.value)}
-              aria-label="To"
+              aria-label={t('To')}
             />
             <button
               className="btn ghost"
@@ -386,7 +389,7 @@ function DeliveryEditor({
                 })
               }
             >
-              Save time
+              {t('Save time')}
             </button>
           </div>
         </details>
@@ -433,10 +436,10 @@ function ContractorDeliveries() {
   );
   return (
     <div className="page">
-      <PageHead title="Deliveries" sub="Last two weeks" />
+      <PageHead title={t('Deliveries')} sub="Last two weeks" />
       {loading && !data ? <Loading /> : null}
       <ErrorBox error={error ?? err} onRetry={reload} />
-      {data && !items.length ? <Empty>No deliveries yet.</Empty> : null}
+      {data && !items.length ? <Empty>{t('No deliveries yet.')}</Empty> : null}
       {items.map((d) => (
         <section key={d.id ?? d.deliveryDate} className="card">
           <div className="row between wrap">
@@ -444,14 +447,14 @@ function ContractorDeliveries() {
               <h2>{formatDate(d.deliveryDate)}</h2>
               <span className="muted small">From {d.provider.name}</span>
             </div>
-            <span className={pillFor(d.status)}>{STATUS[d.status]}</span>
+            <span className={pillFor(d.status)}>{t(STATUS[d.status])}</span>
           </div>
           <table className="t">
             <thead>
               <tr>
-                <th>Product</th>
-                <th>Ordered</th>
-                <th>Delivered</th>
+                <th>{t('Product')}</th>
+                <th>{t('Ordered')}</th>
+                <th>{t('Delivered')}</th>
               </tr>
             </thead>
             <tbody>
@@ -491,7 +494,7 @@ function ContractorDeliveries() {
                 disabled={busy}
                 onClick={() => act(() => post(`/deliveries/${d.id}/confirm`))}
               >
-                Confirm delivery
+                {t('Confirm delivery')}
               </button>
               <button
                 className="btn ghost"
@@ -501,14 +504,14 @@ function ContractorDeliveries() {
                   setReason('');
                 }}
               >
-                Something is wrong
+                {t('Something is wrong')}
               </button>
             </div>
           ) : null}
           {changing === d.id ? (
             <div className="stack">
               <label className="field">
-                What is wrong?
+                {t('What is wrong?')}
                 <textarea
                   required
                   maxLength={500}
@@ -532,10 +535,10 @@ function ContractorDeliveries() {
                     )
                   }
                 >
-                  Send to the bakery
+                  {t('Send to the bakery')}
                 </button>
                 <button className="btn ghost" onClick={() => setChanging(null)}>
-                  Cancel
+                  {t('Cancel')}
                 </button>
               </div>
             </div>

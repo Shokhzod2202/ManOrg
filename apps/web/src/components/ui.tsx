@@ -2,6 +2,7 @@
 
 import { type ReactNode } from 'react';
 import { type ApiError } from '../lib/api';
+import { t } from '../lib/i18n';
 
 const PATHS: Record<string, ReactNode> = {
   home: (
@@ -135,7 +136,7 @@ export function Icon({
 export function Loading({ label = 'Loading…' }: { label?: string }) {
   return (
     <div className="loading" role="status">
-      {label}
+      {t(label)}
     </div>
   );
 }
@@ -151,10 +152,10 @@ export function ErrorBox({
   return (
     <div className="error" role="alert">
       <Icon name="warn" />
-      <span style={{ flex: 1 }}>{error.message}</span>
+      <span style={{ flex: 1 }}>{t(error.message)}</span>
       {onRetry ? (
         <button type="button" className="btn ghost" onClick={onRetry}>
-          Try again
+          {t('Try again')}
         </button>
       ) : null}
     </div>
@@ -162,7 +163,7 @@ export function ErrorBox({
 }
 
 export function Empty({ children }: { children: ReactNode }) {
-  return <div className="empty">{children}</div>;
+  return <div className="empty">{typeof children === 'string' ? t(children) : children}</div>;
 }
 
 /** A red flag always carries an icon and words, never colour alone. */
@@ -186,9 +187,9 @@ export function Field({
 }) {
   return (
     <label className="field">
-      {label}
+      {t(label)}
       {children}
-      {error?.length ? <span className="err">{error.join(' ')}</span> : null}
+      {error?.length ? <span className="err">{error.map((x) => t(x)).join(' ')}</span> : null}
     </label>
   );
 }
@@ -204,7 +205,7 @@ export function PageHead({
 }) {
   return (
     <header className="page-head">
-      <h1>{title}</h1>
+      <h1>{t(title)}</h1>
       {sub ? <div className="muted">{sub}</div> : null}
       {children}
     </header>
@@ -226,12 +227,12 @@ export function AddProduct({
     <select
       className="input"
       value=""
-      aria-label={label}
+      aria-label={t(label)}
       onChange={(e) => {
         if (e.target.value) onAdd(e.target.value);
       }}
     >
-      <option value="">{label}</option>
+      <option value="">{t(label)}</option>
       {[...options]
         .sort((a, b) => a.name.localeCompare(b.name))
         .map((o) => (

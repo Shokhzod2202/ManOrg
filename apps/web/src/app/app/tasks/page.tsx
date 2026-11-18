@@ -14,6 +14,7 @@ import {
 } from '../../../lib/api';
 import { useSession } from '../../../lib/session';
 import { useApi } from '../../../lib/use-api';
+import { t } from '../../../lib/i18n';
 
 type Task = Schemas['Task'];
 type Member = Schemas['Member'];
@@ -24,9 +25,12 @@ const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 /** "Every Mon, Wed" and the like. */
 export function repeatText(r: Pick<Rule, 'frequency' | 'weekdays' | 'dayOfMonth'>): string {
-  if (r.frequency === 'daily') return 'Every day';
-  if (r.frequency === 'weekly') return `Every ${r.weekdays.map((d) => WEEKDAYS[d]).join(', ')}`;
-  return r.dayOfMonth === 31 ? 'Every month on the last day' : `Every month on day ${r.dayOfMonth}`;
+  if (r.frequency === 'daily') return t('Every day');
+  if (r.frequency === 'weekly')
+    return t('Every {days}', { days: r.weekdays.map((d) => t(WEEKDAYS[d]!)).join(', ') });
+  return r.dayOfMonth === 31
+    ? t('Every month on the last day')
+    : t('Every month on day {day}', { day: r.dayOfMonth ?? 1 });
 }
 
 export default function TasksPage() {
@@ -41,7 +45,7 @@ export default function TasksPage() {
 
   return (
     <div className="page">
-      <PageHead title="Tasks">
+      <PageHead title={t('Tasks')}>
         <div className="tabs" role="tablist">
           <button
             role="tab"
@@ -49,7 +53,7 @@ export default function TasksPage() {
             className={status === 'open' ? 'on' : ''}
             onClick={() => setStatus('open')}
           >
-            Open
+            {t('Open')}
           </button>
           <button
             role="tab"
@@ -57,7 +61,7 @@ export default function TasksPage() {
             className={status === 'done' ? 'on' : ''}
             onClick={() => setStatus('done')}
           >
-            Done
+            {t('Done')}
           </button>
           {admin ? (
             <button
@@ -66,7 +70,7 @@ export default function TasksPage() {
               className={status === 'repeating' ? 'on' : ''}
               onClick={() => setStatus('repeating')}
             >
-              Repeating
+              {t('Repeating')}
             </button>
           ) : null}
         </div>
@@ -116,7 +120,7 @@ function TaskList({
       {loading && !data ? <Loading /> : null}
       <ErrorBox error={error} onRetry={reload} />
       {data && !data.items.length ? (
-        <Empty>{status === 'open' ? 'No open tasks.' : 'No finished tasks yet.'}</Empty>
+        <Empty>{status === 'open' ? t('No open tasks.') : t('No finished tasks yet.')}</Empty>
       ) : null}
       {data?.items.map((t) => (
         <TaskCard key={t.id} task={t} onDone={reload} />
@@ -146,7 +150,9 @@ function RepeatingTasks() {
       <ErrorBox error={error ?? err} onRetry={reload} />
       {data && !data.items.length ? (
         <Empty>
-          No repeating tasks. Choose “Repeat” on a new task to make one every day, week or month.
+          {t(
+            'No repeating tasks. Choose “Repeat” on a new task to make one every day, week or month.',
+          )}
         </Empty>
       ) : null}
       {data?.items.map((r) => {
@@ -156,23 +162,24 @@ function RepeatingTasks() {
             <div className="row between wrap">
               <h2>{r.title}</h2>
               <span className={r.active && !ended ? 'pill ok' : 'pill'}>
-                {ended ? 'Ended' : r.active ? 'On' : 'Paused'}
+                {ended ? t('Ended') : r.active ? t('On') : t('Paused')}
               </span>
             </div>
             <span className="muted small">
-              {repeatText(r)} · for {r.assignee?.name ?? 'nobody'} · from {formatDate(r.startDate)}
-              {r.endDate ? ` to ${formatDate(r.endDate)}` : ''}
+              {repeatText(r)} · {t('for {name}', { name: r.assignee?.name ?? t('nobody') })} ·{' '}
+              {t('from {date}', { date: formatDate(r.startDate) })}
+              {r.endDate ? ` ${t('to {date}', { date: formatDate(r.endDate) })}` : ''}
               {r.lastMade
-                ? ` · last made ${formatDate(r.lastMade.date)} (${r.lastMade.status === 'done' ? 'done' : 'open'})`
+                ? ` · ${t('last made {date}', { date: formatDate(r.lastMade.date) })} (${r.lastMade.status === 'done' ? t('done') : t('open')})`
                 : ''}
             </span>
             {ended ? null : (
               <div className="row wrap">
                 <button className="btn ghost" onClick={() => void change(r, { active: !r.active })}>
-                  {r.active ? 'Pause' : 'Resume'}
+                  {r.active ? t('Pause') : t('Resume')}
                 </button>
                 <button className="btn ghost" onClick={() => void change(r, { endDate: today() })}>
-                  End after today
+                  {t('End after today')}
                 </button>
               </div>
             )}
@@ -228,26 +235,26 @@ function TaskCard({ task, onDone }: { task: Task; onDone: () => void }) {
           {task.title}
           {task.recurringTaskId ? (
             <span className="pill" style={{ marginLeft: 8, verticalAlign: 'middle' }}>
-              Repeats
+              {t('Repeats')}
             </span>
           ) : null}
         </h2>
         {task.status === 'done' ? (
           <span className="pill ok">
-            <Icon name="check" size={14} /> Done
+            <Icon name="check" size={14} /> {t('Done')}
           </span>
         ) : task.dueDate ? (
           <span className={task.dueDate < today() ? 'pill warn' : 'pill'}>
-            Due {formatDate(task.dueDate)}
+            {t('Due {date}', { date: formatDate(task.dueDate) })}
           </span>
         ) : null}
       </div>
       {task.description ? <p style={{ margin: 0 }}>{task.description}</p> : null}
       <span className="muted small">
-        {task.assignee ? `For ${task.assignee.name}` : 'For the admins'}
-        {task.createdBy ? ` · from ${task.createdBy.name}` : ''}
+        {task.assignee ? t('For {name}', { name: task.assignee.name }) : t('For the admins')}
+        {task.createdBy ? ` · ${t('from {name}', { name: task.createdBy.name })}` : ''}
         {task.completedAt
-          ? ` · done ${formatDate(task.completedAt.slice(0, 10))} ${formatTime(task.completedAt)} by ${task.completedBy?.name ?? ''}`
+          ? ` · ${t('done {date} {time} by {name}', { date: formatDate(task.completedAt.slice(0, 10)), time: formatTime(task.completedAt), name: task.completedBy?.name ?? '' })}`
           : ''}
       </span>
       {task.photos.map((p) => (
@@ -255,7 +262,10 @@ function TaskCard({ task, onDone }: { task: Task; onDone: () => void }) {
           key={p.id}
           className="photo"
           src={p.url}
-          alt={`Photo for ${task.title}, taken ${formatTime(p.takenAt)}`}
+          alt={t('Photo for {title}, taken {time}', {
+            title: task.title,
+            time: formatTime(p.takenAt),
+          })}
         />
       ))}
       <ErrorBox error={err} />
@@ -274,10 +284,10 @@ function TaskCard({ task, onDone }: { task: Task; onDone: () => void }) {
             }}
           />
           <button className="btn big" disabled={busy} onClick={openCamera}>
-            <Icon name="camera" /> {busy ? 'Uploading…' : 'Take photo and finish'}
+            <Icon name="camera" /> {busy ? t('Uploading…') : t('Take photo and finish')}
           </button>
           <span className="muted small center">
-            Use the camera now. Pictures from the gallery are not accepted.
+            {t('Use the camera now. Pictures from the gallery are not accepted.')}
           </span>
         </>
       ) : null}
@@ -330,19 +340,19 @@ function NewTask({ onCreated }: { onCreated: () => void }) {
   if (!open)
     return (
       <button className="btn" style={{ alignSelf: 'center' }} onClick={() => setOpen(true)}>
-        New task
+        {t('New task')}
       </button>
     );
   return (
     <form className="card" onSubmit={submit}>
-      <h2>New task</h2>
+      <h2>{t('New task')}</h2>
       <ErrorBox error={err} />
       <label className="field">
-        Title
+        {t('Title')}
         <input required maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)} />
       </label>
       <label className="field">
-        Details
+        {t('Details')}
         <textarea
           maxLength={2000}
           value={description}
@@ -351,9 +361,9 @@ function NewTask({ onCreated }: { onCreated: () => void }) {
       </label>
       <div className="grid2">
         <label className="field">
-          For
+          {t('For')}
           <select required value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)}>
-            <option value="">Choose</option>
+            <option value="">{t('Choose')}</option>
             {members.data?.items
               .filter((m) => m.status === 'active' && m.role === 'employee')
               .map((m) => (
@@ -364,7 +374,7 @@ function NewTask({ onCreated }: { onCreated: () => void }) {
           </select>
         </label>
         <label className="field">
-          {repeat === 'none' ? 'Due' : 'Starting'}
+          {repeat === 'none' ? t('Due') : t('Starting')}
           <input
             type="date"
             required
@@ -375,7 +385,7 @@ function NewTask({ onCreated }: { onCreated: () => void }) {
         </label>
       </div>
       <label className="field">
-        Repeat
+        {t('Repeat')}
         <select
           value={repeat}
           onChange={(e) => {
@@ -385,14 +395,16 @@ function NewTask({ onCreated }: { onCreated: () => void }) {
               setWeekdays([new Date(`${dueDate}T00:00:00Z`).getUTCDay()]);
           }}
         >
-          <option value="none">Does not repeat</option>
-          <option value="daily">Every day</option>
-          <option value="weekly">Every week on…</option>
-          <option value="monthly">Every month on day {Number(dueDate.slice(8, 10))}</option>
+          <option value="none">{t('Does not repeat')}</option>
+          <option value="daily">{t('Every day')}</option>
+          <option value="weekly">{t('Every week on…')}</option>
+          <option value="monthly">
+            {t('Every month on day {day}', { day: Number(dueDate.slice(8, 10)) })}
+          </option>
         </select>
       </label>
       {repeat === 'weekly' ? (
-        <div className="row wrap" role="group" aria-label="Weekdays">
+        <div className="row wrap" role="group" aria-label={t('Weekdays')}>
           {WEEKDAYS.map((name, i) => (
             <label key={name} className="row" style={{ gap: 4 }}>
               <input
@@ -404,23 +416,25 @@ function NewTask({ onCreated }: { onCreated: () => void }) {
                   )
                 }
               />
-              {name}
+              {t(name)}
             </label>
           ))}
         </div>
       ) : null}
       {repeat !== 'none' ? (
         <span className="muted small">
-          A new task is made on each of these days, starting {formatDate(dueDate)}. Finished tasks
-          still need a camera photo.
+          {t(
+            'A new task is made on each of these days, starting {date}. Finished tasks still need a camera photo.',
+            { date: formatDate(dueDate) },
+          )}
         </span>
       ) : null}
       <div className="row">
         <button className="btn" disabled={repeat === 'weekly' && !weekdays.length}>
-          {repeat === 'none' ? 'Create task' : 'Start repeating task'}
+          {repeat === 'none' ? t('Create task') : t('Start repeating task')}
         </button>
         <button type="button" className="btn ghost" onClick={() => setOpen(false)}>
-          Cancel
+          {t('Cancel')}
         </button>
       </div>
     </form>
@@ -444,30 +458,30 @@ function IngredientOrders({ admin }: { admin: boolean }) {
   }
   return (
     <section className="card">
-      <h2>Ingredient orders</h2>
+      <h2>{t('Ingredient orders')}</h2>
       <ErrorBox error={err} />
       {open.map((o) => (
         <div key={o.id} className="row between wrap">
           <span>
-            <b>{o.ingredient.name}</b> × {o.quantity} packs ({o.ingredient.packQuantity}{' '}
-            {o.ingredient.packUnit}) · {o.ingredient.source}
+            <b>{o.ingredient.name}</b> × {t('{n} packs', { n: o.quantity })} (
+            {o.ingredient.packQuantity} {o.ingredient.packUnit}) · {o.ingredient.source}
             <br />
             <span className="muted small">
-              Asked by {o.requestedBy?.name ?? 'someone'}
+              {t('Asked by {name}', { name: o.requestedBy?.name ?? t('someone') })}
               {o.note ? ` · “${o.note}”` : ''}
             </span>
           </span>
           {o.status === 'requested' ? (
             admin ? (
               <button className="btn" onClick={() => act(o.id, 'fulfil')}>
-                Bought
+                {t('Bought')}
               </button>
             ) : (
-              <span className="pill">Requested</span>
+              <span className="pill">{t('Requested')}</span>
             )
           ) : (
             <button className="btn ghost" onClick={() => act(o.id, 'check')}>
-              Arrived and checked
+              {t('Arrived and checked')}
             </button>
           )}
         </div>

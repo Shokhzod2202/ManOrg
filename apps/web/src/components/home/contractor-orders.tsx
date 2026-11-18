@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { type ApiError, formatDate, post, type Schemas, today } from '../../lib/api';
 import { useApi } from '../../lib/use-api';
 import { AddProduct, Empty, ErrorBox, Loading, PageHead } from '../ui';
+import { t } from '../../lib/i18n';
 
 type Order = Schemas['Order'];
 
@@ -27,15 +28,15 @@ export function ContractorOrders() {
 
   return (
     <div className="page">
-      <PageHead title="My orders" sub="Upcoming deliveries and last week">
+      <PageHead title={t('My orders')} sub="Upcoming deliveries and last week">
         <Link className="btn" href="/app/orders/new">
-          New order
+          {t('New order')}
         </Link>
       </PageHead>
       {loading && !data ? <Loading /> : null}
       <ErrorBox error={error} onRetry={reload} />
       {data && !data.items.length ? (
-        <Empty>No upcoming orders. Place one with New order.</Empty>
+        <Empty>{t('No upcoming orders. Place one with New order.')}</Empty>
       ) : null}
       {data?.items.map((o) => (
         <section key={o.id} className="card">
@@ -43,18 +44,20 @@ export function ContractorOrders() {
             <div>
               <h2>{formatDate(o.deliveryDate)}</h2>
               <span className="muted small">
-                From {o.provider.name}
-                {o.approxTime ? ` · about ${o.approxTime.start}–${o.approxTime.end}` : ''}
+                {t('From {name}', { name: o.provider.name })}
+                {o.approxTime
+                  ? ` · ${t('about {start}–{end}', { start: o.approxTime.start, end: o.approxTime.end })}`
+                  : ''}
               </span>
             </div>
             <div className="row">
-              {o.status === 'cancelled' ? <span className="pill">Cancelled</span> : null}
+              {o.status === 'cancelled' ? <span className="pill">{t('Cancelled')}</span> : null}
               {o.openChangeRequestIds.length ? (
-                <span className="pill warn">Change waiting</span>
+                <span className="pill warn">{t('Change waiting')}</span>
               ) : null}
               {delivered.has(`${o.provider.id}:${o.deliveryDate}`) ? (
                 <Link className="pill ok" href="/app/deliveries">
-                  Delivered
+                  {t('Delivered')}
                 </Link>
               ) : null}
               {o.status === 'placed' &&
@@ -62,7 +65,7 @@ export function ContractorOrders() {
               deliveries.data &&
               !delivered.has(`${o.provider.id}:${o.deliveryDate}`) ? (
                 <button className="btn ghost" onClick={() => setEditing(o.id)}>
-                  Request a change
+                  {t('Request a change')}
                 </button>
               ) : null}
             </div>
@@ -132,13 +135,14 @@ function ChangeForm({ order, onDone }: { order: Order; onDone: () => void }) {
   return (
     <div className="stack">
       <p className="muted small">
-        Set 0 to remove a product. Smaller quantities and removals need the provider admin;
-        additions can be accepted by staff.
+        {t(
+          'Set 0 to remove a product. Smaller quantities and removals need the provider admin; additions can be accepted by staff.',
+        )}
       </p>
       <ErrorBox error={error} />
       {Object.keys(qty).map((id) => (
         <label key={id} className="row between">
-          <span>{names.get(id) ?? 'Product'}</span>
+          <span>{names.get(id) ?? t('Product')}</span>
           <input
             className="input qty"
             type="number"
@@ -154,15 +158,15 @@ function ChangeForm({ order, onDone }: { order: Order; onDone: () => void }) {
         onAdd={(id) => setQty({ ...qty, [id]: 1 })}
       />
       <label className="field">
-        Note (optional)
+        {t('Note (optional)')}
         <textarea maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />
       </label>
       <div className="row">
         <button className="btn" disabled={busy} onClick={send}>
-          Send request
+          {t('Send request')}
         </button>
         <button className="btn ghost" onClick={onDone}>
-          Cancel
+          {t('Cancel')}
         </button>
       </div>
     </div>

@@ -15,6 +15,7 @@ import {
 } from '../../../lib/api';
 import { useSession } from '../../../lib/session';
 import { useApi } from '../../../lib/use-api';
+import { flagText, t } from '../../../lib/i18n';
 
 type Dash = Schemas['ShiftDashboard'];
 type Day = Schemas['TimesheetDay'];
@@ -98,11 +99,11 @@ export default function ShiftsPage() {
   return (
     <div className="page wide">
       <PageHead
-        title="Shifts"
+        title={t('Shifts')}
         sub={from === to ? formatDate(from) : `${formatDate(from)} – ${formatDate(to)}`}
       >
         <div className="row wrap" style={{ justifyContent: 'center' }}>
-          <div className="tabs" role="tablist" aria-label="Calendar range">
+          <div className="tabs" role="tablist" aria-label={t('Calendar range')}>
             {(['day', 'week', 'month'] as Span[]).map((v) => (
               <button
                 key={v}
@@ -111,24 +112,24 @@ export default function ShiftsPage() {
                 className={span === v ? 'on' : ''}
                 onClick={() => setSpan(v)}
               >
-                {v[0]!.toUpperCase() + v.slice(1)}
+                {t(v[0]!.toUpperCase() + v.slice(1))}
               </button>
             ))}
           </div>
           <button
             className="btn ghost"
             onClick={() => setAnchor(move(span, anchor, -1))}
-            aria-label="Previous"
+            aria-label={t('Previous')}
           >
             ‹
           </button>
           <button className="btn ghost" onClick={() => setAnchor(today())}>
-            Today
+            {t('Today')}
           </button>
           <button
             className="btn ghost"
             onClick={() => setAnchor(move(span, anchor, 1))}
-            aria-label="Next"
+            aria-label={t('Next')}
           >
             ›
           </button>
@@ -137,7 +138,7 @@ export default function ShiftsPage() {
       {admin ? <PunchRequests /> : null}
       {loading && !data ? <Loading /> : null}
       <ErrorBox error={error} onRetry={reload} />
-      {data && !data.employees.length ? <Empty>No employees yet.</Empty> : null}
+      {data && !data.employees.length ? <Empty>{t('No employees yet.')}</Empty> : null}
       {data?.employees.length ? (
         <div className="scroll">
           <div
@@ -147,7 +148,7 @@ export default function ShiftsPage() {
               minWidth: compact ? 120 + shown.length * 52 : undefined,
             }}
           >
-            <div className="h">Employee</div>
+            <div className="h">{t('Employee')}</div>
             {shown.map((d) => (
               <div
                 key={d}
@@ -223,7 +224,7 @@ function Row({
             <div key={date}>
               {onPick ? (
                 <button type="button" className="sr" onClick={() => onPick(date)}>
-                  Add a punch for {name} on {date}
+                  {t('Add a punch for {name} on {date}', { name, date })}
                 </button>
               ) : null}
             </div>
@@ -281,7 +282,7 @@ function Row({
               ) : null}
               {d.workedMinutes ? <span>{formatMinutes(d.workedMinutes)}</span> : null}
               {d.flags.map((f) => (
-                <Flag key={f.code}>{f.message}</Flag>
+                <Flag key={f.code}>{flagText(f)}</Flag>
               ))}
             </div>
           </div>
@@ -310,7 +311,7 @@ function PunchRequests() {
   }
   return (
     <section className="card">
-      <h2>Punch corrections waiting</h2>
+      <h2>{t('Punch corrections waiting')}</h2>
       <ErrorBox error={err} />
       {data.items.map((r) => (
         <div key={r.id} className="row between wrap">
@@ -324,10 +325,10 @@ function PunchRequests() {
           </span>
           <span className="row">
             <button className="btn" onClick={() => decide(r.id, 'approve')}>
-              Approve
+              {t('Approve')}
             </button>
             <button className="btn ghost" onClick={() => decide(r.id, 'reject')}>
-              Reject
+              {t('Reject')}
             </button>
           </span>
         </div>
@@ -376,15 +377,15 @@ function PlanEditor() {
 
   return (
     <section className="card">
-      <h2>Weekly plan</h2>
+      <h2>{t('Weekly plan')}</h2>
       <ErrorBox error={error ?? err} />
       <select
         className="input"
         value={who}
         onChange={(e) => setWho(e.target.value)}
-        aria-label="Employee"
+        aria-label={t('Employee')}
       >
-        <option value="">Choose an employee</option>
+        <option value="">{t('Choose an employee')}</option>
         {data?.items.map((p) => (
           <option key={p.employee.id} value={p.employee.id}>
             {p.employee.name}
@@ -405,7 +406,7 @@ function PlanEditor() {
                     checked={r.on}
                     onChange={(e) => setRows({ ...rows, [wd]: { ...r, on: e.target.checked } })}
                   />
-                  {WEEKDAYS[wd]}
+                  {t(WEEKDAYS[wd])}
                 </label>
                 <input
                   className="input"
@@ -413,7 +414,7 @@ function PlanEditor() {
                   disabled={!r.on}
                   value={r.start}
                   onChange={(e) => setRows({ ...rows, [wd]: { ...r, start: e.target.value } })}
-                  aria-label={`${WEEKDAYS[wd]} start`}
+                  aria-label={`${t(WEEKDAYS[wd])} start`}
                 />
                 <input
                   className="input"
@@ -421,15 +422,15 @@ function PlanEditor() {
                   disabled={!r.on}
                   value={r.end}
                   onChange={(e) => setRows({ ...rows, [wd]: { ...r, end: e.target.value } })}
-                  aria-label={`${WEEKDAYS[wd]} end`}
+                  aria-label={`${t(WEEKDAYS[wd])} end`}
                 />
-                {night ? <span className="pill blue">Ends next day</span> : null}
+                {night ? <span className="pill blue">{t('Ends next day')}</span> : null}
               </div>
             );
           })}
           <div className="row">
             <button className="btn" onClick={save}>
-              Save plan
+              {t('Save plan')}
             </button>
             {msg ? <span className="pill ok">{msg}</span> : null}
           </div>
@@ -460,7 +461,7 @@ function MyChangeRequest() {
         requestedEnd: new Date(`${endDate}T${end}:00+09:00`).toISOString(),
         reason: reason.trim(),
       });
-      setMsg('Sent to your admin.');
+      setMsg(t('Sent to your admin.'));
       setReason('');
     } catch (e) {
       setErr(e as ApiError);
@@ -468,9 +469,9 @@ function MyChangeRequest() {
   }
   return (
     <section className="card">
-      <h2>Ask for a correction</h2>
+      <h2>{t('Ask for a correction')}</h2>
       <p className="muted small">
-        Forgot to punch? Tell your admin the real times. Nothing changes until they approve.
+        {t('Forgot to punch? Tell your admin the real times. Nothing changes until they approve.')}
       </p>
       <ErrorBox error={err} />
       <div className="row wrap">
@@ -480,30 +481,30 @@ function MyChangeRequest() {
           value={date}
           max={today()}
           onChange={(e) => setDate(e.target.value)}
-          aria-label="Shift date"
+          aria-label={t('Shift date')}
         />
         <input
           className="input"
           type="time"
           value={start}
           onChange={(e) => setStart(e.target.value)}
-          aria-label="Start"
+          aria-label={t('Start')}
         />
         <input
           className="input"
           type="time"
           value={end}
           onChange={(e) => setEnd(e.target.value)}
-          aria-label="End"
+          aria-label={t('End')}
         />
       </div>
       <label className="field">
-        Reason
+        {t('Reason')}
         <textarea value={reason} maxLength={500} onChange={(e) => setReason(e.target.value)} />
       </label>
       <div className="row">
         <button className="btn" disabled={!reason.trim()} onClick={send}>
-          Send
+          {t('Send')}
         </button>
         {msg ? <span className="pill ok">{msg}</span> : null}
       </div>
@@ -549,7 +550,7 @@ function PunchEditor({
     setMsg(null);
     try {
       await fn();
-      setMsg(done);
+      setMsg(t(done));
       setEdits({});
       sheet.reload();
       onChange();
@@ -561,19 +562,20 @@ function PunchEditor({
   const label = { start: 'Start', pause: 'Pause', end: 'End' } as const;
   return (
     <section className="card" id="punch-editor">
-      <h2>Punch card editor</h2>
+      <h2>{t('Punch card editor')}</h2>
       <p className="muted small" style={{ margin: 0 }}>
-        Click a day in the calendar, or choose a person and date. Changes are recorded with the old
-        and new time.
+        {t(
+          'Click a day in the calendar, or choose a person and date. Changes are recorded with the old and new time.',
+        )}
       </p>
       <div className="row wrap">
         <select
           className="input"
           value={who}
           onChange={(e) => setWho(e.target.value)}
-          aria-label="Employee"
+          aria-label={t('Employee')}
         >
-          <option value="">Choose an employee</option>
+          <option value="">{t('Choose an employee')}</option>
           {employees.map((e) => (
             <option key={e.id} value={e.id}>
               {e.name}
@@ -585,25 +587,25 @@ function PunchEditor({
           type="date"
           value={date}
           onChange={(e) => setDate(e.target.value)}
-          aria-label="Shift date"
+          aria-label={t('Shift date')}
         />
       </div>
       <ErrorBox error={sheet.error ?? err} />
       {msg ? <span className="pill ok">{msg}</span> : null}
       {who && sheet.data ? (
         <>
-          {!events.length ? <Empty>No punches on this day.</Empty> : null}
+          {!events.length ? <Empty>{t('No punches on this day.')}</Empty> : null}
           {events.map((ev) => (
             <div key={ev.id} className="row wrap">
               <span className="pill" style={{ width: 64, justifyContent: 'center' }}>
-                {label[ev.eventType]}
+                {t(label[ev.eventType])}
               </span>
               <input
                 className="input"
                 type="datetime-local"
                 value={edits[ev.id] ?? toLocal(ev.occurredAt)}
                 onChange={(e) => setEdits({ ...edits, [ev.id]: e.target.value })}
-                aria-label={`${label[ev.eventType]} time`}
+                aria-label={t('{what} time', { what: t(label[ev.eventType]) })}
               />
               {edits[ev.id] ? (
                 <button
@@ -620,11 +622,11 @@ function PunchEditor({
                     )
                   }
                 >
-                  Save
+                  {t('Save')}
                 </button>
               ) : null}
               <span className="muted small">
-                {ev.source === 'admin' ? 'Edited by an admin' : ''}
+                {ev.source === 'admin' ? t('Edited by an admin') : ''}
               </span>
             </div>
           ))}
@@ -632,23 +634,23 @@ function PunchEditor({
             className="row wrap"
             style={{ borderTop: '1px solid var(--border)', paddingTop: 10 }}
           >
-            <b>Add a missing punch</b>
+            <b>{t('Add a missing punch')}</b>
             <select
               className="input"
               value={type}
               onChange={(e) => setType(e.target.value as typeof type)}
-              aria-label="Punch type"
+              aria-label={t('Punch type')}
             >
-              <option value="start">Start</option>
-              <option value="pause">Pause</option>
-              <option value="end">End</option>
+              <option value="start">{t('Start')}</option>
+              <option value="pause">{t('Pause')}</option>
+              <option value="end">{t('End')}</option>
             </select>
             <input
               className="input"
               type="datetime-local"
               value={at}
               onChange={(e) => setAt(e.target.value)}
-              aria-label="Punch time"
+              aria-label={t('Punch time')}
             />
             <button
               className="btn ghost"
@@ -665,7 +667,7 @@ function PunchEditor({
                 )
               }
             >
-              Add
+              {t('Add')}
             </button>
           </div>
         </>

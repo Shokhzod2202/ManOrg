@@ -243,6 +243,14 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
         include: { organization: { select: { name: true } } },
       }),
     );
+    // Phase 3: each person reads messages in their own language.
+    const locale = rows.length
+      ? (
+          await this.db.run(ctx, (tx) =>
+            tx.user.findUnique({ where: { id: link.userId }, select: { locale: true } }),
+          )
+        )?.locale
+      : null;
     let sent = 0;
     for (const n of rows) {
       const mark = () =>
@@ -256,7 +264,12 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       try {
         await this.client!.sendMessage(
           link.chatId,
-          notificationText(n.type, n.payload as Record<string, unknown>, n.organization?.name),
+          notificationText(
+            n.type,
+            n.payload as Record<string, unknown>,
+            n.organization?.name,
+            locale,
+          ),
           notificationUrl(n.type, this.config.WEB_APP_URL),
         );
         await mark();

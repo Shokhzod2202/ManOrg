@@ -5,6 +5,7 @@ import { Empty, ErrorBox, Loading, PageHead } from '../../../components/ui';
 import { type ApiError, del, formatDate, patch, post, type Schemas } from '../../../lib/api';
 import { useSession } from '../../../lib/session';
 import { useApi } from '../../../lib/use-api';
+import { t } from '../../../lib/i18n';
 
 type Member = Schemas['Member'];
 type Application = Schemas['Application'];
@@ -15,7 +16,7 @@ export default function PeoplePage() {
   const provider = actor === 'org_admin';
   return (
     <div className="page">
-      <PageHead title={provider ? 'People and teams' : 'Admins'} />
+      <PageHead title={provider ? t('People and teams') : t('Admins')} />
       {provider ? <Applications /> : null}
       <Members provider={provider} />
       {provider ? <Teams /> : null}
@@ -40,13 +41,15 @@ function Applications() {
   }
   return (
     <section className="card">
-      <h2>Applications</h2>
+      <h2>{t('Applications')}</h2>
       <ErrorBox error={error ?? err} />
-      {data && !data.items.length ? <Empty>No one is waiting.</Empty> : null}
+      {data && !data.items.length ? <Empty>{t('No one is waiting.')}</Empty> : null}
       {data?.items.map((a) => (
         <div key={a.id} className="row between wrap">
           <span>
-            <span className="pill blue">{a.kind === 'contractor' ? 'Contractor' : 'Employee'}</span>{' '}
+            <span className="pill blue">
+              {a.kind === 'contractor' ? t('Contractor') : t('Employee')}
+            </span>{' '}
             <b>{a.kind === 'contractor' ? a.contractor?.name : a.applicant?.name}</b>
             <span className="muted small">
               {' '}
@@ -55,10 +58,10 @@ function Applications() {
           </span>
           <span className="row">
             <button className="btn" onClick={() => decide(a.id, true)}>
-              Approve
+              {t('Approve')}
             </button>
             <button className="btn ghost" onClick={() => decide(a.id, false)}>
-              Reject
+              {t('Reject')}
             </button>
           </span>
         </div>
@@ -92,28 +95,28 @@ function Members({ provider }: { provider: boolean }) {
 
   return (
     <section className="card">
-      <h2>Members</h2>
+      <h2>{t('Members')}</h2>
       <ErrorBox error={error ?? err} />
       {loading && !data ? <Loading /> : null}
       <table className="t cards">
         <thead>
           <tr>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Role</th>
+            <th>{t('Name')}</th>
+            <th>{t('Email')}</th>
+            <th>{t('Role')}</th>
             <th />
           </tr>
         </thead>
         <tbody>
           {data?.items.map((m) => (
             <tr key={m.id}>
-              <td data-label="Name">
+              <td data-label={t('Name')}>
                 <b>{m.user.name}</b>
               </td>
-              <td data-label="Email" className="small">
+              <td data-label={t('Email')} className="small">
                 {m.user.email}
               </td>
-              <td data-label="Role">
+              <td data-label={t('Role')}>
                 {provider && m.user.id !== me?.id ? (
                   <select
                     className="input"
@@ -125,11 +128,11 @@ function Members({ provider }: { provider: boolean }) {
                     }
                     aria-label={`Role of ${m.user.name}`}
                   >
-                    <option value="employee">Employee</option>
-                    <option value="admin">Admin</option>
+                    <option value="employee">{t('Employee')}</option>
+                    <option value="admin">{t('Admin')}</option>
                   </select>
                 ) : (
-                  <span className="pill">{m.role === 'admin' ? 'Admin' : 'Employee'}</span>
+                  <span className="pill">{m.role === 'admin' ? t('Admin') : t('Employee')}</span>
                 )}
               </td>
               <td data-label="">
@@ -143,10 +146,10 @@ function Members({ provider }: { provider: boolean }) {
                         );
                     }}
                   >
-                    Remove
+                    {t('Remove')}
                   </button>
                 ) : (
-                  <span className="muted small">You</span>
+                  <span className="muted small">{t('You')}</span>
                 )}
               </td>
             </tr>
@@ -158,24 +161,24 @@ function Members({ provider }: { provider: boolean }) {
           className="input"
           type="email"
           required
-          placeholder="Email of an existing account"
+          placeholder={t('Email of an existing account')}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           style={{ flex: 1, minWidth: 200 }}
-          aria-label="Email"
+          aria-label={t('Email')}
         />
         {provider ? (
           <select
             className="input"
             value={role}
             onChange={(e) => setRole(e.target.value as 'admin' | 'employee')}
-            aria-label="Role"
+            aria-label={t('Role')}
           >
-            <option value="admin">Admin</option>
-            <option value="employee">Employee</option>
+            <option value="admin">{t('Admin')}</option>
+            <option value="employee">{t('Employee')}</option>
           </select>
         ) : null}
-        <button className="btn">Add</button>
+        <button className="btn">{t('Add')}</button>
       </form>
     </section>
   );
@@ -190,10 +193,10 @@ function Teams() {
   const [chosen, setChosen] = useState<Set<string>>(new Set());
   const [err, setErr] = useState<ApiError | null>(null);
 
-  function start(t: Team | 'new') {
-    setEditing(t);
-    setName(t === 'new' ? '' : t.name);
-    setChosen(new Set(t === 'new' ? [] : t.members.map((m) => m.id)));
+  function start(tm: Team | 'new') {
+    setEditing(tm);
+    setName(tm === 'new' ? '' : tm.name);
+    setChosen(new Set(tm === 'new' ? [] : tm.members.map((m) => m.id)));
   }
   async function save() {
     setErr(null);
@@ -212,10 +215,10 @@ function Teams() {
       setErr(e as ApiError);
     }
   }
-  async function remove(t: Team) {
-    if (!window.confirm(`Delete team ${t.name}? Output already logged stays.`)) return;
+  async function remove(tm: Team) {
+    if (!window.confirm(`Delete team ${tm.name}? Output already logged stays.`)) return;
     try {
-      await del(`/teams/${t.id}`, { ifMatch: t.version });
+      await del(`/teams/${tm.id}`, { ifMatch: tm.version });
       reload();
     } catch (e) {
       setErr(e as ApiError);
@@ -228,34 +231,36 @@ function Teams() {
   return (
     <section className="card">
       <div className="row between">
-        <h2>Teams</h2>
+        <h2>{t('Teams')}</h2>
         <button className="btn ghost" onClick={() => start('new')}>
-          New team
+          {t('New team')}
         </button>
       </div>
       <p className="muted small" style={{ margin: 0 }}>
-        People who work together. Output logged for a team is counted once and shared equally.
+        {t(
+          'People who work together. Output logged for a team is counted once and shared equally.',
+        )}
       </p>
       <ErrorBox error={error ?? err} />
-      {data && !data.items.length && !editing ? <Empty>No teams yet.</Empty> : null}
-      {data?.items.map((t) => (
-        <div key={t.id} className="row between wrap">
+      {data && !data.items.length && !editing ? <Empty>{t('No teams yet.')}</Empty> : null}
+      {data?.items.map((tm) => (
+        <div key={tm.id} className="row between wrap">
           <span>
-            <b>{t.name}</b>{' '}
-            {t.shared ? (
-              <span className="pill blue">Shared</span>
+            <b>{tm.name}</b>{' '}
+            {tm.shared ? (
+              <span className="pill blue">{t('Shared')}</span>
             ) : (
-              <span className="pill">Private</span>
+              <span className="pill">{t('Private')}</span>
             )}
             <br />
-            <span className="muted small">{t.members.map((m) => m.name).join(', ')}</span>
+            <span className="muted small">{tm.members.map((m) => m.name).join(', ')}</span>
           </span>
           <span className="row">
-            <button className="btn ghost" onClick={() => start(t)}>
-              Edit
+            <button className="btn ghost" onClick={() => start(tm)}>
+              {t('Edit')}
             </button>
-            <button className="btn ghost" onClick={() => remove(t)}>
-              Delete
+            <button className="btn ghost" onClick={() => remove(tm)}>
+              {t('Delete')}
             </button>
           </span>
         </div>
@@ -263,7 +268,7 @@ function Teams() {
       {editing ? (
         <div className="stack" style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
           <label className="field">
-            Team name
+            {t('Team name')}
             <input value={name} maxLength={80} onChange={(e) => setName(e.target.value)} />
           </label>
           <div className="row wrap">
@@ -285,10 +290,10 @@ function Teams() {
           </div>
           <div className="row">
             <button className="btn" disabled={!name.trim() || chosen.size < 2} onClick={save}>
-              Save team
+              {t('Save team')}
             </button>
             <button className="btn ghost" onClick={() => setEditing(null)}>
-              Cancel
+              {t('Cancel')}
             </button>
           </div>
         </div>

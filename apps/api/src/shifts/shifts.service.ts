@@ -1,3 +1,4 @@
+import { translate } from '../common/i18n';
 import { Injectable } from '@nestjs/common';
 import { actorFor, AuditService } from '../audit/audit.service';
 import { Errors } from '../common/errors';
@@ -190,7 +191,7 @@ export class ShiftsService {
         return no('off_for_organization');
       const me = await tx.user.findUniqueOrThrow({
         where: { id: user.userId },
-        select: { preferences: true },
+        select: { preferences: true, locale: true },
       });
       if ((me.preferences as { arrivalPrompt?: boolean } | null)?.arrivalPrompt === false)
         return no('off_for_employee');
@@ -216,7 +217,7 @@ export class ShiftsService {
           return {
             prompt: true,
             reason: 'planned_shift',
-            message: 'You came to work. Start shift',
+            message: translate('You came to work. Start shift', me.locale),
             plannedStart: plan.plannedStart,
           };
         }

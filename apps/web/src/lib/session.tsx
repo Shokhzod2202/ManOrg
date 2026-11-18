@@ -1,5 +1,6 @@
 'use client';
 
+import { isLocale, type Locale, markPicked, setLocale, storedLocale, takePicked } from './i18n';
 import {
   createContext,
   type ReactNode,
@@ -29,6 +30,8 @@ interface SessionValue {
   reload: () => Promise<void>;
   chooseOrg: (id: string) => void;
   setOrdersView: (view: 'list' | 'matrix' | 'products') => Promise<void>;
+  /** Changes the language here and, when signed in, on the account (phase 3). */
+  setLanguage: (locale: Locale) => void;
 }
 
 const Ctx = createContext<SessionValue | null>(null);
@@ -51,7 +54,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       return;
     }
     try {
-      const data = await get<Me>('/me', { org: null });
+      let data = await get<Me>('/me', { org: null });
+      // A language chosen on the sign-in or register page is saved to the account; otherwise the
+      // account's language applies on this device.
+      const picked = takePicked() ? storedLocale() : null;
+      if (picked && picked !== data.locale) {
+        data = await patch<Me>('/me', { locale: picked }, { org: null }).catch(() => data);
+      } else if (isLocale(data.locale)) setLocale(data.locale);
       setMe(data);
       const active = data.memberships.filter((m) => m.status === 'active');
       const stored = session.org();
@@ -94,6 +103,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       },
       register: async (name, email, password) => {
         await sessionCall('register', { name, email, password });
+        // A new account starts in the language this browser shows.
+        markPicked();
         await reload();
       },
       signOut: () => {
@@ -115,6 +126,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           { org: null },
         );
         setMe(updated);
+      },
+      setLanguage: (locale) => {
+        setLocale(locale);
+        if (me)
+          void patch<Me>('/me', { locale }, { org: null })
+            .then(setMe)
+            .catch(() => undefined);
       },
     };
   }, [ready, me, orgId, reload]);

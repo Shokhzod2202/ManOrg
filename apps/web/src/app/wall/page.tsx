@@ -6,6 +6,7 @@ import { OrdersBoard } from '../../components/orders/board';
 import { Loading } from '../../components/ui';
 import { formatTime } from '../../lib/api';
 import { useSession } from '../../lib/session';
+import { t } from '../../lib/i18n';
 
 /** Kitchen TV: big product tiles for the orders due next, refreshed every 30 seconds. */
 export default function WallPage() {
@@ -30,7 +31,7 @@ export default function WallPage() {
             style={{ width: 64, height: 64, objectFit: 'contain' }}
           />
           <div>
-            <h1 style={{ fontSize: 34 }}>Orders due next</h1>
+            <h1 style={{ fontSize: 34 }}>{t('Orders due next')}</h1>
             <span className="muted">{s.membership.organization.name}</span>
           </div>
         </div>

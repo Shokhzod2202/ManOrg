@@ -7,6 +7,7 @@ import { AuthFrame } from '../../components/auth-frame';
 import { ErrorBox, Field } from '../../components/ui';
 import { type ApiError } from '../../lib/api';
 import { useSession } from '../../lib/session';
+import { t } from '../../lib/i18n';
 
 export default function RegisterPage() {
   const s = useSession();
@@ -32,10 +33,10 @@ export default function RegisterPage() {
   }
 
   return (
-    <AuthFrame title="Create an account">
+    <AuthFrame title={t('Create an account')}>
       <form className="stack" onSubmit={submit}>
         <ErrorBox error={error} />
-        <Field label="Your name" error={error?.fields?.name}>
+        <Field label={t('Your name')} error={error?.fields?.name}>
           <input
             autoComplete="name"
             required
@@ -43,7 +44,7 @@ export default function RegisterPage() {
             onChange={(e) => setName(e.target.value)}
           />
         </Field>
-        <Field label="Email" error={error?.fields?.email}>
+        <Field label={t('Email')} error={error?.fields?.email}>
           <input
             type="email"
             autoComplete="email"
@@ -52,7 +53,7 @@ export default function RegisterPage() {
             onChange={(e) => setEmail(e.target.value)}
           />
         </Field>
-        <Field label="Password (at least 10 characters)" error={error?.fields?.password}>
+        <Field label={t('Password (at least 10 characters)')} error={error?.fields?.password}>
           <input
             type="password"
             autoComplete="new-password"
@@ -63,10 +64,10 @@ export default function RegisterPage() {
           />
         </Field>
         <button className="btn big" disabled={busy}>
-          {busy ? 'Creating…' : 'Create account'}
+          {busy ? t('Creating…') : t('Create account')}
         </button>
         <p className="muted center">
-          Have an account? <Link href="/login">Sign in</Link>
+          {t('Have an account?')} <Link href="/login">{t('Sign in')}</Link>
         </p>
       </form>
     </AuthFrame>

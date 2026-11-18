@@ -5,6 +5,7 @@ import { formatDate, formatMinutes, formatTime, type Schemas } from '../../lib/a
 import { useApi } from '../../lib/use-api';
 import { OrdersBoard } from '../orders/board';
 import { Empty, ErrorBox, Flag, Loading, PageHead } from '../ui';
+import { flagText, t } from '../../lib/i18n';
 
 type Today = Schemas['TodayDashboard'];
 interface DeliveryRow {
@@ -53,65 +54,65 @@ export function AdminToday() {
 
   return (
     <div className="page wide">
-      <PageHead title="Today" sub={formatDate(data.today)} />
+      <PageHead title={t('Today')} sub={formatDate(data.today)} />
       <ErrorBox error={error} onRetry={reload} />
       <div className="kpis">
         <div className="kpi">
           <b>{data.onShift.length}</b>
-          <span>On shift now</span>
+          <span>{t('On shift now')}</span>
         </div>
         {waiting.map((k) => (
-          <Link key={k.label} className="kpi" href={k.href}>
+          <Link key={k.href} className="kpi" href={k.href}>
             <b>{k.n}</b>
-            <span>{k.label}</span>
+            <span>{t(k.label)}</span>
           </Link>
         ))}
       </div>
       <section className="stack">
-        <h2 className="center">Orders due next</h2>
+        <h2 className="center">{t('Orders due next')}</h2>
         <OrdersBoard />
       </section>
       <div className="grid2">
         <section className="card">
-          <h2>On shift</h2>
+          <h2>{t('On shift')}</h2>
           {data.onShift.length ? (
             <table className="t cards">
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Status</th>
-                  <th>Since</th>
-                  <th>Worked</th>
+                  <th>{t('Name')}</th>
+                  <th>{t('Status')}</th>
+                  <th>{t('Since')}</th>
+                  <th>{t('Worked')}</th>
                 </tr>
               </thead>
               <tbody>
                 {data.onShift.map((p) => (
                   <tr key={p.employee?.id}>
-                    <td data-label="Name">
+                    <td data-label={t('Name')}>
                       <b>{p.employee?.name}</b>
                     </td>
-                    <td data-label="Status">
+                    <td data-label={t('Status')}>
                       <span className={p.status === 'working' ? 'pill ok' : 'pill warn'}>
-                        {p.status === 'working' ? 'Working' : 'Paused'}
+                        {p.status === 'working' ? t('Working') : t('Paused')}
                       </span>
                     </td>
-                    <td data-label="Since">{formatTime(p.startedAt)}</td>
-                    <td data-label="Worked">{formatMinutes(p.workedMinutes ?? 0)}</td>
+                    <td data-label={t('Since')}>{formatTime(p.startedAt)}</td>
+                    <td data-label={t('Worked')}>{formatMinutes(p.workedMinutes ?? 0)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           ) : (
-            <Empty>Nobody is on shift.</Empty>
+            <Empty>{t('Nobody is on shift.')}</Empty>
           )}
           {data.flags.length ? (
             <div className="stack">
-              <b>Needs a look</b>
+              <b>{t('Needs a look')}</b>
               {data.flags.map((f) => (
                 <div key={f.employee?.id} className="row wrap">
                   <b>{f.employee?.name}</b>
                   {f.flags?.map((x) => (
-                    <Flag key={x.code}>{x.message}</Flag>
+                    <Flag key={x.code}>{flagText(x)}</Flag>
                   ))}
                 </div>
               ))}
@@ -119,30 +120,30 @@ export function AdminToday() {
           ) : null}
         </section>
         <section className="card">
-          <h2>Deliveries today</h2>
+          <h2>{t('Deliveries today')}</h2>
           {deliveries.length ? (
             <table className="t cards">
               <thead>
                 <tr>
-                  <th>Contractor</th>
-                  <th>Time</th>
-                  <th>Status</th>
+                  <th>{t('Contractor')}</th>
+                  <th>{t('Time')}</th>
+                  <th>{t('Status')}</th>
                 </tr>
               </thead>
               <tbody>
                 {deliveries.map((d) => (
                   <tr key={d.id}>
-                    <td data-label="Contractor">
+                    <td data-label={t('Contractor')}>
                       <Link href={`/app/deliveries?contractor=${d.contractor.id}`}>
                         <b>{d.contractor.name}</b>
                       </Link>
                     </td>
-                    <td data-label="Time">
+                    <td data-label={t('Time')}>
                       {d.windowStart
                         ? `${formatTime(d.windowStart)}–${formatTime(d.windowEnd)}`
                         : '—'}
                     </td>
-                    <td data-label="Status">
+                    <td data-label={t('Status')}>
                       <span
                         className={
                           d.status === 'confirmed'
@@ -152,7 +153,7 @@ export function AdminToday() {
                               : 'pill'
                         }
                       >
-                        {STATUS[d.status] ?? d.status}
+                        {t(STATUS[d.status] ?? d.status)}
                       </span>
                     </td>
                   </tr>
@@ -160,11 +161,11 @@ export function AdminToday() {
               </tbody>
             </table>
           ) : (
-            <Empty>No deliveries started today.</Empty>
+            <Empty>{t('No deliveries started today.')}</Empty>
           )}
         </section>
         <section className="card">
-          <h2>Tasks due</h2>
+          <h2>{t('Tasks due')}</h2>
           <span className="muted small">
             {data.tasks.doneLast24h ?? 0} done in the last 24 hours
           </span>
@@ -176,11 +177,11 @@ export function AdminToday() {
               </Link>
             ))
           ) : (
-            <Empty>No open tasks due.</Empty>
+            <Empty>{t('No open tasks due.')}</Empty>
           )}
         </section>
         <section className="card">
-          <h2>Output today</h2>
+          <h2>{t('Output today')}</h2>
           {output.length ? (
             <table className="t">
               <tbody>
@@ -195,7 +196,7 @@ export function AdminToday() {
               </tbody>
             </table>
           ) : (
-            <Empty>No output logged yet today.</Empty>
+            <Empty>{t('No output logged yet today.')}</Empty>
           )}
         </section>
       </div>

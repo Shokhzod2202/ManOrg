@@ -8,6 +8,7 @@ import { ErrorBox, Flag, PageHead } from '../../../components/ui';
 import { type ApiError, formatDate, post, type Schemas } from '../../../lib/api';
 import { useSession } from '../../../lib/session';
 import { useApi } from '../../../lib/use-api';
+import { t } from '../../../lib/i18n';
 
 type Change = Schemas['OrderChangeRequest'];
 
@@ -19,9 +20,11 @@ export default function OrdersPage() {
   return (
     <div className="page wide">
       <PageHead
-        title={tab === 'next' ? 'Orders due next' : 'Orders by day'}
+        title={tab === 'next' ? t('Orders due next') : t('Orders by day')}
         sub={
-          tab === 'next' ? 'Selected by delivery due; it does not change at midnight.' : undefined
+          tab === 'next'
+            ? t('Selected by delivery due; it does not change at midnight.')
+            : undefined
         }
       >
         {admin ? (
@@ -32,7 +35,7 @@ export default function OrdersPage() {
               className={tab === 'next' ? 'on' : ''}
               onClick={() => setTab('next')}
             >
-              Due next
+              {t('Due next')}
             </button>
             <button
               role="tab"
@@ -40,7 +43,7 @@ export default function OrdersPage() {
               className={tab === 'day' ? 'on' : ''}
               onClick={() => setTab('day')}
             >
-              By day
+              {t('By day')}
             </button>
           </div>
         ) : null}
@@ -79,7 +82,7 @@ function ChangeRequests({ admin }: { admin: boolean }) {
 
   return (
     <section className="card">
-      <h2>Order changes waiting</h2>
+      <h2>{t('Order changes waiting')}</h2>
       <ErrorBox error={err} />
       {data.items.map((c) => (
         <div
@@ -100,24 +103,26 @@ function ChangeRequests({ admin }: { admin: boolean }) {
               return (
                 <div key={i.id} className="row between wrap">
                   <span>
-                    <span className={i.needsAdmin ? 'pill warn' : 'pill blue'}>{KIND[i.kind]}</span>{' '}
+                    <span className={i.needsAdmin ? 'pill warn' : 'pill blue'}>
+                      {t(KIND[i.kind])}
+                    </span>{' '}
                     {i.productName}: {i.fromQuantity} → <b>{i.toQuantity}</b>
                   </span>
                   {can ? (
                     <span className="row">
                       <button className="btn" disabled={busy} onClick={() => decide(i.id, true)}>
-                        Accept
+                        {t('Accept')}
                       </button>
                       <button
                         className="btn ghost"
                         disabled={busy}
                         onClick={() => decide(i.id, false)}
                       >
-                        Reject
+                        {t('Reject')}
                       </button>
                     </span>
                   ) : (
-                    <Flag>Waiting for an admin</Flag>
+                    <Flag>{t('Waiting for an admin')}</Flag>
                   )}
                 </div>
               );

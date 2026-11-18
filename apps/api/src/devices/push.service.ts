@@ -88,6 +88,14 @@ export class PushService {
         include: { organization: { select: { name: true } } },
       }),
     );
+    // Phase 3: each person reads messages in their own language.
+    const locale = rows.length
+      ? (
+          await this.db.run(ctx, (tx) =>
+            tx.user.findUnique({ where: { id: userId }, select: { locale: true } }),
+          )
+        )?.locale
+      : null;
     let sent = 0;
     for (const n of rows) {
       const done = () =>
@@ -98,7 +106,9 @@ export class PushService {
         await done();
         continue;
       }
-      const body = plain(notificationText(n.type, n.payload as Record<string, unknown>));
+      const body = plain(
+        notificationText(n.type, n.payload as Record<string, unknown>, null, locale),
+      );
       const messages = tokens.map((t) => ({
         to: t.token,
         title: n.organization?.name ?? 'Haydar',

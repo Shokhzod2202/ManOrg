@@ -4,6 +4,7 @@ import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { Empty, ErrorBox, Icon, Loading, PageHead } from '../../../components/ui';
 import { type ApiError, get, post, type Schemas } from '../../../lib/api';
 import { useApi } from '../../../lib/use-api';
+import { t } from '../../../lib/i18n';
 
 type Status = Schemas['BotStatus'];
 type Message = Schemas['BotMessage'];
@@ -125,7 +126,7 @@ export default function BotPage() {
   return (
     <div className="page">
       <PageHead
-        title="Bot"
+        title={t('Bot')}
         sub={
           usage
             ? `This month: ${Math.round((usage.usedTokens / usage.budgetTokens) * 100)}% of the AI budget used`
@@ -137,9 +138,9 @@ export default function BotPage() {
             className="input"
             value={current ?? ''}
             onChange={(e) => void open(e.target.value || null)}
-            aria-label="Conversation"
+            aria-label={t('Conversation')}
           >
-            <option value="">New conversation</option>
+            <option value="">{t('New conversation')}</option>
             {list.data?.items.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.title}
@@ -150,24 +151,31 @@ export default function BotPage() {
       </PageHead>
       {!status.data?.available ? (
         <Empty>
-          The AI bot is not set up on this server yet. An administrator sets LLM_PROVIDER and the
-          model key.
+          {t(
+            'The AI bot is not set up on this server yet. An administrator sets LLM_PROVIDER and the model key.',
+          )}
         </Empty>
       ) : (
         <>
           <section className="card bot-feed" aria-live="polite">
             {!feed.length ? (
               <div className="muted center small stack">
-                <span>Ask about your bakery or tell the bot what to change. For example:</span>
+                <span>
+                  {t('Ask about your bakery or tell the bot what to change. For example:')}
+                </span>
                 <span>“Who worked yesterday and were there red flags?”</span>
                 <span>“Add ingredient flour, 1500 won, 20 kg from Seoul Flour Co.”</span>
                 <span>“Put Mina on 06:00 to 14:00 Monday to Friday.”</span>
                 <span>
-                  “Approve the waiting shift corrections and accept City Cafe’s added baguettes.”
+                  {t(
+                    '“Approve the waiting shift corrections and accept City Cafe’s added baguettes.”',
+                  )}
                 </span>
                 <span>“Give Joon a task to clean the oven today.”</span>
                 <span>
-                  Every change shows a preview first. Nothing changes until you press Confirm.
+                  {t(
+                    'Every change shows a preview first. Nothing changes until you press Confirm.',
+                  )}
                 </span>
               </div>
             ) : null}
@@ -180,7 +188,7 @@ export default function BotPage() {
                 <ProposalCard key={item.p.id} p={item.p} onDecide={decide} />
               ),
             )}
-            {busy ? <div className="bubble muted">Working…</div> : null}
+            {busy ? <div className="bubble muted">{t('Working…')}</div> : null}
             <div ref={end} />
           </section>
           <ErrorBox error={err} />
@@ -190,8 +198,8 @@ export default function BotPage() {
               style={{ flex: 1, minHeight: 52, padding: 12 }}
               value={text}
               maxLength={4000}
-              placeholder="Write to the bot"
-              aria-label="Message"
+              placeholder={t('Write to the bot')}
+              aria-label={t('Message')}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -201,7 +209,7 @@ export default function BotPage() {
               }}
             />
             <button className="btn" disabled={busy || !text.trim()}>
-              Send
+              {t('Send')}
             </button>
           </form>
         </>
@@ -239,8 +247,8 @@ function ProposalCard({
           <thead>
             <tr>
               <th />
-              <th>Now</th>
-              <th>After</th>
+              <th>{t('Now')}</th>
+              <th>{t('After')}</th>
             </tr>
           </thead>
           <tbody>
@@ -265,7 +273,7 @@ function ProposalCard({
             Confirm{p.needsSecondConfirmation ? ` all ${p.rows} rows` : ''}
           </button>
           <button className="btn ghost" onClick={() => onDecide(p, 'cancel')}>
-            Cancel
+            {t('Cancel')}
           </button>
         </div>
       ) : null}

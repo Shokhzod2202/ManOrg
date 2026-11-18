@@ -5,6 +5,7 @@ import { Empty, ErrorBox, Loading, PageHead } from '../../../components/ui';
 import { type ApiError, formatDate, get, patch, post, put, type Schemas } from '../../../lib/api';
 import { useSession } from '../../../lib/session';
 import { useApi } from '../../../lib/use-api';
+import { t } from '../../../lib/i18n';
 
 type Ingredient = Schemas['Ingredient'];
 type Member = Schemas['Member'];
@@ -28,11 +29,11 @@ export default function IngredientsPage() {
 
   return (
     <div className="page">
-      <PageHead title="Ingredients" />
+      <PageHead title={t('Ingredients')} />
       {admin ? <NewIngredient onCreated={reload} /> : null}
       {loading && !data ? <Loading /> : null}
       <ErrorBox error={error} onRetry={reload} />
-      {data && !items.length ? <Empty>No ingredients yet.</Empty> : null}
+      {data && !items.length ? <Empty>{t('No ingredients yet.')}</Empty> : null}
       {items.map((i) => (
         <IngredientCard key={i.id} ing={i} admin={admin} onChange={reload} />
       ))}
@@ -74,7 +75,7 @@ function IngredientCard({
     setMsg(null);
     try {
       await fn();
-      setMsg(done);
+      setMsg(t(done));
       setMode('none');
       onChange();
     } catch (e) {
@@ -88,15 +89,16 @@ function IngredientCard({
         <div>
           <h2>{ing.name}</h2>
           <span className="muted small">
-            {ing.packQuantity} {ing.packUnit} per pack · {ing.source}
+            {t('{qty} {unit} per pack', { qty: ing.packQuantity, unit: ing.packUnit })} ·{' '}
+            {ing.source}
             {ing.orderSchedule
-              ? ` · order ${WEEKDAYS[ing.orderSchedule.weekday]} by ${ing.orderSchedule.time}`
+              ? ` · ${t('order {day} by {time}', { day: t(WEEKDAYS[ing.orderSchedule.weekday]), time: ing.orderSchedule.time })}`
               : ''}
           </span>
         </div>
         <div className="row wrap">
-          {ing.dueToday ? <span className="pill warn">Order today</span> : null}
-          {ing.isMyResponsibility ? <span className="pill blue">You order this</span> : null}
+          {ing.dueToday ? <span className="pill warn">{t('Order today')}</span> : null}
+          {ing.isMyResponsibility ? <span className="pill blue">{t('You order this')}</span> : null}
           {ing.packPrice != null ? <b>{won(ing.packPrice)} / pack</b> : null}
         </div>
       </div>
@@ -107,11 +109,11 @@ function IngredientCard({
       {msg ? <span className="pill ok">{msg}</span> : null}
       <div className="row wrap">
         <button className="btn" onClick={() => setMode(mode === 'order' ? 'none' : 'order')}>
-          Ask to order
+          {t('Ask to order')}
         </button>
         {admin ? (
           <button className="btn ghost" onClick={() => setMode(mode === 'edit' ? 'none' : 'edit')}>
-            Edit
+            {t('Edit')}
           </button>
         ) : null}
         {admin ? (
@@ -119,7 +121,7 @@ function IngredientCard({
             className="btn ghost"
             onClick={() => setMode(mode === 'price' ? 'none' : 'price')}
           >
-            Change price
+            {t('Change price')}
           </button>
         ) : null}
         {admin ? (
@@ -127,7 +129,7 @@ function IngredientCard({
             className="btn ghost"
             onClick={() => setMode(mode === 'people' ? 'none' : 'people')}
           >
-            Responsible
+            {t('Responsible')}
           </button>
         ) : null}
         {ing.packPrice != null ? (
@@ -140,7 +142,7 @@ function IngredientCard({
               setHistory(r?.items ?? []);
             }}
           >
-            Price history
+            {t('Price history')}
           </button>
         ) : null}
       </div>
@@ -148,7 +150,7 @@ function IngredientCard({
         <div className="stack">
           <div className="grid2">
             <label className="field">
-              Name
+              {t('Name')}
               <input
                 value={f.name}
                 maxLength={120}
@@ -156,7 +158,7 @@ function IngredientCard({
               />
             </label>
             <label className="field">
-              Where it is bought
+              {t('Where it is bought')}
               <input
                 value={f.source}
                 maxLength={200}
@@ -164,7 +166,7 @@ function IngredientCard({
               />
             </label>
             <label className="field">
-              Pack size
+              {t('Pack size')}
               <input
                 type="number"
                 min={0.001}
@@ -174,7 +176,7 @@ function IngredientCard({
               />
             </label>
             <label className="field">
-              Unit
+              {t('Unit')}
               <select value={f.packUnit} onChange={(e) => setF({ ...f, packUnit: e.target.value })}>
                 {['g', 'kg', 'pc', 'L', 'mL'].map((u) => (
                   <option key={u}>{u}</option>
@@ -182,19 +184,19 @@ function IngredientCard({
               </select>
             </label>
             <label className="field">
-              Order day
+              {t('Order day')}
               <select value={f.weekday} onChange={(e) => setF({ ...f, weekday: e.target.value })}>
-                <option value="">No fixed day</option>
+                <option value="">{t('No fixed day')}</option>
                 {WEEKDAYS.map((d, i) => (
                   <option key={d} value={i}>
-                    {d}
+                    {t(d)}
                   </option>
                 ))}
               </select>
             </label>
             {f.weekday !== '' ? (
               <label className="field">
-                Order by
+                {t('Order by')}
                 <input
                   type="time"
                   value={f.time}
@@ -226,7 +228,7 @@ function IngredientCard({
               )
             }
           >
-            Save
+            {t('Save')}
           </button>
         </div>
       ) : null}
@@ -238,12 +240,12 @@ function IngredientCard({
             min={1}
             value={packs}
             onChange={(e) => setPacks(Math.max(1, Number(e.target.value)))}
-            aria-label="Packs"
+            aria-label={t('Packs')}
           />
           <span>packs</span>
           <input
             className="input"
-            placeholder="Note (optional)"
+            placeholder={t('Note (optional)')}
             maxLength={500}
             value={note}
             onChange={(e) => setNote(e.target.value)}
@@ -263,7 +265,7 @@ function IngredientCard({
               )
             }
           >
-            Send
+            {t('Send')}
           </button>
         </div>
       ) : null}
@@ -277,7 +279,7 @@ function IngredientCard({
             step={1}
             value={price}
             onChange={(e) => setPrice(Math.max(0, Math.round(Number(e.target.value))))}
-            aria-label="Price per pack in won"
+            aria-label={t('Price per pack in won')}
           />
           <button
             className="btn"
@@ -288,9 +290,9 @@ function IngredientCard({
               )
             }
           >
-            Save price
+            {t('Save price')}
           </button>
-          <span className="muted small">Past costs keep the old price.</span>
+          <span className="muted small">{t('Past costs keep the old price.')}</span>
         </div>
       ) : null}
       {mode === 'people' ? (
@@ -324,7 +326,7 @@ function IngredientCard({
               )
             }
           >
-            Save
+            {t('Save')}
           </button>
         </div>
       ) : null}
@@ -332,8 +334,8 @@ function IngredientCard({
         <table className="t">
           <thead>
             <tr>
-              <th>From</th>
-              <th>Price per pack</th>
+              <th>{t('From')}</th>
+              <th>{t('Price per pack')}</th>
             </tr>
           </thead>
           <tbody>
@@ -384,20 +386,20 @@ function NewIngredient({ onCreated }: { onCreated: () => void }) {
   if (!open)
     return (
       <button className="btn" style={{ alignSelf: 'center' }} onClick={() => setOpen(true)}>
-        New ingredient
+        {t('New ingredient')}
       </button>
     );
   return (
     <form className="card" onSubmit={submit}>
-      <h2>New ingredient</h2>
+      <h2>{t('New ingredient')}</h2>
       <ErrorBox error={err} />
       <div className="grid2">
         <label className="field">
-          Name
+          {t('Name')}
           <input required value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
         </label>
         <label className="field">
-          Where it is bought
+          {t('Where it is bought')}
           <input
             required
             value={f.source}
@@ -405,7 +407,7 @@ function NewIngredient({ onCreated }: { onCreated: () => void }) {
           />
         </label>
         <label className="field">
-          Pack size
+          {t('Pack size')}
           <input
             type="number"
             min={0.001}
@@ -416,7 +418,7 @@ function NewIngredient({ onCreated }: { onCreated: () => void }) {
           />
         </label>
         <label className="field">
-          Unit
+          {t('Unit')}
           <select value={f.packUnit} onChange={(e) => setF({ ...f, packUnit: e.target.value })}>
             {['g', 'kg', 'pc', 'L', 'mL'].map((u) => (
               <option key={u}>{u}</option>
@@ -424,7 +426,7 @@ function NewIngredient({ onCreated }: { onCreated: () => void }) {
           </select>
         </label>
         <label className="field">
-          Price per pack (won)
+          {t('Price per pack (won)')}
           <input
             type="number"
             min={0}
@@ -434,21 +436,21 @@ function NewIngredient({ onCreated }: { onCreated: () => void }) {
           />
         </label>
         <label className="field">
-          Order day
+          {t('Order day')}
           <select value={f.weekday} onChange={(e) => setF({ ...f, weekday: e.target.value })}>
-            <option value="">No fixed day</option>
+            <option value="">{t('No fixed day')}</option>
             {WEEKDAYS.map((d, i) => (
               <option key={d} value={i}>
-                {d}
+                {t(d)}
               </option>
             ))}
           </select>
         </label>
       </div>
       <div className="row">
-        <button className="btn">Add ingredient</button>
+        <button className="btn">{t('Add ingredient')}</button>
         <button type="button" className="btn ghost" onClick={() => setOpen(false)}>
-          Cancel
+          {t('Cancel')}
         </button>
       </div>
     </form>

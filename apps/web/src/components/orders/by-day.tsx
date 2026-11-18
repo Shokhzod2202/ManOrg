@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { type ApiError, formatDate, put, type Schemas, today } from '../../lib/api';
 import { useApi } from '../../lib/use-api';
 import { Empty, ErrorBox, Loading } from '../ui';
+import { t } from '../../lib/i18n';
 
 type Order = Schemas['Order'];
 type Product = Schemas['Product'];
@@ -35,31 +36,33 @@ export function OrdersByDay({ canEdit }: { canEdit: boolean }) {
           type="date"
           value={date}
           onChange={(e) => setDate(e.target.value)}
-          aria-label="Delivery date"
+          aria-label={t('Delivery date')}
         />
         <span className="muted">
-          {placed.length} orders · {(totals.data?.items ?? []).reduce((n, t) => n + t.quantity, 0)}{' '}
-          items
+          {t('{orders} orders · {units} items', {
+            orders: placed.length,
+            units: (totals.data?.items ?? []).reduce((n, x) => n + x.quantity, 0),
+          })}
         </span>
       </div>
       {orders.loading && !orders.data ? <Loading /> : null}
       <ErrorBox error={orders.error ?? totals.error} onRetry={reload} />
       {orders.data && !orders.data.items.length ? (
-        <Empty>No orders for {formatDate(date)}.</Empty>
+        <Empty>{t('No orders for {date}.', { date: formatDate(date) })}</Empty>
       ) : null}
       {orders.data?.items.length ? (
         <div className="grid2" style={{ alignItems: 'start' }}>
           <section className="card">
-            <h2>Production totals</h2>
+            <h2>{t('Production totals')}</h2>
             <table className="t">
               <tbody>
                 {[...(totals.data?.items ?? [])]
                   .sort((a, b) => a.name.localeCompare(b.name))
-                  .map((t) => (
-                    <tr key={t.productId}>
-                      <td>{t.name}</td>
+                  .map((x) => (
+                    <tr key={x.productId}>
+                      <td>{x.name}</td>
                       <td style={{ textAlign: 'right' }}>
-                        <b>{t.quantity}</b>
+                        <b>{x.quantity}</b>
                       </td>
                     </tr>
                   ))}
@@ -83,13 +86,15 @@ export function OrdersByDay({ canEdit }: { canEdit: boolean }) {
                   <div className="row between wrap">
                     <h2>{o.contractor.name}</h2>
                     <span className="row">
-                      {o.status === 'cancelled' ? <span className="pill">Cancelled</span> : null}
+                      {o.status === 'cancelled' ? (
+                        <span className="pill">{t('Cancelled')}</span>
+                      ) : null}
                       {o.openChangeRequestIds.length ? (
-                        <span className="pill warn">Change waiting</span>
+                        <span className="pill warn">{t('Change waiting')}</span>
                       ) : null}
                       {canEdit && o.status === 'placed' ? (
                         <button className="btn ghost" onClick={() => setEditing(o.id)}>
-                          Correct
+                          {t('Correct')}
                         </button>
                       ) : null}
                     </span>
@@ -153,14 +158,14 @@ function EditOrder({
 
   return (
     <section className="card">
-      <h2>Correct {order.contractor.name}</h2>
+      <h2>{t('Correct {name}', { name: order.contractor.name })}</h2>
       <p className="muted small" style={{ margin: 0 }}>
-        Set 0 to remove a product. The contractor is notified and the change is recorded.
+        {t('Set 0 to remove a product. The contractor is notified and the change is recorded.')}
       </p>
       <ErrorBox error={err} />
       {Object.keys(qty).map((id) => (
         <label key={id} className="row between">
-          <span>{names.get(id) ?? 'Product'}</span>
+          <span>{names.get(id) ?? t('Product')}</span>
           <input
             className="input qty"
             type="number"
@@ -176,9 +181,9 @@ function EditOrder({
           className="input"
           value={add}
           onChange={(e) => setAdd(e.target.value)}
-          aria-label="Add a product"
+          aria-label={t('Add a product')}
         >
-          <option value="">Add a product…</option>
+          <option value="">{t('Add a product…')}</option>
           {products
             .filter((p) => p.available && !(p.id in qty))
             .sort((a, b) => a.name.localeCompare(b.name))
@@ -196,15 +201,15 @@ function EditOrder({
             setAdd('');
           }}
         >
-          Add
+          {t('Add')}
         </button>
       </div>
       <div className="row">
         <button className="btn" onClick={save}>
-          Save correction
+          {t('Save correction')}
         </button>
         <button className="btn ghost" onClick={onDone}>
-          Cancel
+          {t('Cancel')}
         </button>
       </div>
     </section>

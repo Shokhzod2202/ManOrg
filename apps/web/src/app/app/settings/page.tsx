@@ -5,6 +5,7 @@ import { Empty, ErrorBox, Loading, PageHead } from '../../../components/ui';
 import { type ApiError, del, get, patch, post, put, type Schemas } from '../../../lib/api';
 import { useSession } from '../../../lib/session';
 import { useApi } from '../../../lib/use-api';
+import { LanguagePicker, t } from '../../../lib/i18n';
 
 type Access = Schemas['EmployeeAccess'];
 type Bot = Schemas['BotAccess'];
@@ -15,19 +16,20 @@ export default function SettingsPage() {
   const active = s.me?.memberships.filter((m) => m.status === 'active') ?? [];
   return (
     <div className="page">
-      <PageHead title="Settings" />
+      <PageHead title={t('Settings')} />
       <Account />
+      <Language />
       <Telegram />
       {s.actor === 'employee' ? <ArrivalReminder /> : null}
       {s.actor === 'org_admin' ? <BakeryLocation /> : null}
       {active.length > 1 ? (
         <section className="card">
-          <h2>Organization</h2>
+          <h2>{t('Organization')}</h2>
           <select
             className="input"
             value={s.orgId ?? ''}
             onChange={(e) => s.chooseOrg(e.target.value)}
-            aria-label="Organization"
+            aria-label={t('Organization')}
           >
             {active.map((m) => (
               <option key={m.organization.id} value={m.organization.id}>
@@ -39,20 +41,36 @@ export default function SettingsPage() {
       ) : null}
       {s.actor === 'org_admin' ? (
         <Switches<Access>
-          title="Employee access"
-          sub="What employees may read. Employees never edit orders."
+          title={t('Employee access')}
+          sub={t('What employees may read. Employees never edit orders.')}
           path="/organization/employee-access"
         />
       ) : null}
       {s.actor === 'org_admin' ? (
         <Switches<Bot>
-          title="Bot permissions"
-          sub="The AI bot (phase 2) acts like an admin. It never deletes, creates organizations or changes these switches."
+          title={t('Bot permissions')}
+          sub={t(
+            'The AI bot acts like an admin. It never deletes, creates organizations or changes these switches.',
+          )}
           path="/organization/bot-access"
         />
       ) : null}
       {s.actor === 'contractor_admin' ? <ApplyToProvider /> : null}
     </div>
+  );
+}
+
+/** Phase 3: English, Korean or Uzbek, kept on the account so the phone app and web match. */
+function Language() {
+  const s = useSession();
+  return (
+    <section className="card">
+      <h2>{t('Language')}</h2>
+      <span className="muted small">
+        {t('Screens, dates and messages show in this language on every device you sign in on.')}
+      </span>
+      <LanguagePicker onChange={(l) => s.setLanguage(l)} />
+    </section>
   );
 }
 
@@ -67,22 +85,22 @@ function Account() {
     try {
       await patch('/me', { name: name.trim() }, { org: null });
       await s.reload();
-      setMsg('Saved.');
+      setMsg(t('Saved.'));
     } catch (e2) {
       setErr(e2 as ApiError);
     }
   }
   return (
     <form className="card" onSubmit={save}>
-      <h2>Account</h2>
+      <h2>{t('Account')}</h2>
       <span className="muted small">{s.me?.email}</span>
       <ErrorBox error={err} />
       <label className="field">
-        Name
+        {t('Name')}
         <input value={name} required maxLength={100} onChange={(e) => setName(e.target.value)} />
       </label>
       <div className="row">
-        <button className="btn">Save</button>
+        <button className="btn">{t('Save')}</button>
         {msg ? <span className="pill ok">{msg}</span> : null}
       </div>
     </form>
@@ -113,15 +131,15 @@ function Switches<T extends Access | Bot>({
   }
   return (
     <section className="card">
-      <h2>{title}</h2>
+      <h2>{t(title)}</h2>
       <p className="muted small" style={{ margin: 0 }}>
-        {sub}
+        {t(sub)}
       </p>
       {loading && !data ? <Loading /> : null}
       <ErrorBox error={error ?? err} />
       {data?.areas.map((a) => (
         <label key={a.key} className="row between" style={{ minHeight: 44 }}>
-          <span>{a.label}</span>
+          <span>{t(a.label)}</span>
           <input
             type="checkbox"
             role="switch"
@@ -158,14 +176,14 @@ function ApplyToProvider() {
     setErr(null);
     try {
       await post(`/organizations/${o.id}/applications`, undefined, { org: orgId });
-      setMsg(`Applied to ${o.name}. You can order once they approve.`);
+      setMsg(t('Applied to {name}. You can order once they approve.', { name: o.name }));
     } catch (e) {
       setErr(e as ApiError);
     }
   }
   return (
     <section className="card">
-      <h2>Bakeries</h2>
+      <h2>{t('Bakeries')}</h2>
       {providers.data?.items.length ? (
         <div className="row wrap">
           {providers.data.items.map((p) => (
@@ -175,7 +193,7 @@ function ApplyToProvider() {
           ))}
         </div>
       ) : (
-        <Empty>No bakery has approved you yet.</Empty>
+        <Empty>{t('No bakery has approved you yet.')}</Empty>
       )}
       <ErrorBox error={err} />
       {msg ? <span className="pill ok">{msg}</span> : null}
@@ -183,13 +201,13 @@ function ApplyToProvider() {
         <input
           className="input"
           required
-          placeholder="Find a bakery"
+          placeholder={t('Find a bakery')}
           value={q}
           onChange={(e) => setQ(e.target.value)}
           style={{ flex: 1 }}
-          aria-label="Bakery name"
+          aria-label={t('Bakery name')}
         />
-        <button className="btn">Search</button>
+        <button className="btn">{t('Search')}</button>
       </form>
       {found
         ?.filter((o) => o.type === 'provider')
@@ -197,7 +215,7 @@ function ApplyToProvider() {
           <div key={o.id} className="row between">
             <span>{o.name}</span>
             <button className="btn ghost" onClick={() => apply(o)}>
-              Apply to order
+              {t('Apply to order')}
             </button>
           </div>
         ))}
@@ -249,28 +267,34 @@ function Telegram() {
 
   return (
     <section className="card">
-      <h2>Telegram</h2>
+      <h2>{t('Telegram')}</h2>
       <p className="muted small" style={{ margin: 0 }}>
-        Get your notifications in Telegram too: new tasks, order changes, deliveries and reminders.
+        {t(
+          'Get your notifications in Telegram too: new tasks, order changes, deliveries and reminders.',
+        )}
       </p>
       {loading && !data ? <Loading /> : null}
       <ErrorBox error={error ?? err} />
-      {data && !data.available ? <Empty>Telegram is not set up on this server yet.</Empty> : null}
+      {data && !data.available ? (
+        <Empty>{t('Telegram is not set up on this server yet.')}</Empty>
+      ) : null}
       {data?.available && data.connected ? (
         <div className="row between wrap">
           <span className="pill ok">Connected{data.username ? ` as @${data.username}` : ''}</span>
           <button className="btn ghost" onClick={disconnect}>
-            Disconnect
+            {t('Disconnect')}
           </button>
         </div>
       ) : null}
       {data?.available && !data.connected ? (
         <div className="stack">
           <button className="btn" onClick={connect} disabled={waiting}>
-            {waiting ? 'Waiting for Telegram…' : 'Connect Telegram'}
+            {waiting ? t('Waiting for Telegram…') : t('Connect Telegram')}
           </button>
           <span className="muted small">
-            Telegram opens @{data.botUsername}. Press <b>Start</b> there and come back.
+            {t('Telegram opens @{bot}. Press Start there and come back.', {
+              bot: data.botUsername,
+            })}
           </span>
         </div>
       ) : null}
@@ -294,15 +318,15 @@ function ArrivalReminder() {
   }
   return (
     <section className="card">
-      <h2>Arrival reminder</h2>
+      <h2>{t('Arrival reminder')}</h2>
       <p className="muted small" style={{ margin: 0 }}>
-        The Haydar phone app can remind you “You came to work. Start shift” when you arrive before a
-        planned shift. It never starts your shift by itself, and your location is never sent or
-        stored.
+        {t(
+          'The Haydar phone app can remind you “You came to work. Start shift” when you arrive before a planned shift. It never starts your shift by itself, and your location is never sent or stored.',
+        )}
       </p>
       <ErrorBox error={err} />
       <label className="row between" style={{ minHeight: 44 }}>
-        <span>Remind me when I arrive</span>
+        <span>{t('Remind me when I arrive')}</span>
         <input
           type="checkbox"
           role="switch"
@@ -351,30 +375,30 @@ function BakeryLocation() {
         }),
       );
       setForm(null);
-      setMsg('Saved.');
+      setMsg(t('Saved.'));
     } catch (e) {
       setErr(e as ApiError);
     }
   }
 
   function here() {
-    if (!navigator.geolocation) return setMsg('This device cannot share its location.');
+    if (!navigator.geolocation) return setMsg(t('This device cannot share its location.'));
     navigator.geolocation.getCurrentPosition(
       (p) =>
         f &&
         setForm({ ...f, lat: p.coords.latitude.toFixed(6), lng: p.coords.longitude.toFixed(6) }),
-      () => setMsg('Location was not shared. Type the coordinates instead.'),
+      () => setMsg(t('Location was not shared. Type the coordinates instead.')),
       { enableHighAccuracy: true, timeout: 10_000 },
     );
   }
 
   return (
     <section className="card">
-      <h2>Bakery location</h2>
+      <h2>{t('Bakery location')}</h2>
       <p className="muted small" style={{ margin: 0 }}>
-        The phone app reminds employees “You came to work. Start shift” when they arrive within the
-        radius before a planned shift. It never punches by itself, and employees&apos; locations are
-        never stored.
+        {t(
+          'The phone app reminds employees “You came to work. Start shift” when they arrive within the radius before a planned shift. It never punches by itself, and employees’ locations are never stored.',
+        )}
       </p>
       {loading && !data ? <Loading /> : null}
       <ErrorBox error={error ?? err} />
@@ -382,7 +406,7 @@ function BakeryLocation() {
       {data && f ? (
         <>
           <label className="row between" style={{ minHeight: 44 }}>
-            <span>Arrival reminder on</span>
+            <span>{t('Arrival reminder on')}</span>
             <input
               type="checkbox"
               role="switch"
@@ -393,7 +417,7 @@ function BakeryLocation() {
           </label>
           <div className="grid2">
             <label className="field">
-              Latitude
+              {t('Latitude')}
               <input
                 inputMode="decimal"
                 value={f.lat}
@@ -401,7 +425,7 @@ function BakeryLocation() {
               />
             </label>
             <label className="field">
-              Longitude
+              {t('Longitude')}
               <input
                 inputMode="decimal"
                 value={f.lng}
@@ -409,7 +433,7 @@ function BakeryLocation() {
               />
             </label>
             <label className="field">
-              Radius (metres)
+              {t('Radius (metres)')}
               <input
                 type="number"
                 min={30}
@@ -419,7 +443,7 @@ function BakeryLocation() {
               />
             </label>
             <label className="field">
-              Remind from (minutes before the shift)
+              {t('Remind from (minutes before the shift)')}
               <input
                 type="number"
                 min={0}
@@ -429,7 +453,7 @@ function BakeryLocation() {
               />
             </label>
             <label className="field">
-              Until (minutes after the start)
+              {t('Until (minutes after the start)')}
               <input
                 type="number"
                 min={0}
@@ -441,7 +465,7 @@ function BakeryLocation() {
           </div>
           <div className="row wrap">
             <button className="btn ghost" type="button" onClick={here}>
-              Use this device&apos;s location
+              {t('Use this device’s location')}
             </button>
             <button
               className="btn"
@@ -457,7 +481,7 @@ function BakeryLocation() {
                 })
               }
             >
-              Save location
+              {t('Save location')}
             </button>
           </div>
         </>

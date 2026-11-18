@@ -4,6 +4,7 @@ import { type FormEvent, useEffect, useState } from 'react';
 import { Empty, ErrorBox, Loading, PageHead } from '../../../components/ui';
 import { api, type ApiError, get, patch, post, put, type Schemas } from '../../../lib/api';
 import { useApi } from '../../../lib/use-api';
+import { t } from '../../../lib/i18n';
 
 type Product = Schemas['Product'];
 type Member = Schemas['Member'];
@@ -30,7 +31,7 @@ export default function ProductsPage() {
 
   return (
     <div className="page">
-      <PageHead title="Products" sub={data ? `${data.items.length} products` : undefined} />
+      <PageHead title={t('Products')} sub={data ? `${data.items.length} products` : undefined} />
       {editing ? (
         <ProductForm
           key={editing.id}
@@ -45,24 +46,26 @@ export default function ProductsPage() {
       )}
       <input
         className="input"
-        placeholder="Search products"
+        placeholder={t('Search products')}
         value={q}
         onChange={(e) => setQ(e.target.value)}
-        aria-label="Search products"
+        aria-label={t('Search products')}
       />
       {loading && !data ? <Loading /> : null}
       <ErrorBox error={error ?? err} onRetry={reload} />
-      {data && !data.items.length ? <Empty>No products yet. Add the first one above.</Empty> : null}
+      {data && !data.items.length ? (
+        <Empty>{t('No products yet. Add the first one above.')}</Empty>
+      ) : null}
       {items.length ? (
         <table className="t cards">
           <thead>
             <tr>
               <th />
-              <th>Name</th>
-              <th>Price</th>
-              <th>Minutes per 10</th>
-              <th>Ingredients</th>
-              <th>Status</th>
+              <th>{t('Name')}</th>
+              <th>{t('Price')}</th>
+              <th>{t('Minutes per 10')}</th>
+              <th>{t('Ingredients')}</th>
+              <th>{t('Status')}</th>
             </tr>
           </thead>
           <tbody>
@@ -71,7 +74,7 @@ export default function ProductsPage() {
                 <td data-label="">
                   <img className="thumb" src={p.imageUrl} alt="" />
                 </td>
-                <td data-label="Name">
+                <td data-label={t('Name')}>
                   <button
                     type="button"
                     className="btn ghost"
@@ -84,16 +87,16 @@ export default function ProductsPage() {
                     {p.name}
                   </button>
                 </td>
-                <td data-label="Price">
+                <td data-label={t('Price')}>
                   <PriceCell product={p} onSaved={reload} />
                 </td>
-                <td data-label="Minutes per 10">{p.minutesPer10}</td>
-                <td data-label="Ingredients" className="small">
+                <td data-label={t('Minutes per 10')}>{p.minutesPer10}</td>
+                <td data-label={t('Ingredients')} className="small">
                   {p.ingredients.map((i) => i.name).join(', ') || '—'}
                 </td>
-                <td data-label="Status">
+                <td data-label={t('Status')}>
                   <button className={p.available ? 'btn ghost' : 'btn'} onClick={() => toggle(p)}>
-                    {p.available ? 'Available' : 'Hidden'}
+                    {p.available ? t('Available') : t('Hidden')}
                   </button>
                 </td>
               </tr>
@@ -161,20 +164,20 @@ function ProductForm({ product, onDone }: { product?: Product; onDone: () => voi
   if (!open)
     return (
       <button className="btn" style={{ alignSelf: 'center' }} onClick={() => setOpen(true)}>
-        New product
+        {t('New product')}
       </button>
     );
   return (
     <form className="card" onSubmit={submit}>
-      <h2>{product ? `Edit ${product.name}` : 'New product'}</h2>
+      <h2>{product ? `Edit ${product.name}` : t('New product')}</h2>
       <ErrorBox error={err} />
       <div className="grid2">
         <label className="field">
-          Name
+          {t('Name')}
           <input required maxLength={120} value={name} onChange={(e) => setName(e.target.value)} />
         </label>
         <label className="field">
-          Minutes to make 10
+          {t('Minutes to make 10')}
           <input
             type="number"
             required
@@ -185,7 +188,7 @@ function ProductForm({ product, onDone }: { product?: Product; onDone: () => voi
         </label>
       </div>
       <div className="field">
-        Ingredients (at least one)
+        {t('Ingredients (at least one)')}
         <div className="row wrap">
           {ingredients.data?.items.map((i) => (
             <label key={i.id} className="chip">
@@ -203,12 +206,12 @@ function ProductForm({ product, onDone }: { product?: Product; onDone: () => voi
             </label>
           ))}
           {ingredients.data && !ingredients.data.items.length ? (
-            <span className="muted small">Add ingredients first.</span>
+            <span className="muted small">{t('Add ingredients first.')}</span>
           ) : null}
         </div>
       </div>
       <label className="field">
-        {product ? 'New picture (optional)' : 'Picture (JPEG or PNG)'}
+        {product ? t('New picture (optional)') : t('Picture (JPEG or PNG)')}
         <input
           type="file"
           accept="image/jpeg,image/png"
@@ -218,7 +221,7 @@ function ProductForm({ product, onDone }: { product?: Product; onDone: () => voi
       </label>
       <div className="row">
         <button className="btn" disabled={busy || !uses.size}>
-          {product ? 'Save' : 'Add product'}
+          {product ? t('Save') : t('Add product')}
         </button>
         <button
           type="button"
@@ -228,7 +231,7 @@ function ProductForm({ product, onDone }: { product?: Product; onDone: () => voi
             if (product) onDone();
           }}
         >
-          Cancel
+          {t('Cancel')}
         </button>
       </div>
     </form>
@@ -267,15 +270,15 @@ function AssignProducts({ products }: { products: Product[] }) {
   if (!products.length) return null;
   return (
     <section className="card">
-      <h2>Products each employee logs</h2>
+      <h2>{t('Products each employee logs')}</h2>
       <ErrorBox error={err} />
       <select
         className="input"
         value={who}
         onChange={(e) => setWho(e.target.value)}
-        aria-label="Employee"
+        aria-label={t('Employee')}
       >
-        <option value="">Choose an employee</option>
+        <option value="">{t('Choose an employee')}</option>
         {employees.map((m) => (
           <option key={m.user.id} value={m.user.id}>
             {m.user.name}
@@ -305,7 +308,7 @@ function AssignProducts({ products }: { products: Product[] }) {
           </div>
           <div className="row">
             <button className="btn" onClick={save}>
-              Save
+              {t('Save')}
             </button>
             {msg ? <span className="pill ok">{msg}</span> : null}
           </div>
@@ -343,7 +346,9 @@ function PriceCell({ product, onSaved }: { product: Product; onSaved: () => void
             : undefined
         }
       >
-        {product.unitPrice == null ? 'Set price' : `₩${product.unitPrice.toLocaleString('en-US')}`}
+        {product.unitPrice == null
+          ? t('Set price')
+          : `₩${product.unitPrice.toLocaleString('en-US')}`}
       </button>
     );
   }
@@ -360,12 +365,12 @@ function PriceCell({ product, onSaved }: { product: Product; onSaved: () => void
         aria-label={`New price of ${product.name} in won`}
       />
       <button type="button" className="btn" onClick={save}>
-        Save
+        {t('Save')}
       </button>
       <button type="button" className="btn ghost" onClick={() => setEditing(false)}>
-        Cancel
+        {t('Cancel')}
       </button>
-      {err ? <span className="err small">{err.message}</span> : null}
+      {err ? <span className="err small">{t(err.message)}</span> : null}
     </span>
   );
 }

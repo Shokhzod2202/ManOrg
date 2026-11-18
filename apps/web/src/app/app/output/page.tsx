@@ -14,6 +14,7 @@ import {
 } from '../../../lib/api';
 import { useSession } from '../../../lib/session';
 import { useApi } from '../../../lib/use-api';
+import { flagText, t } from '../../../lib/i18n';
 
 type Product = Schemas['Product'];
 type Team = Schemas['Team'];
@@ -79,14 +80,14 @@ function MyOutput() {
 
   return (
     <div className="page">
-      <PageHead title="Output">
+      <PageHead title={t('Output')}>
         <input
           className="input"
           type="date"
           value={date}
           max={today()}
           onChange={(e) => setDate(e.target.value)}
-          aria-label="Date"
+          aria-label={t('Date')}
         />
       </PageHead>
       <ErrorBox error={products.error ?? history.error ?? err} />
@@ -94,52 +95,53 @@ function MyOutput() {
         <div className="kpis">
           <div className="kpi">
             <b>{Math.round(day.creditedQuantity * 10) / 10}</b>
-            <span>Items credited</span>
+            <span>{t('Items credited')}</span>
           </div>
           <div className="kpi">
             <b>{formatMinutes(Math.round(day.expectedMinutes))}</b>
-            <span>Expected time</span>
+            <span>{t('Expected time')}</span>
           </div>
           <div className="kpi">
-            <b>{day.cleaningHours} h</b>
-            <span>Cleaning</span>
+            <b>{t('{n} h', { n: day.cleaningHours })}</b>
+            <span>{t('Cleaning')}</span>
           </div>
         </div>
       ) : null}
-      <div className="tabs" role="tablist" aria-label="Log for">
+      <div className="tabs" role="tablist" aria-label={t('Log for')}>
         <button
           role="tab"
           aria-selected={mode === 'personal'}
           className={mode === 'personal' ? 'on' : ''}
           onClick={() => setMode('personal')}
         >
-          Just me
+          {t('Just me')}
         </button>
-        {teams.data?.items.map((t) => (
+        {teams.data?.items.map((tm) => (
           <button
-            key={t.id}
+            key={tm.id}
             role="tab"
-            aria-selected={mode === t.id}
-            className={mode === t.id ? 'on' : ''}
-            onClick={() => setMode(t.id)}
+            aria-selected={mode === tm.id}
+            className={mode === tm.id ? 'on' : ''}
+            onClick={() => setMode(tm.id)}
           >
-            Team {t.name}
+            {t('Team {name}', { name: tm.name })}
           </button>
         ))}
       </div>
       {mode !== 'personal' ? (
         <p className="muted center small">
-          Team numbers are counted once and shared equally:{' '}
-          {teams.data?.items
-            .find((t) => t.id === mode)
-            ?.members.map((m) => m.name)
-            .join(', ')}
-          .
+          {t('Team numbers are counted once and shared equally: {names}.', {
+            names:
+              teams.data?.items
+                .find((tm) => tm.id === mode)
+                ?.members.map((m) => m.name)
+                .join(', ') ?? '',
+          })}
         </p>
       ) : null}
       {products.loading ? <Loading /> : null}
       {products.data && !list.length ? (
-        <Empty>No products are assigned to you yet. Ask your admin.</Empty>
+        <Empty>{t('No products are assigned to you yet. Ask your admin.')}</Empty>
       ) : null}
       {list.length ? (
         <div className="card" style={{ padding: 8 }}>
@@ -158,7 +160,7 @@ function MyOutput() {
                 type="number"
                 min={0}
                 inputMode="numeric"
-                aria-label={`${p.name} made`}
+                aria-label={t('{name} made', { name: p.name })}
                 value={current[p.id] ?? ''}
                 onChange={(e) =>
                   setQty({
@@ -170,7 +172,7 @@ function MyOutput() {
             </div>
           ))}
           <div className="row between" style={{ padding: '10px 8px' }}>
-            <span>Cleaning hours</span>
+            <span>{t('Cleaning hours')}</span>
             <input
               className="input qty"
               type="number"
@@ -179,18 +181,18 @@ function MyOutput() {
               step={0.25}
               value={cleaning}
               onChange={(e) => setCleaning(Number(e.target.value))}
-              aria-label="Cleaning hours"
+              aria-label={t('Cleaning hours')}
             />
           </div>
         </div>
       ) : null}
       <MyTeams onChange={teams.reload} />
       <button className="btn big" onClick={save} disabled={!list.length}>
-        Save output
+        {t('Save output')}
       </button>
       {saved ? (
         <span className="pill ok" style={{ alignSelf: 'center' }}>
-          Saved
+          {t('Saved')}
         </span>
       ) : null}
     </div>
@@ -206,14 +208,14 @@ function AdminOutput() {
   );
   return (
     <div className="page wide">
-      <PageHead title="Output">
+      <PageHead title={t('Output')}>
         <input
           className="input"
           type="date"
           value={date}
           max={today()}
           onChange={(e) => setDate(e.target.value)}
-          aria-label="Date"
+          aria-label={t('Date')}
         />
       </PageHead>
       {loading && !data ? <Loading /> : null}
@@ -221,52 +223,54 @@ function AdminOutput() {
       {data ? (
         <div className="grid2" style={{ alignItems: 'start' }}>
           <section className="card">
-            <h2>By employee</h2>
-            {!data.employees.length ? <Empty>No one worked on this day.</Empty> : null}
+            <h2>{t('By employee')}</h2>
+            {!data.employees.length ? <Empty>{t('No one worked on this day.')}</Empty> : null}
             <table className="t cards">
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Worked</th>
-                  <th>Items</th>
-                  <th>Expected</th>
-                  <th>Cleaning</th>
+                  <th>{t('Name')}</th>
+                  <th>{t('Worked')}</th>
+                  <th>{t('Items')}</th>
+                  <th>{t('Expected')}</th>
+                  <th>{t('Cleaning')}</th>
                 </tr>
               </thead>
               <tbody>
                 {data.employees.map((e) => (
                   <tr key={e.employee.id}>
-                    <td data-label="Name">
+                    <td data-label={t('Name')}>
                       <b>{e.employee.name}</b>
                       {e.flags.map((f) => (
                         <div key={f.code}>
-                          <Flag>{f.message}</Flag>
+                          <Flag>{flagText(f)}</Flag>
                         </div>
                       ))}
                     </td>
-                    <td data-label="Worked">{formatMinutes(e.workedMinutes)}</td>
-                    <td data-label="Items">{Math.round(e.output.creditedQuantity * 10) / 10}</td>
-                    <td data-label="Expected">
+                    <td data-label={t('Worked')}>{formatMinutes(e.workedMinutes)}</td>
+                    <td data-label={t('Items')}>
+                      {Math.round(e.output.creditedQuantity * 10) / 10}
+                    </td>
+                    <td data-label={t('Expected')}>
                       {formatMinutes(Math.round(e.output.expectedMinutes))}
                     </td>
-                    <td data-label="Cleaning">{e.output.cleaningHours} h</td>
+                    <td data-label={t('Cleaning')}>{t('{n} h', { n: e.output.cleaningHours })}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </section>
           <section className="card">
-            <h2>Products made</h2>
-            {!data.totals.length ? <Empty>Nothing logged.</Empty> : null}
+            <h2>{t('Products made')}</h2>
+            {!data.totals.length ? <Empty>{t('Nothing logged.')}</Empty> : null}
             <table className="t">
               <tbody>
                 {[...data.totals]
                   .sort((a, b) => a.name.localeCompare(b.name))
-                  .map((t) => (
-                    <tr key={t.productId}>
-                      <td>{t.name}</td>
+                  .map((tm) => (
+                    <tr key={tm.productId}>
+                      <td>{tm.name}</td>
                       <td style={{ textAlign: 'right' }}>
-                        <b>{t.quantity}</b>
+                        <b>{tm.quantity}</b>
                       </td>
                     </tr>
                   ))}
@@ -289,10 +293,12 @@ function MyTeams({ onChange }: { onChange: () => void }) {
   const [chosen, setChosen] = useState<Set<string>>(new Set());
   const [err, setErr] = useState<ApiError | null>(null);
 
-  function start(t: Team | 'new') {
-    setEditing(t);
-    setName(t === 'new' ? '' : t.name);
-    setChosen(new Set(t === 'new' ? [] : t.members.map((m) => m.id).filter((id) => id !== me?.id)));
+  function start(tm: Team | 'new') {
+    setEditing(tm);
+    setName(tm === 'new' ? '' : tm.name);
+    setChosen(
+      new Set(tm === 'new' ? [] : tm.members.map((m) => m.id).filter((id) => id !== me?.id)),
+    );
   }
   async function save() {
     setErr(null);
@@ -312,10 +318,11 @@ function MyTeams({ onChange }: { onChange: () => void }) {
       setErr(e as ApiError);
     }
   }
-  async function remove(t: Team) {
-    if (!window.confirm(`Delete team ${t.name}? Output already logged stays.`)) return;
+  async function remove(tm: Team) {
+    if (!window.confirm(t('Delete team {name}? Output already logged stays.', { name: tm.name })))
+      return;
     try {
-      await del(`/teams/${t.id}`, { ifMatch: t.version });
+      await del(`/teams/${tm.id}`, { ifMatch: tm.version });
       teams.reload();
       onChange();
     } catch (e) {
@@ -327,29 +334,32 @@ function MyTeams({ onChange }: { onChange: () => void }) {
   return (
     <section className="card">
       <div className="row between">
-        <h2>My teams</h2>
+        <h2>{t('My teams')}</h2>
         <button className="btn ghost" onClick={() => start('new')}>
-          New team
+          {t('New team')}
         </button>
       </div>
       <ErrorBox error={teams.error ?? err} />
       {teams.data && !teams.data.items.length && !editing ? (
-        <Empty>Make a team for people you often work with, then log output for it above.</Empty>
+        <Empty>
+          {t('Make a team for people you often work with, then log output for it above.')}
+        </Empty>
       ) : null}
-      {teams.data?.items.map((t) => (
-        <div key={t.id} className="row between wrap">
+      {teams.data?.items.map((tm) => (
+        <div key={tm.id} className="row between wrap">
           <span>
-            <b>{t.name}</b> {t.shared ? <span className="pill blue">From admin</span> : null}
+            <b>{tm.name}</b>{' '}
+            {tm.shared ? <span className="pill blue">{t('From admin')}</span> : null}
             <br />
-            <span className="muted small">{t.members.map((m) => m.name).join(', ')}</span>
+            <span className="muted small">{tm.members.map((m) => m.name).join(', ')}</span>
           </span>
-          {!t.shared ? (
+          {!tm.shared ? (
             <span className="row">
-              <button className="btn ghost" onClick={() => start(t)}>
-                Edit
+              <button className="btn ghost" onClick={() => start(tm)}>
+                {t('Edit')}
               </button>
-              <button className="btn ghost" onClick={() => remove(t)}>
-                Delete
+              <button className="btn ghost" onClick={() => remove(tm)}>
+                {t('Delete')}
               </button>
             </span>
           ) : null}
@@ -358,10 +368,12 @@ function MyTeams({ onChange }: { onChange: () => void }) {
       {editing ? (
         <div className="stack" style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
           <label className="field">
-            Team name
+            {t('Team name')}
             <input value={name} maxLength={80} onChange={(e) => setName(e.target.value)} />
           </label>
-          <span className="muted small">You are in the team. Choose who works with you:</span>
+          <span className="muted small">
+            {t('You are in the team. Choose who works with you:')}
+          </span>
           <div className="row wrap">
             {others.map((p) => (
               <label key={p.id} className="chip">
@@ -381,10 +393,10 @@ function MyTeams({ onChange }: { onChange: () => void }) {
           </div>
           <div className="row">
             <button className="btn" disabled={!name.trim() || !chosen.size} onClick={save}>
-              Save team
+              {t('Save team')}
             </button>
             <button className="btn ghost" onClick={() => setEditing(null)}>
-              Cancel
+              {t('Cancel')}
             </button>
           </div>
         </div>

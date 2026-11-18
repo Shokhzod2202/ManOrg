@@ -114,6 +114,14 @@ describe('arrival prompt "You came to work. Start shift" (spec section 9)', () =
     });
   });
 
+  it('says it in the employee’s language (phase 3)', async () => {
+    await api.as(w.a.employee).patch('/me').send({ locale: 'ko' }).expect(200);
+    expect(await check(seoul(WED, '05:10'))).toMatchObject({
+      message: '출근했어요. 근무를 시작하세요',
+    });
+    await api.as(w.a.employee).patch('/me').send({ locale: 'en' }).expect(200);
+  });
+
   it('finds a night shift that starts after midnight', async () => {
     const res = await check(seoul(WED, '23:40'));
     expect(res).toMatchObject({ prompt: true });

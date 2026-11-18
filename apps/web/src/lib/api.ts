@@ -1,3 +1,4 @@
+import { getLocale, INTL, t } from './i18n';
 import { type Schemas } from '@manorg/contracts';
 
 export type { Schemas };
@@ -165,11 +166,11 @@ export function today(timeZone = 'Asia/Seoul', offsetDays = 0): string {
 export function formatMinutes(min: number): string {
   const h = Math.floor(min / 60);
   const m = min % 60;
-  return h > 0 ? `${h} h ${m} min` : `${m} min`;
+  return h > 0 ? t('{h} h {m} min', { h, m }) : t('{m} min', { m });
 }
 
 export function formatDate(iso: string): string {
-  return new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-GB', {
+  return new Date(`${iso}T00:00:00Z`).toLocaleDateString(INTL[getLocale()], {
     weekday: 'short',
     day: 'numeric',
     month: 'short',
@@ -179,7 +180,7 @@ export function formatDate(iso: string): string {
 
 export function formatTime(iso: string | null | undefined, timeZone = 'Asia/Seoul'): string {
   if (!iso) return '';
-  return new Intl.DateTimeFormat('en-GB', {
+  return new Intl.DateTimeFormat(INTL[getLocale()], {
     timeZone,
     hour: '2-digit',
     minute: '2-digit',

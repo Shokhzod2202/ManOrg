@@ -6,6 +6,7 @@ import { useApi } from '../../lib/use-api';
 import { OrdersBoard } from '../orders/board';
 import { Empty, ErrorBox, Loading, PageHead } from '../ui';
 import { PunchCard } from './punch-card';
+import { t } from '../../lib/i18n';
 
 type Home = Schemas['EmployeeHome'];
 interface TaskRow {
@@ -22,25 +23,27 @@ export function EmployeeHome() {
   const tasks = data.tasks as unknown as TaskRow[];
   return (
     <div className="page">
-      <PageHead title="Home" sub={formatDate(data.today)} />
+      <PageHead title={t('Home')} sub={formatDate(data.today)} />
       <ErrorBox error={error} onRetry={reload} />
       <PunchCard card={data.punchCard} onChange={reload} />
       {data.unreadNotifications ? (
         <Link href="/app/notifications" className="alert">
-          {data.unreadNotifications} new notification{data.unreadNotifications === 1 ? '' : 's'}
+          {data.unreadNotifications === 1
+            ? t('1 new notification')
+            : t('{n} new notifications', { n: data.unreadNotifications })}
         </Link>
       ) : null}
       {data.myOrders ? (
         <section className="stack">
-          <h2 className="center">Orders due next</h2>
+          <h2 className="center">{t('Orders due next')}</h2>
           <OrdersBoard />
         </section>
       ) : null}
       <div className="grid2">
         <section className="card">
           <div className="row between">
-            <h2>My output today</h2>
-            <Link href="/app/output">Log output</Link>
+            <h2>{t('My output today')}</h2>
+            <Link href="/app/output">{t('Log output')}</Link>
           </div>
           {data.output.personal.length || data.output.team.length ? (
             <table className="t">
@@ -66,13 +69,13 @@ export function EmployeeHome() {
               </tbody>
             </table>
           ) : (
-            <Empty>Nothing logged yet today.</Empty>
+            <Empty>{t('Nothing logged yet today.')}</Empty>
           )}
         </section>
         <section className="card">
           <div className="row between">
-            <h2>My tasks</h2>
-            <Link href="/app/tasks">All tasks</Link>
+            <h2>{t('My tasks')}</h2>
+            <Link href="/app/tasks">{t('All tasks')}</Link>
           </div>
           {tasks.length ? (
             tasks.map((t) => (
@@ -84,7 +87,7 @@ export function EmployeeHome() {
               </Link>
             ))
           ) : (
-            <Empty>No open tasks. Well done.</Empty>
+            <Empty>{t('No open tasks. Well done.')}</Empty>
           )}
         </section>
       </div>

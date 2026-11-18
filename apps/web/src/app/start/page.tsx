@@ -6,6 +6,7 @@ import { AuthFrame } from '../../components/auth-frame';
 import { ErrorBox, Field, Loading } from '../../components/ui';
 import { type ApiError, get, post, type Schemas } from '../../lib/api';
 import { useSession } from '../../lib/session';
+import { t } from '../../lib/i18n';
 
 type Org = Schemas['OrganizationSummary'];
 
@@ -76,12 +77,12 @@ export default function StartPage() {
   }
 
   return (
-    <AuthFrame title={`Welcome, ${s.me.name}`}>
+    <AuthFrame title={t('Welcome, {name}', { name: s.me.name })}>
       <div className="stack">
         <ErrorBox error={error} />
         {active.length ? (
           <div className="card stack">
-            <b>Your organizations</b>
+            <b>{t('Your organizations')}</b>
             {active.map((m) => (
               <button
                 key={m.id}
@@ -98,8 +99,9 @@ export default function StartPage() {
         ) : null}
         {pending.length ? (
           <div className="alert">
-            Waiting for approval: {pending.map((m) => m.organization.name).join(', ')}. You will be
-            notified when an admin decides.
+            {t('Waiting for approval: {names}. You will be notified when an admin decides.', {
+              names: pending.map((m) => m.organization.name).join(', '),
+            })}
           </div>
         ) : null}
         <div className="tabs" role="tablist">
@@ -109,7 +111,7 @@ export default function StartPage() {
             className={mode === 'join' ? 'on' : ''}
             onClick={() => setMode('join')}
           >
-            Join a bakery
+            {t('Join a bakery')}
           </button>
           <button
             role="tab"
@@ -117,37 +119,38 @@ export default function StartPage() {
             className={mode === 'create' ? 'on' : ''}
             onClick={() => setMode('create')}
           >
-            Create an organization
+            {t('Create an organization')}
           </button>
         </div>
         {mode === 'join' ? (
           <form className="stack" onSubmit={search}>
-            <Field label="Bakery name">
+            <Field label={t('Bakery name')}>
               <input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 required
-                placeholder="Search"
+                placeholder={t('Search')}
               />
             </Field>
-            <button className="btn">Search</button>
-            {found?.length === 0 ? <p className="muted">No bakery with that name.</p> : null}
+            <button className="btn">{t('Search')}</button>
+            {found?.length === 0 ? <p className="muted">{t('No bakery with that name.')}</p> : null}
             {found?.map((o) => (
               <div key={o.id} className="row between card">
                 <span>{o.name}</span>
                 <button type="button" className="btn" disabled={busy} onClick={() => apply(o)}>
-                  Apply
+                  {t('Apply')}
                 </button>
               </div>
             ))}
             <p className="muted small">
-              To order as a contractor, create a contractor organization first, then apply from its
-              Settings.
+              {t(
+                'To order as a contractor, create a contractor organization first, then apply from its Settings.',
+              )}
             </p>
           </form>
         ) : (
           <form className="stack" onSubmit={create}>
-            <Field label="Organization name" error={error?.fields?.name}>
+            <Field label={t('Organization name')} error={error?.fields?.name}>
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -155,17 +158,17 @@ export default function StartPage() {
                 maxLength={120}
               />
             </Field>
-            <Field label="Type">
+            <Field label={t('Type')}>
               <select
                 value={type}
                 onChange={(e) => setType(e.target.value as 'provider' | 'contractor')}
               >
-                <option value="provider">Bakery (makes and delivers products)</option>
-                <option value="contractor">Contractor (orders from bakeries)</option>
+                <option value="provider">{t('Bakery (makes and delivers products)')}</option>
+                <option value="contractor">{t('Contractor (orders from bakeries)')}</option>
               </select>
             </Field>
             <button className="btn big" disabled={busy}>
-              Create
+              {t('Create')}
             </button>
           </form>
         )}
@@ -176,7 +179,7 @@ export default function StartPage() {
             router.replace('/');
           }}
         >
-          Sign out
+          {t('Sign out')}
         </button>
       </div>
     </AuthFrame>

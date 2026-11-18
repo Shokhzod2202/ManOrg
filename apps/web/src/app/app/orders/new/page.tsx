@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Empty, ErrorBox, Loading, PageHead } from '../../../../components/ui';
 import { type ApiError, formatDate, get, post, type Schemas, today } from '../../../../lib/api';
 import { useApi } from '../../../../lib/use-api';
+import { t } from '../../../../lib/i18n';
 
 type Org = Schemas['OrganizationSummary'];
 type Item = Schemas['CatalogItem'];
@@ -79,19 +80,21 @@ export default function NewOrderPage() {
   if (!providers.data?.items.length)
     return (
       <div className="page">
-        <PageHead title="New order" />
-        <Empty>No bakery has approved you yet. Apply from Settings and wait for approval.</Empty>
+        <PageHead title={t('New order')} />
+        <Empty>
+          {t('No bakery has approved you yet. Apply from Settings and wait for approval.')}
+        </Empty>
       </div>
     );
 
   return (
     <div className="page">
-      <PageHead title="New order" />
+      <PageHead title={t('New order')} />
       <ErrorBox error={error} />
       <div className="card stack">
         {providers.data.items.length > 1 ? (
           <label className="field">
-            Bakery
+            {t('Bakery')}
             <select value={providerId ?? ''} onChange={(e) => setProviderId(e.target.value)}>
               {providers.data.items.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -101,13 +104,13 @@ export default function NewOrderPage() {
             </select>
           </label>
         ) : (
-          <b>From {providers.data.items[0]?.name}</b>
+          <b>{t('From {name}', { name: providers.data.items[0]?.name ?? '' })}</b>
         )}
         {askToday && dd ? (
           <div className="alert" role="alert" style={{ flexWrap: 'wrap' }}>
-            Is this order for today, {formatDate(dd.date)}?
+            {t('Is this order for today, {date}?', { date: formatDate(dd.date) })}
             <button className="btn" onClick={() => setAskToday(false)}>
-              Yes, today
+              {t('Yes, today')}
             </button>
             <button
               className="btn ghost"
@@ -118,26 +121,26 @@ export default function NewOrderPage() {
                 setAskToday(false);
               }}
             >
-              No, tomorrow
+              {t('No, tomorrow')}
             </button>
           </div>
         ) : null}
         <label className="field">
-          Delivery date
+          {t('Delivery date')}
           <input type="date" value={date} min={today()} onChange={(e) => setDate(e.target.value)} />
         </label>
       </div>
       <input
         className="input"
-        placeholder="Search products"
+        placeholder={t('Search products')}
         value={q}
         onChange={(e) => setQ(e.target.value)}
-        aria-label="Search products"
+        aria-label={t('Search products')}
       />
       {!catalog ? (
         <Loading />
       ) : !catalog.length ? (
-        <Empty>This bakery has no products to order yet.</Empty>
+        <Empty>{t('This bakery has no products to order yet.')}</Empty>
       ) : (
         <div className="card" style={{ padding: 8 }}>
           {shown.map((i) => (
@@ -160,7 +163,7 @@ export default function NewOrderPage() {
                 type="number"
                 min={0}
                 inputMode="numeric"
-                aria-label={`${i.name} quantity`}
+                aria-label={t('{name} quantity', { name: i.name })}
                 value={qty[i.id] ?? ''}
                 onChange={(e) => setQty({ ...qty, [i.id]: Math.max(0, Number(e.target.value)) })}
               />
@@ -170,13 +173,19 @@ export default function NewOrderPage() {
       )}
       {estimate > 0 ? (
         <p className="muted center small" style={{ margin: 0 }}>
-          About ₩{estimate.toLocaleString('en-US')}. You pay for what is delivered.
+          {t('About ₩{amount}. You pay for what is delivered.', {
+            amount: estimate.toLocaleString('en-US'),
+          })}
         </p>
       ) : null}
       <button className="btn big" disabled={busy || !count || !date || askToday} onClick={place}>
         {count
-          ? `Place order: ${count} products, ${units} items, ${date ? formatDate(date) : ''}`
-          : 'Add quantities to order'}
+          ? t('Place order: {count} products, {units} items, {date}', {
+              count,
+              units,
+              date: date ? formatDate(date) : '',
+            })
+          : t('Add quantities to order')}
       </button>
     </div>
   );

@@ -5,6 +5,7 @@ import { Empty, ErrorBox, Loading, PageHead } from '../../../components/ui';
 import { api, type ApiError, formatDate, post, put, type Schemas, today } from '../../../lib/api';
 import { useSession } from '../../../lib/session';
 import { useApi } from '../../../lib/use-api';
+import { t } from '../../../lib/i18n';
 
 type Summary = Schemas['FinanceSummary'];
 type FDelivery = Schemas['FinanceDelivery'] & { contractor?: { id: string; name: string } };
@@ -30,8 +31,8 @@ export default function FinancePage() {
   if (actor === 'org_admin') return <AdminFinance />;
   return (
     <div className="page">
-      <PageHead title="Finance" />
-      <Empty>Finance is for admins.</Empty>
+      <PageHead title={t('Finance')} />
+      <Empty>{t('Finance is for admins.')}</Empty>
     </div>
   );
 }
@@ -55,7 +56,7 @@ function Tabs<T extends string>({
           className={value === k ? 'on' : ''}
           onClick={() => onChange(k)}
         >
-          {label}
+          {t(label)}
         </button>
       ))}
     </div>
@@ -79,16 +80,16 @@ function Range({
         value={from}
         max={to}
         onChange={(e) => onChange(e.target.value, to)}
-        aria-label="From"
+        aria-label={t('From')}
       />
-      <span className="muted">to</span>
+      <span className="muted">{t('to')}</span>
       <input
         className="input"
         type="date"
         value={to}
         min={from}
         onChange={(e) => onChange(from, e.target.value)}
-        aria-label="To"
+        aria-label={t('To')}
       />
     </div>
   );
@@ -108,21 +109,21 @@ function Cards({
     <div className="kpis">
       <div className="kpi">
         <b>{won(s.deliveredValue)}</b>
-        <span>Delivered in the period</span>
+        <span>{t('Delivered in the period')}</span>
       </div>
       <div className="kpi">
         <b>{won(s.approvedPayments)}</b>
-        <span>Payments approved</span>
+        <span>{t('Payments approved')}</span>
       </div>
       <div className="kpi">
         <b>{won(s.pendingPayments)}</b>
-        <span>Waiting for review (not counted yet)</span>
+        <span>{t('Waiting for review (not counted yet)')}</span>
       </div>
       <div className="kpi">
         <b style={{ color: s.outstanding > 0 ? 'var(--ink)' : 'var(--ok)' }}>
           {won(s.outstanding)}
         </b>
-        <span>Outstanding now</span>
+        <span>{t('Outstanding now')}</span>
       </div>
     </div>
   );
@@ -142,8 +143,8 @@ function AdminFinance() {
   return (
     <div className="page wide">
       <PageHead
-        title="Finance"
-        sub="Values come from delivered quantities; only approved payments change a balance."
+        title={t('Finance')}
+        sub={t('Values come from delivered quantities; only approved payments change a balance.')}
       >
         <Tabs
           value={tab}
@@ -161,9 +162,9 @@ function AdminFinance() {
           className="input"
           value={contractor}
           onChange={(e) => setContractor(e.target.value)}
-          aria-label="Contractor"
+          aria-label={t('Contractor')}
         >
-          <option value="">All contractors</option>
+          <option value="">{t('All contractors')}</option>
           {contractors.map((c) => (
             <option key={c.contractor.id} value={c.contractor.id}>
               {c.contractor.name}
@@ -195,16 +196,16 @@ function AdminFinance() {
                     : summary.data.totals
                 }
               />
-              {!contractors.length ? <Empty>No approved contractors yet.</Empty> : null}
+              {!contractors.length ? <Empty>{t('No approved contractors yet.')}</Empty> : null}
               {contractors.length ? (
                 <table className="t cards">
                   <thead>
                     <tr>
-                      <th>Contractor</th>
-                      <th>Delivered</th>
-                      <th>Approved</th>
-                      <th>Waiting</th>
-                      <th>Outstanding</th>
+                      <th>{t('Contractor')}</th>
+                      <th>{t('Delivered')}</th>
+                      <th>{t('Approved')}</th>
+                      <th>{t('Waiting')}</th>
+                      <th>{t('Outstanding')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -214,13 +215,13 @@ function AdminFinance() {
                         onClick={() => setContractor(c.contractor.id)}
                         style={{ cursor: 'pointer' }}
                       >
-                        <td data-label="Contractor">
+                        <td data-label={t('Contractor')}>
                           <b>{c.contractor.name}</b>
                         </td>
-                        <td data-label="Delivered">{won(c.deliveredValue)}</td>
-                        <td data-label="Approved">{won(c.approvedPayments)}</td>
-                        <td data-label="Waiting">{won(c.pendingPayments)}</td>
-                        <td data-label="Outstanding">
+                        <td data-label={t('Delivered')}>{won(c.deliveredValue)}</td>
+                        <td data-label={t('Approved')}>{won(c.approvedPayments)}</td>
+                        <td data-label={t('Waiting')}>{won(c.pendingPayments)}</td>
+                        <td data-label={t('Outstanding')}>
                           <b>{won(c.outstanding)}</b>
                         </td>
                       </tr>
@@ -240,7 +241,7 @@ function AdminFinance() {
         contractor ? (
           <SettlementAdmin contractorId={contractor} />
         ) : (
-          <Empty>Choose a contractor to see and edit its settlement schedule.</Empty>
+          <Empty>{t('Choose a contractor to see and edit its settlement schedule.')}</Empty>
         )
       ) : null}
     </div>
@@ -261,9 +262,11 @@ function PaymentReview({ contractor, onChange }: { contractor: string; onChange:
   return (
     <div className="stack">
       <section className="card">
-        <h2>Waiting for review</h2>
+        <h2>{t('Waiting for review')}</h2>
         <ErrorBox error={pending.error} onRetry={pending.reload} />
-        {pending.data && !pending.data.items.length ? <Empty>No payments waiting.</Empty> : null}
+        {pending.data && !pending.data.items.length ? (
+          <Empty>{t('No payments waiting.')}</Empty>
+        ) : null}
         {pending.data?.items.map((p) => (
           <div
             key={p.id}
@@ -278,15 +281,19 @@ function PaymentReview({ contractor, onChange }: { contractor: string; onChange:
               </span>
               <span className="row">
                 <a className="btn ghost" href={p.proofUrl} target="_blank" rel="noreferrer">
-                  View proof
+                  {t('View proof')}
                 </a>
                 <button className="btn" onClick={() => setOpen(open === p.id ? null : p.id)}>
-                  Review
+                  {t('Review')}
                 </button>
               </span>
             </div>
             {p.proofType.startsWith('image/') ? (
-              <img className="photo" src={p.proofUrl} alt={`Proof from ${p.contractor.name}`} />
+              <img
+                className="photo"
+                src={p.proofUrl}
+                alt={t('Proof from {name}', { name: p.contractor.name })}
+              />
             ) : null}
             {open === p.id ? (
               <ReviewForm
@@ -301,8 +308,10 @@ function PaymentReview({ contractor, onChange }: { contractor: string; onChange:
         ))}
       </section>
       <section className="card">
-        <h2>Approved</h2>
-        {recent.data && !recent.data.items.length ? <Empty>No approved payments yet.</Empty> : null}
+        <h2>{t('Approved')}</h2>
+        {recent.data && !recent.data.items.length ? (
+          <Empty>{t('No approved payments yet.')}</Empty>
+        ) : null}
         {recent.data?.items.slice(0, 30).map((p) => (
           <ApprovedRow key={p.id} p={p} onDone={reload} />
         ))}
@@ -314,7 +323,7 @@ function PaymentReview({ contractor, onChange }: { contractor: string; onChange:
 function ApprovedRow({ p, onDone }: { p: Payment; onDone: () => void }) {
   const [err, setErr] = useState<ApiError | null>(null);
   async function reverse() {
-    const reason = window.prompt('Why is this payment being reversed? This is recorded.');
+    const reason = window.prompt(t('Why is this payment being reversed? This is recorded.'));
     if (!reason?.trim()) return;
     setErr(null);
     try {
@@ -340,7 +349,7 @@ function ApprovedRow({ p, onDone }: { p: Payment; onDone: () => void }) {
         </span>
       </span>
       <button className="btn ghost" onClick={reverse}>
-        Reverse
+        {t('Reverse')}
       </button>
       <ErrorBox error={err} />
     </div>
@@ -419,7 +428,7 @@ function ReviewForm({ payment, onDone }: { payment: Payment; onDone: () => void 
       <ErrorBox error={err} />
       <div className="grid2">
         <label className="field">
-          Approved amount (won)
+          {t('Approved amount (won)')}
           <input
             type="number"
             min={1}
@@ -428,30 +437,33 @@ function ReviewForm({ payment, onDone }: { payment: Payment; onDone: () => void 
           />
           {amount !== payment.submittedAmount ? (
             <span className="small" style={{ color: 'var(--warn-ink)' }}>
-              Differs from the {won(payment.submittedAmount)} submitted by{' '}
-              {won(amount - payment.submittedAmount)}.
+              {t('Differs from the {submitted} submitted by {difference}.', {
+                submitted: won(payment.submittedAmount),
+                difference: won(amount - payment.submittedAmount),
+              })}
             </span>
           ) : null}
         </label>
         <label className="field">
-          Payment date
+          {t('Payment date')}
           <input type="date" value={date} max={today()} onChange={(e) => setDate(e.target.value)} />
         </label>
       </div>
       <div className="row between wrap">
-        <b>Allocate to deliveries</b>
+        <b>{t('Allocate to deliveries')}</b>
         <button type="button" className="btn ghost" onClick={oldestFirst}>
-          Oldest first
+          {t('Oldest first')}
         </button>
       </div>
       {open.loading && !open.data ? <Loading /> : null}
       {open.data && !owing.length ? (
-        <Empty>This contractor has no delivery left to pay.</Empty>
+        <Empty>{t('This contractor has no delivery left to pay.')}</Empty>
       ) : null}
       {owing.map((d) => (
         <label key={d.id} className="row between wrap">
           <span>
-            {formatDate(d.deliveryDate)} · value {won(d.totalValue)} · left {won(d.remainingValue)}
+            {formatDate(d.deliveryDate)} · {t('value {amount}', { amount: won(d.totalValue) })} ·{' '}
+            {t('left {amount}', { amount: won(d.remainingValue) })}
           </span>
           <input
             className="input qty"
@@ -463,7 +475,7 @@ function ReviewForm({ payment, onDone }: { payment: Payment; onDone: () => void 
             onChange={(e) =>
               setSplit({ ...split, [d.id]: Math.max(0, Math.round(Number(e.target.value))) })
             }
-            aria-label={`Amount for ${d.deliveryDate}`}
+            aria-label={t('Amount for {date}', { date: d.deliveryDate })}
           />
         </label>
       ))}
@@ -475,18 +487,18 @@ function ReviewForm({ payment, onDone }: { payment: Payment; onDone: () => void 
       </span>
       <div className="row wrap">
         <button className="btn" disabled={allocated !== amount || amount <= 0}>
-          Approve
+          {t('Approve')}
         </button>
         <input
           className="input"
-          placeholder="Reason for rejecting"
+          placeholder={t('Reason for rejecting')}
           value={reason}
           maxLength={500}
           onChange={(e) => setReason(e.target.value)}
           style={{ flex: 1, minWidth: 180 }}
         />
         <button type="button" className="btn ghost" disabled={!reason.trim()} onClick={reject}>
-          Reject
+          {t('Reject')}
         </button>
       </div>
     </form>
@@ -501,10 +513,10 @@ function DeliveriesAndHistory({ query, from, to }: { query: string; from: string
   return (
     <div className="grid2" style={{ alignItems: 'start' }}>
       <section className="card">
-        <h2>Deliveries</h2>
+        <h2>{t('Deliveries')}</h2>
         <ErrorBox error={deliveries.error} onRetry={deliveries.reload} />
         {deliveries.data && !deliveries.data.items.length ? (
-          <Empty>No completed deliveries in these dates.</Empty>
+          <Empty>{t('No completed deliveries in these dates.')}</Empty>
         ) : null}
         {deliveries.data?.items.map((d) => (
           <details key={d.id} style={{ borderTop: '1px solid var(--border)', paddingTop: 8 }}>
@@ -514,9 +526,9 @@ function DeliveriesAndHistory({ query, from, to }: { query: string; from: string
                 {d.contractor ? <span className="muted"> · {d.contractor.name}</span> : null}
               </span>
               <span>
-                {won(d.totalValue)} · paid {won(d.paidValue)} ·{' '}
+                {won(d.totalValue)} · {t('paid {amount}', { amount: won(d.paidValue) })} ·{' '}
                 <b style={{ color: d.remainingValue > 0 ? 'var(--ink)' : 'var(--ok)' }}>
-                  left {won(d.remainingValue)}
+                  {t('left {amount}', { amount: won(d.remainingValue) })}
                 </b>
               </span>
             </summary>
@@ -539,8 +551,10 @@ function DeliveriesAndHistory({ query, from, to }: { query: string; from: string
         ))}
       </section>
       <section className="card">
-        <h2>History</h2>
-        {history.data && !history.data.items.length ? <Empty>Nothing in these dates.</Empty> : null}
+        <h2>{t('History')}</h2>
+        {history.data && !history.data.items.length ? (
+          <Empty>{t('Nothing in these dates.')}</Empty>
+        ) : null}
         {history.data?.items.map((e) => (
           <div
             key={`${e.kind}${e.id}`}
@@ -554,10 +568,10 @@ function DeliveriesAndHistory({ query, from, to }: { query: string; from: string
                 }
               >
                 {e.kind === 'delivery'
-                  ? 'Delivery'
+                  ? t('Delivery')
                   : e.kind === 'payment'
-                    ? `Payment · ${PAY_STATUS[e.status]?.text ?? e.status}`
-                    : 'Adjustment'}
+                    ? `${t('Payment')} · ${t(PAY_STATUS[e.status]?.text ?? e.status)}`
+                    : t('Adjustment')}
               </span>{' '}
               {formatDate(e.date)}
               {e.contractor ? <span className="muted"> · {e.contractor.name}</span> : null}
@@ -572,42 +586,42 @@ function DeliveriesAndHistory({ query, from, to }: { query: string; from: string
 }
 
 function PeriodsTable({ items, onClose }: { items: Period[]; onClose?: (p: Period) => void }) {
-  if (!items.length) return <Empty>No settlement periods yet.</Empty>;
+  if (!items.length) return <Empty>{t('No settlement periods yet.')}</Empty>;
   return (
     <table className="t cards">
       <thead>
         <tr>
-          <th>Period</th>
-          <th>Opening</th>
-          <th>Delivered</th>
-          <th>Paid</th>
-          <th>Adjustments</th>
-          <th>Closing</th>
+          <th>{t('Period')}</th>
+          <th>{t('Opening')}</th>
+          <th>{t('Delivered')}</th>
+          <th>{t('Paid')}</th>
+          <th>{t('Adjustments')}</th>
+          <th>{t('Closing')}</th>
           <th />
         </tr>
       </thead>
       <tbody>
         {items.map((p) => (
           <tr key={p.id}>
-            <td data-label="Period">
+            <td data-label={t('Period')}>
               <b>
                 {formatDate(p.startDate)} – {formatDate(p.endDate)}
               </b>{' '}
               <span className={p.status === 'closed' ? 'pill ok' : 'pill'}>
-                {p.status === 'closed' ? 'Closed' : 'Open'}
+                {p.status === 'closed' ? t('Closed') : t('Open')}
               </span>
             </td>
-            <td data-label="Opening">{won(p.openingBalance)}</td>
-            <td data-label="Delivered">{won(p.deliveredValue)}</td>
-            <td data-label="Paid">{won(p.approvedPayments)}</td>
-            <td data-label="Adjustments">{won(p.adjustments)}</td>
-            <td data-label="Closing">
+            <td data-label={t('Opening')}>{won(p.openingBalance)}</td>
+            <td data-label={t('Delivered')}>{won(p.deliveredValue)}</td>
+            <td data-label={t('Paid')}>{won(p.approvedPayments)}</td>
+            <td data-label={t('Adjustments')}>{won(p.adjustments)}</td>
+            <td data-label={t('Closing')}>
               <b>{won(p.closingBalance)}</b>
             </td>
             <td data-label="">
               {onClose && p.status === 'open' && p.endDate < today() ? (
                 <button className="btn ghost" onClick={() => onClose(p)}>
-                  Close
+                  {t('Close')}
                 </button>
               ) : null}
             </td>
@@ -637,7 +651,14 @@ function SettlementAdmin({ contractorId }: { contractorId: string }) {
       .map((p) => ({ startDate: p.startDate, endDate: p.endDate, kind: p.kind }));
 
   async function close(p: Period) {
-    if (!window.confirm(`Close ${p.startDate} to ${p.endDate}? Its report is then fixed for good.`))
+    if (
+      !window.confirm(
+        t('Close {start} to {end}? Its report is then fixed for good.', {
+          start: p.startDate,
+          end: p.endDate,
+        }),
+      )
+    )
       return;
     setErr(null);
     try {
@@ -672,7 +693,7 @@ function SettlementAdmin({ contractorId }: { contractorId: string }) {
     try {
       await put(`/contractors/${contractorId}/settlement-schedule`, { periods: editable });
       setRows(null);
-      setMsg('Saved. Closed periods are unchanged.');
+      setMsg(t('Saved. Closed periods are unchanged.'));
       schedule.reload();
     } catch (e) {
       setErr(e as ApiError);
@@ -682,21 +703,22 @@ function SettlementAdmin({ contractorId }: { contractorId: string }) {
   return (
     <div className="stack">
       <section className="card">
-        <h2>Reports</h2>
+        <h2>{t('Reports')}</h2>
         <ErrorBox error={schedule.error ?? err} />
         {schedule.loading && !schedule.data ? <Loading /> : null}
         <PeriodsTable items={items} onClose={close} />
       </section>
       <section className="card">
         <div className="row between wrap">
-          <h2>Schedule</h2>
+          <h2>{t('Schedule')}</h2>
           <button className="btn ghost" onClick={fillDefault}>
-            Fill 1–15 and 16–end for 3 months
+            {t('Fill 1–15 and 16–end for 3 months')}
           </button>
         </div>
         <p className="muted small" style={{ margin: 0 }}>
-          Periods follow each other day by day. Closed periods are locked; a period already under
-          way keeps its start but its end can move.
+          {t(
+            'Periods follow each other day by day. Closed periods are locked; a period already under way keeps its start but its end can move.',
+          )}
         </p>
         {msg ? <span className="pill ok">{msg}</span> : null}
         {editable.map((r, i) => (
@@ -708,9 +730,9 @@ function SettlementAdmin({ contractorId }: { contractorId: string }) {
               onChange={(e) =>
                 setRows(editable.map((x, j) => (j === i ? { ...x, startDate: e.target.value } : x)))
               }
-              aria-label="Start"
+              aria-label={t('Start')}
             />
-            <span className="muted">to</span>
+            <span className="muted">{t('to')}</span>
             <input
               className="input"
               type="date"
@@ -726,7 +748,7 @@ function SettlementAdmin({ contractorId }: { contractorId: string }) {
                   ),
                 )
               }
-              aria-label="End"
+              aria-label={t('End')}
             />
             <select
               className="input"
@@ -738,17 +760,17 @@ function SettlementAdmin({ contractorId }: { contractorId: string }) {
                   ),
                 )
               }
-              aria-label="Kind"
+              aria-label={t('Kind')}
             >
-              <option value="mid_month">Mid-month</option>
-              <option value="month_end">Month-end</option>
-              <option value="custom">Other</option>
+              <option value="mid_month">{t('Mid-month')}</option>
+              <option value="month_end">{t('Month-end')}</option>
+              <option value="custom">{t('Other')}</option>
             </select>
             <button
               type="button"
               className="btn ghost"
               onClick={() => setRows(editable.filter((_, j) => j !== i))}
-              aria-label="Remove period"
+              aria-label={t('Remove period')}
             >
               ×
             </button>
@@ -764,10 +786,10 @@ function SettlementAdmin({ contractorId }: { contractorId: string }) {
               setRows([...editable, { startDate: start, endDate: start, kind: 'custom' }]);
             }}
           >
-            Add period
+            {t('Add period')}
           </button>
           <button className="btn" disabled={!rows} onClick={save}>
-            Save schedule
+            {t('Save schedule')}
           </button>
         </div>
       </section>
@@ -800,15 +822,15 @@ function ContractorFinance() {
   if (!providers.data?.items.length) {
     return (
       <div className="page">
-        <PageHead title="Finance" />
-        <Empty>No bakery has approved you yet.</Empty>
+        <PageHead title={t('Finance')} />
+        <Empty>{t('No bakery has approved you yet.')}</Empty>
       </div>
     );
   }
   const mine = summary.data?.contractors[0];
   return (
     <div className="page">
-      <PageHead title="Finance">
+      <PageHead title={t('Finance')}>
         <Tabs
           value={tab}
           onChange={setTab}
@@ -824,7 +846,7 @@ function ContractorFinance() {
           className="input"
           value={provider}
           onChange={(e) => setProvider(e.target.value)}
-          aria-label="Bakery"
+          aria-label={t('Bakery')}
         >
           {providers.data.items.map((p) => (
             <option key={p.id} value={p.id}>
@@ -896,7 +918,7 @@ function ContractorPayments({
       setAmount('');
       setNote('');
       setFile(null);
-      setMsg('Sent. It counts once the bakery approves it.');
+      setMsg(t('Sent. It counts once the bakery approves it.'));
       list.reload();
       onChange();
     } catch (e2) {
@@ -906,7 +928,7 @@ function ContractorPayments({
     }
   }
   async function withdraw(id: string) {
-    if (!window.confirm('Withdraw this payment confirmation?')) return;
+    if (!window.confirm(t('Withdraw this payment confirmation?'))) return;
     try {
       await post(`/payments/${id}/cancel`);
       list.reload();
@@ -919,15 +941,15 @@ function ContractorPayments({
   return (
     <div className="stack">
       <form className="card" onSubmit={submit}>
-        <h2>Confirm a payment</h2>
+        <h2>{t('Confirm a payment')}</h2>
         <p className="muted small" style={{ margin: 0 }}>
-          Outstanding now: <b>{won(outstanding)}</b>. You can pay part of it.
+          {t('Outstanding now:')} <b>{won(outstanding)}</b>. {t('You can pay part of it.')}
         </p>
         <ErrorBox error={err} />
         {msg ? <span className="pill ok">{msg}</span> : null}
         <div className="grid2">
           <label className="field">
-            Amount paid (won)
+            {t('Amount paid (won)')}
             <input
               type="number"
               min={1}
@@ -937,7 +959,7 @@ function ContractorPayments({
             />
           </label>
           <label className="field">
-            Proof (transfer receipt: photo or PDF, up to 10 MB)
+            {t('Proof (transfer receipt: photo or PDF, up to 10 MB)')}
             <input
               type="file"
               required
@@ -947,17 +969,17 @@ function ContractorPayments({
           </label>
         </div>
         <label className="field">
-          Note (optional)
+          {t('Note (optional)')}
           <input value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} />
         </label>
         <button className="btn" disabled={busy || !file || !amount}>
-          {busy ? 'Sending…' : 'Send to the bakery'}
+          {busy ? t('Sending…') : t('Send to the bakery')}
         </button>
       </form>
       <section className="card">
-        <h2>My payments</h2>
+        <h2>{t('My payments')}</h2>
         <ErrorBox error={list.error} onRetry={list.reload} />
-        {list.data && !list.data.items.length ? <Empty>No payments yet.</Empty> : null}
+        {list.data && !list.data.items.length ? <Empty>{t('No payments yet.')}</Empty> : null}
         {list.data?.items.map((p) => {
           const s = PAY_STATUS[p.status] ?? { text: p.status, cls: 'pill' };
           return (
@@ -968,7 +990,7 @@ function ContractorPayments({
             >
               <span>
                 <b>{won(p.approvedAmount ?? p.submittedAmount)}</b> ·{' '}
-                {formatDate(p.createdAt.slice(0, 10))} <span className={s.cls}>{s.text}</span>
+                {formatDate(p.createdAt.slice(0, 10))} <span className={s.cls}>{t(s.text)}</span>
                 {p.rejectionReason ? (
                   <span className="muted small"> · {p.rejectionReason}</span>
                 ) : null}
@@ -978,7 +1000,7 @@ function ContractorPayments({
               </span>
               {p.status === 'pending' ? (
                 <button className="btn ghost" onClick={() => withdraw(p.id)}>
-                  Withdraw
+                  {t('Withdraw')}
                 </button>
               ) : null}
             </div>
@@ -993,7 +1015,7 @@ function ContractorSchedule({ provider }: { provider: string }) {
   const schedule = useApi<{ items: Period[] }>(`/settlement-schedules?provider_id=${provider}`);
   return (
     <section className="card">
-      <h2>My settlement schedule</h2>
+      <h2>{t('My settlement schedule')}</h2>
       <ErrorBox error={schedule.error} onRetry={schedule.reload} />
       {schedule.loading && !schedule.data ? <Loading /> : null}
       {schedule.data ? <PeriodsTable items={schedule.data.items} /> : null}

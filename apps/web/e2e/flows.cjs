@@ -383,6 +383,44 @@ async function as(b, email, vp = { width: 1280, height: 900 }) {
   log('15 settlement schedule saved:', scheduleSaved);
   if (!scheduleSaved) throw new Error('Settlement schedule did not save');
 
+  // 16. Phase 3 repeating task: the admin makes a daily task for Mina; today's task appears at once.
+  const rule = `Sweep the flour room ${Date.now() % 100000}`;
+  await boss.goto(`${W}/app/tasks`);
+  await boss.click('button:has-text("New task")');
+  await boss.fill('label:has-text("Title") input', rule);
+  await boss.selectOption('label:has-text("For") select', { label: 'Mina Park' });
+  await boss.selectOption('label:has-text("Repeat") select', 'daily');
+  await boss.click('button:has-text("Start repeating task")');
+  await boss.click('[role=tab]:has-text("Repeating")');
+  await boss.waitForSelector(`h2:has-text("${rule}")`);
+  const ruleText = await boss.locator('section', { hasText: rule }).first().innerText();
+  await mina.goto(`${W}/app/tasks`);
+  await mina.waitForSelector(`h2:has-text("${rule}")`);
+  const badge = await mina.locator('h2', { hasText: rule }).locator('.pill').innerText();
+  log(
+    '16 repeating task:',
+    ruleText.split('\n').slice(1, 2).join(' '),
+    '| Mina sees it, badge:',
+    badge,
+  );
+  if (!/Every day/.test(ruleText) || badge !== 'Repeats')
+    throw new Error('Repeating task not shown');
+
+  // 17. Phase 3 languages: Mina switches to Korean in Settings; it stays after a reload because it
+  // is saved to her account, and she switches back to English.
+  await mina.goto(`${W}/app/settings`);
+  await mina.selectOption('select[aria-label="Language"]', 'ko');
+  await mina.waitForSelector('h1:has-text("설정")');
+  await mina.reload();
+  await mina.waitForSelector('h1:has-text("설정")', { timeout: 10000 });
+  await mina.goto(`${W}/app`);
+  const tab = await mina.locator('nav.tabbar a').first().innerText();
+  await mina.screenshot({ path: require('node:path').join(OUT, 'flow-korean-home.png') });
+  await mina.goto(`${W}/app/settings`);
+  await mina.selectOption('select[aria-label="언어"]', 'en');
+  await mina.waitForSelector('h1:has-text("Settings")');
+  log('17 Korean kept after reload; first tab reads', JSON.stringify(tab), '| back to English');
+
   await b.close();
 })().catch((e) => {
   console.error('FAILED', e.message.slice(0, 400));

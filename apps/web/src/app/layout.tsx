@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
+import { LocaleRoot } from '../lib/i18n';
 import { SessionProvider } from '../lib/session';
 import './globals.css';
 
@@ -23,7 +24,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         />
       </head>
       <body>
-        <SessionProvider>{children}</SessionProvider>
+        <SessionProvider>
+          <LocaleRoot>{children}</LocaleRoot>
+        </SessionProvider>
       </body>
     </html>
   );

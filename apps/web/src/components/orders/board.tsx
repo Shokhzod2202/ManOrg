@@ -5,6 +5,7 @@ import { type ApiError, formatDate, post, type Schemas } from '../../lib/api';
 import { useSession } from '../../lib/session';
 import { useApi } from '../../lib/use-api';
 import { Empty, ErrorBox, Icon, Loading } from '../ui';
+import { t } from '../../lib/i18n';
 
 type DueNext = Schemas['DueNextOrders'];
 type View = 'list' | 'matrix' | 'products';
@@ -91,17 +92,17 @@ export function OrdersBoard({
         ...shownOrders
           .flatMap((o) => o.lines)
           .reduce((m, l) => {
-            const t = m.get(l.productId) ?? {
+            const tm = m.get(l.productId) ?? {
               productId: l.productId,
               productName: l.productName,
               quantity: 0,
               madeQuantity: 0,
               done: false,
             };
-            t.quantity += l.quantity;
-            t.madeQuantity += l.madeQuantity;
-            t.done = t.madeQuantity >= t.quantity;
-            return m.set(l.productId, t);
+            tm.quantity += l.quantity;
+            tm.madeQuantity += l.madeQuantity;
+            tm.done = tm.madeQuantity >= tm.quantity;
+            return m.set(l.productId, tm);
           }, new Map<string, Schemas['ProductTotal']>())
           .values(),
       ]
@@ -113,18 +114,26 @@ export function OrdersBoard({
       a.contractor.name.localeCompare(b.contractor.name),
   );
   const dates = [...new Set(orders.map((o) => o.deliveryDate))];
-  const units = totals.reduce((n, t) => n + t.quantity, 0);
-  const doneCount = totals.filter((t) => t.done).length;
+  const units = totals.reduce((n, tm) => n + tm.quantity, 0);
+  const doneCount = totals.filter((tm) => tm.done).length;
 
   return (
     <div className="stack" style={{ gap: 14 }}>
       {!wall ? (
         <div className="viewbar">
           <span className="muted">
-            {dates.length ? `For ${dates.map(formatDate).join(', ')}` : 'Nothing due'} ·{' '}
-            {orders.length} contractors · {units} items · {doneCount}/{totals.length} made
+            {dates.length
+              ? t('For {dates}', { dates: dates.map(formatDate).join(', ') })
+              : t('Nothing due')}{' '}
+            ·{' '}
+            {t('{orders} contractors · {units} items · {done}/{total} made', {
+              orders: orders.length,
+              units,
+              done: doneCount,
+              total: totals.length,
+            })}
           </span>
-          <div className="tabs" role="tablist" aria-label="View">
+          <div className="tabs" role="tablist" aria-label={t('View')}>
             {VIEWS.map((v) => (
               <button
                 key={v.key}
@@ -134,7 +143,7 @@ export function OrdersBoard({
                 onClick={() => void s.setOrdersView(v.key)}
               >
                 <Icon name={v.icon} size={16} />
-                {v.label}
+                {t(v.label)}
               </button>
             ))}
           </div>
@@ -147,9 +156,9 @@ export function OrdersBoard({
               className="input"
               value={who}
               onChange={(e) => choose(e.target.value)}
-              aria-label="Whose products"
+              aria-label={t('Whose products')}
             >
-              <option value="all">All products</option>
+              <option value="all">{t('All products')}</option>
               {employees.map((m) => (
                 <option key={m.user.id} value={m.user.id}>
                   {m.user.name}'s products
@@ -157,14 +166,14 @@ export function OrdersBoard({
               ))}
             </select>
           ) : (
-            <div className="tabs" role="tablist" aria-label="Whose products">
+            <div className="tabs" role="tablist" aria-label={t('Whose products')}>
               <button
                 role="tab"
                 aria-selected={who === 'all'}
                 className={who === 'all' ? 'on' : ''}
                 onClick={() => choose('all')}
               >
-                All
+                {t('All')}
               </button>
               <button
                 role="tab"
@@ -172,7 +181,7 @@ export function OrdersBoard({
                 className={who !== 'all' ? 'on' : ''}
                 onClick={() => s.me && choose(s.me.id)}
               >
-                Mine
+                {t('Mine')}
               </button>
             </div>
           )}
@@ -181,9 +190,9 @@ export function OrdersBoard({
               className="input"
               value={picked}
               onChange={(e) => setContractor(e.target.value)}
-              aria-label="Contractor"
+              aria-label={t('Contractor')}
             >
-              <option value="">All contractors</option>
+              <option value="">{t('All contractors')}</option>
               {contractors.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -195,35 +204,37 @@ export function OrdersBoard({
       ) : null}
       <ErrorBox error={markError} />
       {!orders.length ? (
-        <Empty>No orders are due next. New orders appear here as contractors place them.</Empty>
+        <Empty>
+          {t('No orders are due next. New orders appear here as contractors place them.')}
+        </Empty>
       ) : view === 'products' ? (
         <div className="tiles">
-          {totals.map((t) => {
-            const pct = t.quantity
-              ? Math.min(100, Math.round((t.madeQuantity / t.quantity) * 100))
+          {totals.map((tm) => {
+            const pct = tm.quantity
+              ? Math.min(100, Math.round((tm.madeQuantity / tm.quantity) * 100))
               : 0;
-            const cls = t.done ? 'tile done' : t.madeQuantity > 0 ? 'tile part' : 'tile';
+            const cls = tm.done ? 'tile done' : tm.madeQuantity > 0 ? 'tile part' : 'tile';
             return (
               <button
-                key={t.productId}
+                key={tm.productId}
                 type="button"
                 className={cls}
                 disabled={busy !== null || wall}
-                onClick={() => mark(t.productId, !t.done)}
-                aria-pressed={t.done}
-                title={t.done ? 'Made. Tap to undo.' : 'Tap when made'}
+                onClick={() => mark(tm.productId, !tm.done)}
+                aria-pressed={tm.done}
+                title={tm.done ? t('Made. Tap to undo.') : t('Tap when made')}
               >
-                <span className="tn">{t.productName}</span>
-                <span className="tq">{t.quantity}</span>
+                <span className="tn">{tm.productName}</span>
+                <span className="tq">{tm.quantity}</span>
                 <span className="st">
-                  {t.done ? (
+                  {tm.done ? (
                     <>
-                      <Icon name="check" size={14} /> Made
+                      <Icon name="check" size={14} /> {t('Made')}
                     </>
-                  ) : t.madeQuantity > 0 ? (
-                    `${t.madeQuantity} of ${t.quantity} made`
+                  ) : tm.madeQuantity > 0 ? (
+                    t('{made} of {total} made', { made: tm.madeQuantity, total: tm.quantity })
                   ) : (
-                    'To make'
+                    t('To make')
                   )}
                 </span>
                 <span className="bar">
@@ -238,10 +249,10 @@ export function OrdersBoard({
           <table className="list">
             <thead>
               <tr>
-                <th className="who">Contractor</th>
-                {totals.map((t) => (
-                  <th key={t.productId} className="ph" scope="col">
-                    <span>{t.productName}</span>
+                <th className="who">{t('Contractor')}</th>
+                {totals.map((tm) => (
+                  <th key={tm.productId} className="ph" scope="col">
+                    <span>{tm.productName}</span>
                   </th>
                 ))}
               </tr>
@@ -254,13 +265,15 @@ export function OrdersBoard({
                     <th className="who" scope="row">
                       <b>{o.contractor.name}</b>
                       <span>
-                        {o.approxTime ? `${o.approxTime.start}–${o.approxTime.end}` : 'No time set'}
+                        {o.approxTime
+                          ? `${o.approxTime.start}–${o.approxTime.end}`
+                          : t('No time set')}
                       </span>
                     </th>
-                    {totals.map((t) => {
-                      const l = q.get(t.productId);
+                    {totals.map((tm) => {
+                      const l = q.get(tm.productId);
                       return (
-                        <td key={t.productId} className={l ? '' : 'z'}>
+                        <td key={tm.productId} className={l ? '' : 'z'}>
                           {l ? l.quantity : '·'}
                         </td>
                       );
@@ -270,26 +283,26 @@ export function OrdersBoard({
               })}
               <tr className="total">
                 <th className="who" scope="row">
-                  <b>Total</b>
+                  <b>{t('Total')}</b>
                 </th>
-                {totals.map((t) => (
-                  <td key={t.productId} className="tot">
-                    {t.quantity}
+                {totals.map((tm) => (
+                  <td key={tm.productId} className="tot">
+                    {tm.quantity}
                   </td>
                 ))}
               </tr>
               <tr>
                 <th className="who" scope="row">
-                  <b>Made</b>
+                  <b>{t('Made')}</b>
                 </th>
-                {totals.map((t) => (
-                  <td key={t.productId}>
+                {totals.map((tm) => (
+                  <td key={tm.productId}>
                     <MadeTick
-                      done={t.done}
-                      part={t.madeQuantity > 0}
+                      done={tm.done}
+                      part={tm.madeQuantity > 0}
                       disabled={busy !== null}
-                      label={t.productName}
-                      onClick={() => mark(t.productId, !t.done)}
+                      label={tm.productName}
+                      onClick={() => mark(tm.productId, !tm.done)}
                     />
                   </td>
                 ))}
@@ -302,30 +315,30 @@ export function OrdersBoard({
           <table className="matrix" style={{ display: 'table' }}>
             <thead>
               <tr>
-                <th style={{ textAlign: 'left' }}>Product</th>
-                <th>Total</th>
-                <th>Made</th>
+                <th style={{ textAlign: 'left' }}>{t('Product')}</th>
+                <th>{t('Total')}</th>
+                <th>{t('Made')}</th>
                 {orders.map((o) => (
                   <th key={o.orderId}>{o.contractor.name}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {totals.map((t) => (
-                <tr key={t.productId}>
-                  <th scope="row">{t.productName}</th>
-                  <td className="tot">{t.quantity}</td>
+              {totals.map((tm) => (
+                <tr key={tm.productId}>
+                  <th scope="row">{tm.productName}</th>
+                  <td className="tot">{tm.quantity}</td>
                   <td className="q">
                     <MadeTick
-                      done={t.done}
-                      part={t.madeQuantity > 0}
+                      done={tm.done}
+                      part={tm.madeQuantity > 0}
                       disabled={busy !== null}
-                      label={t.productName}
-                      onClick={() => mark(t.productId, !t.done)}
+                      label={tm.productName}
+                      onClick={() => mark(tm.productId, !tm.done)}
                     />
                   </td>
                   {orders.map((o) => {
-                    const l = o.lines.find((x) => x.productId === t.productId);
+                    const l = o.lines.find((x) => x.productId === tm.productId);
                     return (
                       <td key={o.orderId} className={l ? 'q' : 'q z'}>
                         {l ? (
@@ -336,9 +349,12 @@ export function OrdersBoard({
                               done={l.madeQuantity >= l.quantity}
                               part={l.madeQuantity > 0}
                               disabled={busy !== null}
-                              label={`${t.productName} for ${o.contractor.name}`}
+                              label={t('{product} for {contractor}', {
+                                product: tm.productName,
+                                contractor: o.contractor.name,
+                              })}
                               onClick={() =>
-                                mark(t.productId, l.madeQuantity < l.quantity, o.contractor.id)
+                                mark(tm.productId, l.madeQuantity < l.quantity, o.contractor.id)
                               }
                             />
                           </span>

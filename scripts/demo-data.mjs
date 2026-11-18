@@ -77,7 +77,10 @@ async function auth(path, body) {
 async function login(email) {
   const r = await auth('/auth/login', { email, password: PW });
   if (!r.ok) throw new Error(`login ${email}: ${r.status}`);
-  return (await r.json()).tokens.accessToken;
+  const tok = (await r.json()).tokens.accessToken;
+  // Demo accounts start in English each run; people can switch language in Settings.
+  await call(tok, null, 'PATCH', '/me', { locale: 'en' });
+  return tok;
 }
 async function register(name, email) {
   const r = await auth('/auth/register', { name, email, password: PW });

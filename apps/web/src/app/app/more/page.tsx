@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { navFor } from '../../../components/shell';
 import { Icon, PageHead } from '../../../components/ui';
 import { useSession } from '../../../lib/session';
+import { t } from '../../../lib/i18n';
 
 /** The phone tab bar shows four places; everything else is here. */
 export default function MorePage() {
@@ -13,7 +14,7 @@ export default function MorePage() {
   const items = navFor(s.actor).slice(4);
   return (
     <div className="page">
-      <PageHead title="More" />
+      <PageHead title={t('More')} />
       <div className="card" style={{ padding: 6 }}>
         {[...items, { href: '/app/notifications', label: 'Notifications', icon: 'bell' }].map(
           (i) => (
@@ -30,7 +31,7 @@ export default function MorePage() {
               }}
             >
               <Icon name={i.icon} />
-              {i.label}
+              {t(i.label)}
             </Link>
           ),
         )}
@@ -42,7 +43,7 @@ export default function MorePage() {
           router.replace('/');
         }}
       >
-        Sign out
+        {t('Sign out')}
       </button>
     </div>
   );

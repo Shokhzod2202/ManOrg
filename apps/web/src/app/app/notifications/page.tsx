@@ -3,6 +3,7 @@
 import { Empty, ErrorBox, Loading, PageHead } from '../../../components/ui';
 import { formatDate, formatTime, post, type Schemas } from '../../../lib/api';
 import { useApi } from '../../../lib/use-api';
+import { t } from '../../../lib/i18n';
 
 type N = Schemas['Notification'];
 
@@ -37,14 +38,14 @@ const TEXT: Record<string, string> = {
 function detail(n: N): string {
   const p = n.payload as Record<string, unknown>;
   if (n.type === 'punch.flagged')
-    return `${String(p.name ?? '')}, ${String(p.date ?? '')}: ${String(p.message ?? '')}`;
+    return `${String(p.name ?? '')}, ${String(p.date ?? '')}: ${t(String(p.message ?? ''))}`;
   if (n.type === 'task.assigned' && p.title) return String(p.title);
   if (n.type.startsWith('payment.') && p.amount !== undefined)
-    return `${Number(p.amount).toLocaleString()} won${p.reason ? ` · ${String(p.reason)}` : ''}`;
+    return `${t('{amount} won', { amount: Number(p.amount).toLocaleString() })}${p.reason ? ` · ${String(p.reason)}` : ''}`;
   if (n.type === 'settlement.closed') return `${String(p.startDate)} – ${String(p.endDate)}`;
   if (n.type === 'ingredient.due' && p.name) return String(p.name);
   if (n.type === 'delivery.completed' && p.deliveryDate)
-    return `Delivery for ${String(p.deliveryDate)}`;
+    return t('Delivery for {date}', { date: formatDate(String(p.deliveryDate)) });
   return '';
 }
 
@@ -56,10 +57,10 @@ export default function NotificationsPage() {
   }
   return (
     <div className="page">
-      <PageHead title="Notifications" />
+      <PageHead title={t('Notifications')} />
       {loading && !data ? <Loading /> : null}
       <ErrorBox error={error} onRetry={reload} />
-      {data && !data.items.length ? <Empty>No notifications.</Empty> : null}
+      {data && !data.items.length ? <Empty>{t('No notifications.')}</Empty> : null}
       {data?.items.map((n) => (
         <div
           key={n.id}
@@ -72,7 +73,7 @@ export default function NotificationsPage() {
           }}
         >
           <span>
-            <b>{TEXT[n.type] ?? n.type}</b>
+            <b>{t(TEXT[n.type] ?? n.type)}</b>
             {detail(n) ? (
               <>
                 <br />
@@ -86,7 +87,7 @@ export default function NotificationsPage() {
           </span>
           {!n.readAt ? (
             <button className="btn ghost" onClick={() => read(n.id)}>
-              Mark read
+              {t('Mark read')}
             </button>
           ) : null}
         </div>
