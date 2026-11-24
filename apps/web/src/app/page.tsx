@@ -16,7 +16,7 @@ const POINTS = [
   {
     icon: 'orders',
     title: 'Orders due next',
-    text: 'Every contractor’s order in one list, matrix or tile view, with Made ticks the whole kitchen can see.',
+    text: 'Every contractor’s order in one list, matrix or tile view, with Made ticks the whole team can see.',
   },
   {
     icon: 'deliveries',
@@ -58,8 +58,8 @@ export default function Landing() {
             alt="Haydar Inc"
             style={{ width: 52, height: 52, objectFit: 'contain' }}
           />
-          <b style={{ font: '800 18px var(--heading)', letterSpacing: 2, color: 'var(--primary)' }}>
-            HAYDAR
+          <b style={{ font: '800 16px var(--heading)', letterSpacing: 2, color: 'var(--primary)' }}>
+            HAYDAR SYSTEMS
           </b>
         </div>
         <div className="row">
@@ -70,7 +70,7 @@ export default function Landing() {
         </div>
       </header>
       <section className="hero">
-        <h1>{t('Run your bakery’s day in one place')}</h1>
+        <h1>{t('Run your organization’s day in one place')}</h1>
         <p className="muted">
           {t(
             'Shifts, output, tasks, ingredient ordering, next-day orders and deliveries for your team and your contractors.',

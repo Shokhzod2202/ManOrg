@@ -66,8 +66,8 @@ async function as(b, email, vp = { width: 1280, height: 900 }) {
   await admin.goto(`${W}/app/tasks`);
   await admin.click('button:has-text("New task")');
   await admin.fill('label:has-text("Title") input', 'Wipe the oven doors');
-  const opts = await admin.locator('label:has-text("For") select option').allInnerTexts();
-  await admin.selectOption('label:has-text("For") select', { label: 'Mina Park' });
+  const opts = await admin.locator('fieldset.who label').allInnerTexts();
+  await admin.check('fieldset.who label:has-text("Mina Park") input');
   await admin.click('button:has-text("Create task")');
   await admin.waitForSelector('h2:has-text("Wipe the oven doors")');
   log('3 task created; assignee options:', opts.join(', '));
@@ -388,7 +388,7 @@ async function as(b, email, vp = { width: 1280, height: 900 }) {
   await boss.goto(`${W}/app/tasks`);
   await boss.click('button:has-text("New task")');
   await boss.fill('label:has-text("Title") input', rule);
-  await boss.selectOption('label:has-text("For") select', { label: 'Mina Park' });
+  await boss.check('fieldset.who label:has-text("Mina Park") input');
   await boss.selectOption('label:has-text("Repeat") select', 'daily');
   await boss.click('button:has-text("Start repeating task")');
   await boss.click('[role=tab]:has-text("Repeating")');
@@ -420,6 +420,75 @@ async function as(b, email, vp = { width: 1280, height: 900 }) {
   await mina.selectOption('select[aria-label="언어"]', 'en');
   await mina.waitForSelector('h1:has-text("Settings")');
   log('17 Korean kept after reload; first tab reads', JSON.stringify(tab), '| back to English');
+
+  // 18. Fixes of 2026-11-24. A task for everyone; a product with only a name, minutes and price;
+  // the logo goes home; sign-up asks for the password twice and can show it; an admin creates a
+  // second organization from Settings and switches between them.
+  const everyone = `Tidy the store room ${Date.now() % 100000}`;
+  await boss.goto(`${W}/app/tasks`);
+  await boss.click('button:has-text("New task")');
+  await boss.fill('label:has-text("Title") input', everyone);
+  await boss.check('fieldset.who label:has-text("Everyone") input');
+  await boss.click('button:has-text("Create task")');
+  await mina.goto(`${W}/app/tasks`);
+  await mina.waitForSelector(`h2:has-text("${everyone}")`);
+  const forText = await mina.locator('section', { hasText: everyone }).first().innerText();
+  if (!forText.includes('For everyone')) throw new Error('Task for everyone not shown as such');
+  const plain = `Plain bun ${Date.now() % 100000}`;
+  await boss.goto(`${W}/app/products`);
+  await boss.click('button:has-text("New product")');
+  await boss.fill('form label:has-text("Name") input', plain);
+  await boss.fill('label:has-text("Price per piece") input', '1700');
+  await boss.click('button:has-text("Add product")');
+  await boss.waitForSelector(`text=${plain}`);
+  await boss.goto(`${W}/app/settings`);
+  await boss.click('nav.side a.brand');
+  await boss.waitForURL(`${W}/app`);
+  log(
+    '18 task for everyone seen by Mina; product added with name, minutes and price; logo goes home',
+  );
+  const newcomer = await b.newPage({ viewport: { width: 390, height: 844 } });
+  const email = `owner${Date.now()}@example.test`;
+  await newcomer.goto(`${W}/register`);
+  await newcomer.fill('label:has-text("Your name") input', 'Second Owner');
+  await newcomer.fill('input[type=email]', email);
+  const pw = newcomer.locator('.password input');
+  await pw.nth(0).fill('Password123!');
+  await pw.nth(1).fill('Password123?');
+  const blocked = await newcomer.locator('button:has-text("Create account")').isDisabled();
+  await newcomer.click('.password button[aria-label="Show password"] >> nth=0');
+  const shown = await pw.nth(0).getAttribute('type');
+  await pw.nth(1).fill('Password123!');
+  await newcomer.click('button:has-text("Create account")');
+  await newcomer.waitForURL('**/start');
+  await newcomer.click('[role=tab]:has-text("Create an organization")');
+  await newcomer.fill(
+    'label:has-text("Organization name") input',
+    `First Org ${Date.now() % 1000}`,
+  );
+  await newcomer.click('form button.btn.big');
+  await newcomer.waitForURL('**/app');
+  await newcomer.goto(`${W}/app/settings`);
+  await newcomer.click('button:has-text("Create a new organization")');
+  const second = `Second Org ${Date.now() % 1000}`;
+  await newcomer.fill('form label:has-text("Organization name") input', second);
+  await newcomer.click('form button:has-text("Create")');
+  await newcomer.waitForURL('**/app');
+  await newcomer.waitForSelector(`.brand-top:has-text("${second}")`);
+  await newcomer.goto(`${W}/app/settings`);
+  await newcomer.waitForSelector('h2:has-text("Your organizations")');
+  await newcomer.waitForSelector('button:has-text("Switch")', { timeout: 10000 });
+  const orgs = await newcomer.locator('button:has-text("Switch")').count();
+  log(
+    '18 sign-up: mismatch blocks =',
+    blocked,
+    '| eye shows type =',
+    shown,
+    '| second organization open, others to switch to:',
+    orgs,
+  );
+  if (!blocked || shown !== 'text' || orgs < 1)
+    throw new Error('Sign-up or second organization failed');
 
   await b.close();
 })().catch((e) => {

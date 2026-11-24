@@ -85,24 +85,45 @@ h2 {
   gap: 2px;
   background: #fff;
 }
-.brand {
+.brand,
+.brand-top {
   display: flex;
   align-items: center;
   gap: 10px;
+  color: inherit;
+  text-decoration: none;
+}
+.brand {
   padding: 0 6px 16px;
   margin-bottom: 8px;
   border-bottom: 1px solid var(--border);
+}
+.brand-top {
+  flex: 1;
+  min-width: 0;
 }
 .brand img {
   width: 52px;
   height: 52px;
   object-fit: contain;
 }
-.brand b {
-  display: block;
-  font: 800 16px var(--heading);
-  letter-spacing: 2px;
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+/* "HAYDAR SYSTEMS" is the maker's mark: smaller than the organization's name. */
+.brand-system {
+  font: 700 10px var(--heading);
+  letter-spacing: 1.5px;
   color: var(--primary);
+}
+.brand-org {
+  font: 700 16px var(--heading);
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .side a {
   display: flex;
@@ -986,4 +1007,49 @@ table.t td {
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
+}
+
+/* Password with a show/hide button inside the field. */
+.password {
+  position: relative;
+  display: block;
+}
+.password input {
+  width: 100%;
+  padding-right: 48px;
+}
+.password .eye {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 44px;
+  height: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+/* "For" on a task: everyone, or any number of employees (chips). */
+fieldset.who {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+fieldset.who legend {
+  padding: 0;
+  margin-bottom: 6px;
+}
+.chip[aria-disabled='true'] {
+  opacity: 0.5;
+}
+
+.org-switch {
+  margin: 0 0 10px;
+  width: 100%;
 }

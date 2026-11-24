@@ -102,20 +102,36 @@ describe('POST /products (PRD-1)', () => {
     expect(audit.map((a) => a.action)).toEqual(['product.create']);
   });
 
-  it('requires all four fields', async () => {
+  it('requires a name and minutes; picture, ingredients and price can come later (decided 2026-11-24)', async () => {
     const res = await api.as(w.a.admin, w.a.id).post('/products').send({}).expect(400);
-    expect(Object.keys(res.body.error.fields).sort()).toEqual([
-      'imageKey',
-      'ingredients',
-      'minutesPer10',
-      'name',
-    ]);
-    const empty = await api
+    expect(Object.keys(res.body.error.fields).sort()).toEqual(['minutesPer10', 'name']);
+    const bare = await api
       .as(w.a.admin, w.a.id)
       .post('/products')
-      .send({ name: 'X', imageKey: 'k', minutesPer10: 5, ingredients: [] })
-      .expect(400);
-    expect(empty.body.error.fields).toHaveProperty('ingredients');
+      .send({ name: 'Plain roll', minutesPer10: 5 })
+      .expect(201);
+    expect(bare.body).toMatchObject({ name: 'Plain roll', ingredients: [], unitPrice: null });
+    expect(bare.body.imageUrl).toBeTruthy();
+    const priced = await api
+      .as(w.a.admin, w.a.id)
+      .post('/products')
+      .send({ name: 'Seed roll', minutesPer10: 5, unitPrice: 1800 })
+      .expect(201);
+    expect(priced.body.unitPrice).toBe(1800);
+    const audit = await auditFor(priced.body.id, {
+      organizationId: w.a.id,
+      userId: w.a.admin.userId,
+    });
+    expect(audit.map((a) => a.action).sort()).toEqual(['product.create', 'product.price']);
+    // Ingredients and a picture are added later by editing.
+    const image = await upload(w.a.id, w.a.admin).expect(201);
+    const edited = await api
+      .as(w.a.admin, w.a.id)
+      .patch(`/products/${bare.body.id}`)
+      .set('If-Match', String(bare.body.version))
+      .send({ imageKey: image.body.imageKey, ingredients: [{ ingredientId: w.a.ingredientId }] })
+      .expect(200);
+    expect(edited.body.ingredients).toHaveLength(1);
   });
 
   it('refuses a picture that was not uploaded for this organization', async () => {

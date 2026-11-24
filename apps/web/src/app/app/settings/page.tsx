@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
 import { Empty, ErrorBox, Loading, PageHead } from '../../../components/ui';
 import { type ApiError, del, get, patch, post, put, type Schemas } from '../../../lib/api';
@@ -13,32 +14,15 @@ type Org = Schemas['OrganizationSummary'];
 
 export default function SettingsPage() {
   const s = useSession();
-  const active = s.me?.memberships.filter((m) => m.status === 'active') ?? [];
   return (
     <div className="page">
       <PageHead title={t('Settings')} />
       <Account />
+      <Organizations />
       <Language />
       <Telegram />
       {s.actor === 'employee' ? <ArrivalReminder /> : null}
       {s.actor === 'org_admin' ? <BakeryLocation /> : null}
-      {active.length > 1 ? (
-        <section className="card">
-          <h2>{t('Organization')}</h2>
-          <select
-            className="input"
-            value={s.orgId ?? ''}
-            onChange={(e) => s.chooseOrg(e.target.value)}
-            aria-label={t('Organization')}
-          >
-            {active.map((m) => (
-              <option key={m.organization.id} value={m.organization.id}>
-                {m.organization.name}
-              </option>
-            ))}
-          </select>
-        </section>
-      ) : null}
       {s.actor === 'org_admin' ? (
         <Switches<Access>
           title={t('Employee access')}
@@ -57,6 +41,196 @@ export default function SettingsPage() {
       ) : null}
       {s.actor === 'contractor_admin' ? <ApplyToProvider /> : null}
     </div>
+  );
+}
+
+const ROLE: Record<string, string> = { admin: 'Admin', employee: 'Employee' };
+
+/**
+ * Decided 2026-11-24: one person can belong to several organizations. Switch between them, create
+ * a new one (you become its admin), or apply to join another as an employee.
+ */
+function Organizations() {
+  const s = useSession();
+  const router = useRouter();
+  const [mode, setMode] = useState<'none' | 'create' | 'join'>('none');
+  const [name, setName] = useState('');
+  const [type, setType] = useState<'provider' | 'contractor'>('provider');
+  const [q, setQ] = useState('');
+  const [found, setFound] = useState<Org[] | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<ApiError | null>(null);
+  const [busy, setBusy] = useState(false);
+  const memberships = s.me?.memberships ?? [];
+  const active = memberships.filter((m) => m.status === 'active');
+  const pending = memberships.filter((m) => m.status === 'pending');
+  const mine = new Set(
+    memberships.filter((m) => m.status !== 'rejected').map((m) => m.organization.id),
+  );
+
+  async function create(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setErr(null);
+    try {
+      const res = await post<Schemas['CreatedOrganization']>(
+        '/organizations',
+        { name: name.trim(), type },
+        { org: null },
+      );
+      await s.reload();
+      s.chooseOrg(res.organization.id);
+      router.push('/app');
+    } catch (e2) {
+      setErr(e2 as ApiError);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function search(e: FormEvent) {
+    e.preventDefault();
+    setErr(null);
+    try {
+      const res = await get<{ items: Org[] }>(`/organizations?q=${encodeURIComponent(q)}`, {
+        org: null,
+      });
+      setFound(res.items);
+    } catch (e2) {
+      setErr(e2 as ApiError);
+    }
+  }
+  async function join(o: Org) {
+    setBusy(true);
+    setErr(null);
+    try {
+      // No organization chosen: the request is to join as an employee.
+      await post(`/organizations/${o.id}/applications`, undefined, { org: null });
+      await s.reload();
+      setMsg(
+        t('Applied to {name}. You can switch to it once an admin approves.', { name: o.name }),
+      );
+      setFound(null);
+      setMode('none');
+    } catch (e2) {
+      setErr(e2 as ApiError);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="card">
+      <h2>{t('Your organizations')}</h2>
+      <ErrorBox error={err} />
+      {msg ? <span className="pill ok">{msg}</span> : null}
+      {active.map((m) => {
+        const here = m.organization.id === s.orgId;
+        return (
+          <div key={m.organization.id} className="row between wrap">
+            <span>
+              <b>{m.organization.name}</b>{' '}
+              <span className="muted small">
+                · {t(ROLE[m.role] ?? m.role)} ·{' '}
+                {m.organization.type === 'contractor' ? t('Contractor') : t('Organization')}
+              </span>
+            </span>
+            {here ? (
+              <span className="pill ok">{t('Open now')}</span>
+            ) : (
+              <button
+                className="btn ghost"
+                onClick={() => {
+                  s.chooseOrg(m.organization.id);
+                  router.push('/app');
+                }}
+              >
+                {t('Switch')}
+              </button>
+            )}
+          </div>
+        );
+      })}
+      {pending.map((m) => (
+        <div key={m.organization.id} className="row between wrap">
+          <span>
+            <b>{m.organization.name}</b>
+          </span>
+          <span className="pill warn">{t('Waiting for approval')}</span>
+        </div>
+      ))}
+      <div className="row wrap">
+        <button
+          className="btn ghost"
+          onClick={() => setMode(mode === 'create' ? 'none' : 'create')}
+        >
+          {t('Create a new organization')}
+        </button>
+        <button className="btn ghost" onClick={() => setMode(mode === 'join' ? 'none' : 'join')}>
+          {t('Join another organization')}
+        </button>
+      </div>
+      {mode === 'create' ? (
+        <form className="stack" onSubmit={create}>
+          <label className="field">
+            {t('Organization name')}
+            <input
+              required
+              maxLength={120}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </label>
+          <label className="field">
+            {t('Type')}
+            <select
+              value={type}
+              onChange={(e) => setType(e.target.value as 'provider' | 'contractor')}
+            >
+              <option value="provider">{t('Organization (makes and delivers products)')}</option>
+              <option value="contractor">{t('Contractor (orders from organizations)')}</option>
+            </select>
+          </label>
+          <span className="muted small">
+            {t('You become its admin. Your other organizations stay as they are.')}
+          </span>
+          <button className="btn" disabled={busy || !name.trim()}>
+            {t('Create')}
+          </button>
+        </form>
+      ) : null}
+      {mode === 'join' ? (
+        <form className="stack" onSubmit={search}>
+          <label className="field">
+            {t('Organization name')}
+            <input
+              required
+              value={q}
+              placeholder={t('Search')}
+              onChange={(e) => setQ(e.target.value)}
+            />
+          </label>
+          <button className="btn">{t('Search')}</button>
+          <span className="muted small">
+            {t('You apply as an employee. An admin of that organization approves you.')}
+          </span>
+          {found?.length === 0 ? (
+            <p className="muted">{t('No organization with that name.')}</p>
+          ) : null}
+          {found?.map((o) => (
+            <div key={o.id} className="row between">
+              <span>{o.name}</span>
+              {mine.has(o.id) ? (
+                <span className="muted small">{t('Already yours')}</span>
+              ) : (
+                <button type="button" className="btn" disabled={busy} onClick={() => void join(o)}>
+                  {t('Apply')}
+                </button>
+              )}
+            </div>
+          ))}
+        </form>
+      ) : null}
+    </section>
   );
 }
 

@@ -34,16 +34,22 @@ export class TasksService {
 
   create(user: AuthUser, org: OrgContext, input: CreateTaskInput) {
     return this.db.run(dbContext(user, org), async (tx) => {
-      await activeMembers(tx, org.organizationId, [input.assigneeId]);
+      const who = await this.audience(tx, org, input);
       const task = await tx.task.create({
         data: {
           organizationId: org.organizationId,
-          assigneeId: input.assigneeId,
+          assigneeId: who.ids.length === 1 && !who.forAll ? who.ids[0]! : null,
+          forAll: who.forAll,
           createdById: user.userId,
           title: input.title,
           description: input.description ?? null,
           dueDate: dateOf(input.dueDate),
+          assignees: who.forAll
+            ? undefined
+            : // organization_id comes from the task through the composite key.
+              { create: who.ids.map((employeeId) => ({ employeeId })) },
         },
+        include: { assignees: { select: { employeeId: true } } },
       });
       await this.audit.record(tx, {
         organizationId: org.organizationId,
@@ -53,15 +59,44 @@ export class TasksService {
         entityId: task.id,
         after: task,
       });
-      // TSK-1: the assignee is notified.
+      // TSK-1: the people it is for are notified (for everyone: today's employees).
       await this.notifications.notify(tx, {
         organizationId: org.organizationId,
-        userIds: [input.assigneeId],
+        userIds: who.forAll ? await this.employees(tx, org) : who.ids,
         type: 'task.assigned',
         payload: { taskId: task.id, title: task.title, dueDate: input.dueDate },
       });
       return this.present(tx, task.id);
     });
+  }
+
+  /** Who a create or update names: everyone, or a checked list of active members. */
+  private async audience(
+    tx: Tx,
+    org: OrgContext,
+    input: { assigneeId?: string; assigneeIds?: string[]; forAll?: boolean },
+  ): Promise<{ forAll: boolean; ids: string[] }> {
+    if (input.forAll) return { forAll: true, ids: [] };
+    const ids = [...new Set(input.assigneeIds ?? (input.assigneeId ? [input.assigneeId] : []))];
+    await activeMembers(tx, org.organizationId, ids);
+    return { forAll: false, ids };
+  }
+
+  private async employees(tx: Tx, org: OrgContext): Promise<string[]> {
+    const rows = await tx.membership.findMany({
+      where: { organizationId: org.organizationId, status: 'active', role: 'employee' },
+      select: { userId: true },
+    });
+    return rows.map((r) => r.userId);
+  }
+
+  /** Tasks this person may see and finish: theirs, shared with them, or for everyone. */
+  private forPerson(userId: string) {
+    return [
+      { assigneeId: userId },
+      { forAll: true },
+      { assignees: { some: { employeeId: userId } } },
+    ];
   }
 
   /** Admins and the bot see every task; an employee sees tasks assigned to them. */
@@ -73,7 +108,7 @@ export class TasksService {
           organizationId: org.organizationId,
           ...(input.status ? { status: input.status } : {}),
           ...(input.type ? { taskType: input.type } : {}),
-          ...(all ? {} : { assigneeId: user.userId }),
+          ...(all ? {} : { OR: this.forPerson(user.userId) }),
         },
         orderBy: [{ status: 'asc' }, { dueDate: 'asc' }, { createdAt: 'asc' }],
         select: { id: true },
@@ -100,35 +135,70 @@ export class TasksService {
       if (before.status === 'done')
         throw Errors.conflict('TASK_DONE', 'A done task cannot be changed.');
       if (before.version !== version) throw Errors.versionConflict();
-      if (input.assigneeId) await activeMembers(tx, org.organizationId, [input.assigneeId]);
+      const changesWho =
+        input.assigneeId !== undefined ||
+        input.assigneeIds !== undefined ||
+        input.forAll !== undefined;
+      const who = changesWho ? await this.audience(tx, org, input) : null;
+      const beforeIds = new Set([
+        ...(before.assigneeId ? [before.assigneeId] : []),
+        ...(
+          await tx.taskAssignee.findMany({ where: { taskId: id }, select: { employeeId: true } })
+        ).map((a) => a.employeeId),
+      ]);
       const result = await tx.task.updateMany({
         where: { id, version },
         data: {
           ...(input.title !== undefined ? { title: input.title } : {}),
           ...(input.description !== undefined ? { description: input.description } : {}),
-          ...(input.assigneeId !== undefined ? { assigneeId: input.assigneeId } : {}),
+          ...(who
+            ? {
+                forAll: who.forAll,
+                assigneeId: who.ids.length === 1 && !who.forAll ? who.ids[0]! : null,
+              }
+            : {}),
           ...(input.dueDate !== undefined ? { dueDate: dateOf(input.dueDate) } : {}),
           version: { increment: 1 },
         },
       });
       if (result.count !== 1) throw Errors.versionConflict();
-      const after = await tx.task.findUniqueOrThrow({ where: { id } });
+      if (who) {
+        await tx.taskAssignee.deleteMany({ where: { taskId: id } });
+        if (who.ids.length) {
+          await tx.taskAssignee.createMany({
+            data: who.ids.map((employeeId) => ({
+              organizationId: org.organizationId,
+              taskId: id,
+              employeeId,
+            })),
+          });
+        }
+      }
+      const after = await tx.task.findUniqueOrThrow({
+        where: { id },
+        include: { assignees: { select: { employeeId: true } } },
+      });
       await this.audit.record(tx, {
         organizationId: org.organizationId,
         actor: actorFor(user),
         action: 'task.update',
         entity: 'task',
         entityId: id,
-        before,
+        before: { ...before, assigneeIds: [...beforeIds] },
         after,
       });
-      if (input.assigneeId && input.assigneeId !== before.assigneeId) {
-        await this.notifications.notify(tx, {
-          organizationId: org.organizationId,
-          userIds: [input.assigneeId],
-          type: 'task.assigned',
-          payload: { taskId: id, title: after.title },
-        });
+      // People newly given the task are told.
+      if (who) {
+        const now = who.forAll && !before.forAll ? await this.employees(tx, org) : who.ids;
+        const added = now.filter((u) => !beforeIds.has(u));
+        if (added.length) {
+          await this.notifications.notify(tx, {
+            organizationId: org.organizationId,
+            userIds: added,
+            type: 'task.assigned',
+            payload: { taskId: id, title: after.title },
+          });
+        }
       }
       return this.present(tx, id);
     });
@@ -244,16 +314,23 @@ export class TasksService {
   }
 
   private async ownOpenTask(tx: Tx, user: AuthUser, org: OrgContext, id: string) {
-    const task = await tx.task.findFirst({ where: { id, organizationId: org.organizationId } });
-    if (!task || task.assigneeId !== user.userId) throw Errors.notFound('Task');
+    const task = await tx.task.findFirst({
+      where: { id, organizationId: org.organizationId, OR: this.forPerson(user.userId) },
+    });
+    if (!task) throw Errors.notFound('Task');
     if (task.status === 'done') throw Errors.conflict('TASK_DONE', 'This task is already done.');
     return task;
   }
 
   private async visible(tx: Tx, user: AuthUser, org: OrgContext, id: string) {
-    const task = await tx.task.findFirst({ where: { id, organizationId: org.organizationId } });
-    if (!task || (!orgCan(org, 'tasks.manage') && task.assigneeId !== user.userId))
-      throw Errors.notFound('Task');
+    const task = await tx.task.findFirst({
+      where: {
+        id,
+        organizationId: org.organizationId,
+        ...(orgCan(org, 'tasks.manage') ? {} : { OR: this.forPerson(user.userId) }),
+      },
+    });
+    if (!task) throw Errors.notFound('Task');
     return task;
   }
 
@@ -264,9 +341,11 @@ export class TasksService {
       include: {
         photos: { orderBy: { takenAt: 'desc' } },
         ingredientOrders: { select: { id: true } },
+        assignees: { select: { employeeId: true }, orderBy: { createdAt: 'asc' } },
       },
     });
-    const ids = [task.assigneeId, task.completedById, task.createdById].filter(
+    const shared = task.assignees.map((a) => a.employeeId);
+    const ids = [task.assigneeId, task.completedById, task.createdById, ...shared].filter(
       (x): x is string => !!x,
     );
     const people = await tx.user.findMany({
@@ -281,6 +360,10 @@ export class TasksService {
       title: task.title,
       description: task.description,
       assignee: person(task.assigneeId),
+      assignees: (shared.length ? shared : task.assigneeId ? [task.assigneeId] : [])
+        .map(person)
+        .filter((p): p is { id: string; name: string } => p !== null),
+      forAll: task.forAll,
       createdBy: person(task.createdById),
       dueDate: task.dueDate ? task.dueDate.toISOString().slice(0, 10) : null,
       recurringTaskId: task.recurringTaskId,

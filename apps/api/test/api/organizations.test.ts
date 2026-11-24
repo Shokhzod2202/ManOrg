@@ -42,18 +42,31 @@ describe('POST /organizations (ACC-4)', () => {
     await api.as(founder, orgId).get('/members').expect(200);
   });
 
-  it('allows one organization per user in v1 (open question 3)', async () => {
-    const res = await api
+  it('lets a person run or join several organizations (decided 2026-11-24)', async () => {
+    // A bakery admin creates a second organization and is its admin; the first one is unchanged.
+    const second = await api
       .as(w.a.admin)
       .post('/organizations')
       .send({ name: 'Second Bakery', type: 'provider' })
-      .expect(409);
-    expect(res.body.error.code).toBe('ALREADY_IN_ORGANIZATION');
-    await api
-      .as(w.a.applicant)
-      .post('/organizations')
-      .send({ name: 'Pending person bakery', type: 'provider' })
-      .expect(409);
+      .expect(201);
+    await api.as(w.a.admin, second.body.organization.id).get('/members').expect(200);
+    await api.as(w.a.admin, w.a.id).get('/members').expect(200);
+    // A contractor's admin applies to bakery A as an employee (no organization chosen) ...
+    const cafe = w.contractor.admin;
+    const applied = await api.as(cafe).post(`/organizations/${w.a.id}/applications`).expect(201);
+    await api.as(cafe).post(`/organizations/${w.a.id}/applications`).expect(409);
+    await api.as(w.a.admin, w.a.id).post(`/applications/${applied.body.id}/approve`).expect(200);
+    // ... and then sees bakery A as an employee, and still runs the contractor.
+    const me = await api.as(cafe).get('/me').expect(200);
+    const roles = Object.fromEntries(
+      me.body.memberships
+        .filter((m: { status: string }) => m.status === 'active')
+        .map((m: { organization: { id: string }; role: string }) => [m.organization.id, m.role]),
+    );
+    expect(roles).toEqual({ [w.contractor.id]: 'admin', [w.a.id]: 'employee' });
+    await api.as(cafe, w.a.id).get('/tasks').expect(200);
+    await api.as(cafe, w.a.id).get('/members').expect(403);
+    await api.as(cafe, w.contractor.id).get('/members').expect(200);
   });
 
   it('validates name, type and time zone', async () => {
@@ -108,10 +121,10 @@ describe('POST /organizations/{id}/applications as a person (ACC-5)', () => {
     expect(audit.map((a) => a.action)).toEqual(['membership.apply']);
   });
 
-  it('refuses a second open application', async () => {
+  it('refuses a second open application to the same organization', async () => {
     const res = await api
       .as(w.a.applicant)
-      .post(`/organizations/${w.b.id}/applications`)
+      .post(`/organizations/${w.a.id}/applications`)
       .expect(409);
     expect(res.body.error.code).toBe('ALREADY_IN_ORGANIZATION');
   });

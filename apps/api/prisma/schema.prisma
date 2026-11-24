@@ -246,6 +246,7 @@ model Organization {
   dailyLogs                  DailyLog[]
   tasks                      Task[]
   taskPhotos                 TaskPhoto[]
+  taskAssignees              TaskAssignee[]
   ordersAsBakery             Order[]                    @relation("orderBakery")
   ordersAsBuyer              Order[]                    @relation("orderContractor")
   orderLines                 OrderLine[]
@@ -631,6 +632,8 @@ model Task {
   /// Phase 3: the repeating task this one was made from, and the day it is for (made once).
   recurringTaskId     String?    @map("recurring_task_id") @db.Uuid
   occurrenceDate      DateTime?  @map("occurrence_date") @db.Date
+  /// Decided 2026-11-24: for every employee, including people who join later.
+  forAll              Boolean    @default(false) @map("for_all")
   version             Int        @default(1)
   createdAt           DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt           DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -638,6 +641,7 @@ model Task {
   organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   photos           TaskPhoto[]
   ingredientOrders IngredientOrder[]
+  assignees        TaskAssignee[]
 
   @@unique([id, organizationId])
   @@unique([recurringTaskId, occurrenceDate])
@@ -646,6 +650,21 @@ model Task {
 }
 
 /// Camera capture only (TSK-2). taken_at is recorded by the server.
+/// Decided 2026-11-24: a task can be for several people; one of them finishes it for all.
+model TaskAssignee {
+  organizationId String   @map("organization_id") @db.Uuid
+  taskId         String   @map("task_id") @db.Uuid
+  employeeId     String   @map("employee_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  task         Task         @relation(fields: [taskId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@id([taskId, employeeId])
+  @@index([organizationId, employeeId])
+  @@map("task_assignees")
+}
+
 model TaskPhoto {
   id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId String   @map("organization_id") @db.Uuid
@@ -1169,7 +1188,12 @@ enum RecurrenceFrequency {
 model RecurringTask {
   id             String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId String              @map("organization_id") @db.Uuid
-  assigneeId     String              @map("assignee_id") @db.Uuid
+  /// One person; empty when the rule is for several people or for everyone.
+  assigneeId     String?             @map("assignee_id") @db.Uuid
+  /// Decided 2026-11-24: several people (each made task is shared by them) ...
+  assigneeIds    String[]            @default([]) @map("assignee_ids") @db.Uuid
+  /// ... or every employee, including people who join later.
+  forAll         Boolean             @default(false) @map("for_all")
   title          String
   description    String?
   frequency      RecurrenceFrequency

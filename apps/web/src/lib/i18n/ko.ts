@@ -154,8 +154,8 @@ export const ko: Record<string, string> = {
   'Ends next day': '다음 날 종료',
   'Every change shows a preview first. Nothing changes until you press Confirm.':
     '모든 변경은 먼저 미리 보기로 보여 줍니다. 확인을 누르기 전에는 아무것도 바뀌지 않습니다.',
-  'Every contractor’s order in one list, matrix or tile view, with Made ticks the whole kitchen can see.':
-    '모든 거래처 주문을 목록, 표, 타일로 한눈에 보고, 주방 전체가 볼 수 있게 완료 표시를 합니다.',
+  'Every contractor’s order in one list, matrix or tile view, with Made ticks the whole team can see.':
+    '모든 거래처 주문을 목록, 표, 타일로 한눈에 보고, 팀 전체가 볼 수 있게 완료 표시를 합니다.',
   'Every day': '매일',
   'Every month on day {day}': '매월 {day}일',
   'Every month on the last day': '매월 마지막 날',
@@ -395,7 +395,7 @@ export const ko: Record<string, string> = {
   Reversed: '취소됨',
   Review: '검토',
   Role: '역할',
-  'Run your bakery’s day in one place': '빵집의 하루를 한 곳에서 관리하세요',
+  'Run your organization’s day in one place': '조직의 하루를 한 곳에서 관리하세요',
   Sat: '토',
   Saturday: '토요일',
   Save: '저장',
@@ -602,4 +602,43 @@ export const ko: Record<string, string> = {
   '{what} time': '{what} 시간',
   '“Approve the waiting shift corrections and accept City Cafe’s added baguettes.”':
     '“대기 중인 근무 수정 요청을 승인하고 City Cafe가 추가한 바게트를 수락해 줘.”',
+  'Already yours': '이미 내 조직',
+  'Applied to {name}. You can switch to it once an admin approves.':
+    '{name}에 신청했습니다. 관리자가 승인하면 전환할 수 있습니다.',
+  'Contractor (orders from organizations)': '거래처(조직에 주문)',
+  'Create a new organization': '새 조직 만들기',
+  'Edit {name}': '{name} 수정',
+  'Everyone (also people who join later)': '모두(나중에 들어오는 사람 포함)',
+  'For everyone': '모두에게',
+  'Hide password': '비밀번호 숨기기',
+  'Ingredients (optional, can be added later)': '재료(선택, 나중에 추가 가능)',
+  'Join an organization': '조직 가입',
+  'Join another organization': '다른 조직 가입',
+  'No employees yet. Choose Everyone: people who join later will see the task.':
+    '아직 직원이 없습니다. 모두를 선택하면 나중에 들어오는 사람도 업무를 봅니다.',
+  'No organization with that name.': '그 이름의 조직이 없습니다.',
+  'One task for {n} people: whoever does it takes the photo, and it is done for all.':
+    '{n}명이 함께하는 업무: 하는 사람이 사진을 찍으면 모두에게 완료됩니다.',
+  'Open now': '현재 열림',
+  'Organization (makes and delivers products)': '조직(제품을 만들고 배송)',
+  'Picture (optional, JPEG or PNG)': '사진(선택, JPEG 또는 PNG)',
+  'Price per piece (won, optional)': '개당 가격(원, 선택)',
+  'Set later': '나중에 설정',
+  'Show password': '비밀번호 보기',
+  'Switch organization': '조직 전환',
+  Switch: '전환',
+  'The passwords do not match.': '비밀번호가 일치하지 않습니다.',
+  'Type the password again': '비밀번호 다시 입력',
+  'Waiting for approval': '승인 대기 중',
+  'You apply as an employee. An admin of that organization approves you.':
+    '직원으로 신청합니다. 그 조직의 관리자가 승인합니다.',
+  'You become its admin. Your other organizations stay as they are.':
+    '내가 관리자가 됩니다. 다른 조직은 그대로입니다.',
+  'for everyone': '모두에게',
+  'You already belong to or have applied to this organization.':
+    '이미 이 조직에 속해 있거나 신청했습니다.',
+  'This person already belongs to or has applied to this organization.':
+    '이 사람은 이미 이 조직에 속해 있거나 신청했습니다.',
+  'Choose people or "For all", not both.': '사람을 고르거나 “모두”를 고르세요. 둘 다는 안 됩니다.',
+  'Choose who the task is for.': '업무 담당자를 선택하세요.',
 };

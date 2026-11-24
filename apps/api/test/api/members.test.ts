@@ -91,11 +91,11 @@ describe('POST /members (ACC-7)', () => {
       .expect(201);
   });
 
-  it('refuses someone who already belongs to an organization', async () => {
+  it('refuses someone who already belongs to this organization; another one is fine', async () => {
     const res = await api
       .as(w.a.admin, w.a.id)
       .post('/members')
-      .send({ email: w.b.employee.email, role: 'employee' })
+      .send({ email: w.a.employee.email, role: 'employee' })
       .expect(409);
     expect(res.body.error.code).toBe('ALREADY_IN_ORGANIZATION');
   });

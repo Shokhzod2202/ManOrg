@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
 import { AuthFrame } from '../../components/auth-frame';
-import { ErrorBox, Field } from '../../components/ui';
+import { ErrorBox, Field, PasswordInput } from '../../components/ui';
 import { type ApiError } from '../../lib/api';
 import { useSession } from '../../lib/session';
 import { t } from '../../lib/i18n';
@@ -15,11 +15,14 @@ export default function RegisterPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const mismatch = confirm.length > 0 && confirm !== password;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
+    if (password !== confirm) return;
     setBusy(true);
     setError(null);
     try {
@@ -54,8 +57,7 @@ export default function RegisterPage() {
           />
         </Field>
         <Field label={t('Password (at least 10 characters)')} error={error?.fields?.password}>
-          <input
-            type="password"
+          <PasswordInput
             autoComplete="new-password"
             minLength={10}
             required
@@ -63,7 +65,19 @@ export default function RegisterPage() {
             onChange={(e) => setPassword(e.target.value)}
           />
         </Field>
-        <button className="btn big" disabled={busy}>
+        <Field
+          label={t('Type the password again')}
+          error={mismatch ? [t('The passwords do not match.')] : undefined}
+        >
+          <PasswordInput
+            autoComplete="new-password"
+            required
+            value={confirm}
+            aria-invalid={mismatch}
+            onChange={(e) => setConfirm(e.target.value)}
+          />
+        </Field>
+        <button className="btn big" disabled={busy || !password || confirm !== password}>
           {busy ? t('Creating…') : t('Create account')}
         </button>
         <p className="muted center">

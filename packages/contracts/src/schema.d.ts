@@ -859,7 +859,7 @@ export interface paths {
         put?: never;
         /**
          * Add a product (PRD-1)
-         * @description Name, picture (imageKey from /product-images), ingredients and minutes per 10 are all required.
+         * @description Name and minutes per 10 are required. The picture (imageKey from /product-images), ingredients and price can be added now or later by editing.
          */
         post: operations["createProduct"];
         delete?: never;
@@ -2533,9 +2533,13 @@ export interface components {
         };
         CreateProductRequest: {
             name: string;
-            imageKey: string;
+            /** @description From POST /product-images. Leave out to use a placeholder until a picture is added. */
+            imageKey?: string;
             minutesPer10: number;
+            /** @default [] */
             ingredients: components["schemas"]["ProductIngredientInput"][];
+            /** @description Whole won per unit (F-001). Needs prices.manage. */
+            unitPrice?: number;
             /** @default true */
             available: boolean;
         };
@@ -2832,6 +2836,10 @@ export interface components {
             description: string | null;
             /** @description Empty for ingredient-order tasks, which go to the admins. */
             assignee: components["schemas"]["PersonRef"] | null;
+            /** @description Everyone the task is for (empty when it is for everyone or for the admins). */
+            assignees: components["schemas"]["PersonRef"][];
+            /** @description For every employee */
+            forAll: boolean;
             createdBy: components["schemas"]["PersonRef"] | null;
             /** Format: date */
             dueDate: string | null;
@@ -2865,8 +2873,15 @@ export interface components {
         CreateTaskRequest: {
             title: string;
             description?: string;
-            /** Format: uuid */
-            assigneeId: string;
+            /**
+             * Format: uuid
+             * @description One employee.
+             */
+            assigneeId?: string;
+            /** @description Several employees; any of them finishes the task for all. */
+            assigneeIds?: string[];
+            /** @description Every employee, including people who join later. Give only one of assigneeId, assigneeIds or forAll. */
+            forAll?: boolean;
             /** Format: date */
             dueDate: string;
         };
@@ -2876,6 +2891,8 @@ export interface components {
             title: string;
             description: string | null;
             assignee: components["schemas"]["PersonRef"] | null;
+            assignees: components["schemas"]["PersonRef"][];
+            forAll: boolean;
             /** @enum {string} */
             frequency: "daily" | "weekly" | "monthly";
             weekdays: number[];
@@ -2898,8 +2915,15 @@ export interface components {
         CreateRecurringTaskRequest: {
             title: string;
             description?: string | null;
-            /** Format: uuid */
-            assigneeId: string;
+            /**
+             * Format: uuid
+             * @description One employee.
+             */
+            assigneeId?: string;
+            /** @description Several employees; each made task is shared by them. */
+            assigneeIds?: string[];
+            /** @description Every employee, including people who join later. Give only one of assigneeId, assigneeIds or forAll. */
+            forAll?: boolean;
             /** @enum {string} */
             frequency: "daily" | "weekly" | "monthly";
             weekdays?: number[];
@@ -2912,8 +2936,15 @@ export interface components {
         UpdateRecurringTaskRequest: {
             title?: string;
             description?: string | null;
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @description One employee.
+             */
             assigneeId?: string;
+            /** @description Several employees; each made task is shared by them. */
+            assigneeIds?: string[];
+            /** @description Every employee, including people who join later. Give only one of assigneeId, assigneeIds or forAll. */
+            forAll?: boolean;
             /** @enum {string} */
             frequency?: "daily" | "weekly" | "monthly";
             weekdays?: number[];
@@ -2927,8 +2958,15 @@ export interface components {
         UpdateTaskRequest: {
             title?: string;
             description?: string | null;
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @description One employee.
+             */
             assigneeId?: string;
+            /** @description Several employees; any of them finishes the task for all. */
+            assigneeIds?: string[];
+            /** @description Every employee, including people who join later. Give only one of assigneeId, assigneeIds or forAll. */
+            forAll?: boolean;
             /** Format: date */
             dueDate?: string;
         };

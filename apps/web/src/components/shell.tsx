@@ -53,15 +53,16 @@ export function navFor(actor: Actor | null): Item[] {
   return [];
 }
 
-export function Brand({ sub }: { sub?: string }) {
+/** The logo, "HAYDAR SYSTEMS" and the organization's name; a click goes home from anywhere. */
+export function Brand({ sub, className = 'brand' }: { sub?: string; className?: string }) {
   return (
-    <div className="brand">
-      <img src="/logo.png" alt="Haydar Inc" />
-      <div>
-        <b>HAYDAR</b>
-        {sub ? <span className="muted small">{sub}</span> : null}
-      </div>
-    </div>
+    <Link href="/app" className={className} aria-label={t('Home')}>
+      <img src="/logo.png" alt="" />
+      <span className="brand-text">
+        <span className="brand-system">HAYDAR SYSTEMS</span>
+        {sub ? <span className="brand-org">{sub}</span> : null}
+      </span>
+    </Link>
   );
 }
 
@@ -81,11 +82,29 @@ export function AppShell({ children }: { children: ReactNode }) {
   const isOn = (href: string) => (href === '/app' ? path === '/app' : path.startsWith(href));
   const tabs = [...items.slice(0, 4), { href: '/app/more', label: 'More', icon: 'more' }];
   const orgName = s.membership.organization.name;
+  const active = s.me.memberships.filter((m) => m.status === 'active');
 
   return (
     <div className="shell">
       <nav className="side" aria-label={t('Main')}>
         <Brand sub={orgName} />
+        {active.length > 1 ? (
+          <select
+            className="input org-switch"
+            aria-label={t('Switch organization')}
+            value={s.orgId ?? ''}
+            onChange={(e) => {
+              s.chooseOrg(e.target.value);
+              router.push('/app');
+            }}
+          >
+            {active.map((m) => (
+              <option key={m.organization.id} value={m.organization.id}>
+                {m.organization.name}
+              </option>
+            ))}
+          </select>
+        ) : null}
         {items.map((i) => (
           <Link
             key={i.href}
@@ -114,13 +133,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </button>
       </nav>
       <header className="topbar">
-        <img src="/logo.png" alt="Haydar Inc" />
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          <b style={{ font: '800 15px var(--heading)', letterSpacing: 2, color: 'var(--primary)' }}>
-            HAYDAR
-          </b>
-          <span className="muted small">{orgName}</span>
-        </div>
+        <Brand sub={orgName} className="brand-top" />
         <Link
           href="/app/notifications"
           aria-label={t('Notifications')}

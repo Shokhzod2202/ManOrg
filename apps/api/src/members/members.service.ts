@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { actorFor, AuditService } from '../audit/audit.service';
 import { Errors } from '../common/errors';
-import { assertNoOpenMembership, createMembershipOnce } from '../common/memberships';
+import { assertNotInOrganization, createMembershipOnce } from '../common/memberships';
 import { pageArgs, toPage } from '../common/pagination';
 import { type AuthUser, type OrgContext, dbContext } from '../common/request-context';
 import { DatabaseService } from '../database/database.service';
@@ -68,7 +68,7 @@ export class MembersService {
           'No account uses this email. Ask the person to create an account first.',
         );
       }
-      await assertNoOpenMembership(tx, person.id, 'they');
+      await assertNotInOrganization(tx, person.id, org.organizationId, 'they');
       const membership = await createMembershipOnce(
         () =>
           tx.membership.create({

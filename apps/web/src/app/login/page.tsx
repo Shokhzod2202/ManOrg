@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useEffect, useState } from 'react';
 import { AuthFrame } from '../../components/auth-frame';
-import { ErrorBox, Field } from '../../components/ui';
+import { ErrorBox, Field, PasswordInput } from '../../components/ui';
 import { type ApiError } from '../../lib/api';
 import { useSession } from '../../lib/session';
 import { t } from '../../lib/i18n';
@@ -48,8 +48,7 @@ export default function LoginPage() {
           />
         </Field>
         <Field label={t('Password')} error={error?.fields?.password}>
-          <input
-            type="password"
+          <PasswordInput
             autoComplete="current-password"
             required
             value={password}

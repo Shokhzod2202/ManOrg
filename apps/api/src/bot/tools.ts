@@ -151,7 +151,7 @@ export const TOOLS: Record<string, ReadTool | WriteTool> = {
     def: {
       name: 'upsert_product',
       description:
-        'Propose adding a product (name, minutes_per_10 and at least one ingredient required; it gets a placeholder picture) or changing one (id plus the fields to change). Nothing changes until the admin confirms.',
+        'Propose adding a product (name and minutes_per_10 required; ingredients can be added later; it gets a placeholder picture) or changing one (id plus the fields to change). Nothing changes until the admin confirms.',
       inputSchema: schemaOf(productInput),
     },
   },
@@ -522,10 +522,8 @@ export class BotTools {
       return ids.map((id) => all.find((x) => x.id === id)?.name ?? `unknown (${id})`);
     };
     if (!p.id) {
-      if (!p.name || !p.minutes_per_10 || !ingredientIds?.length) {
-        throw new ToolInputError(
-          'A new product needs name, minutes_per_10 and at least one ingredient.',
-        );
+      if (!p.name || !p.minutes_per_10) {
+        throw new ToolInputError('A new product needs name and minutes_per_10.');
       }
       return {
         input: { ...p, _ingredientIds: ingredientIds },

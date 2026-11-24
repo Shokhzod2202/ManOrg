@@ -2,25 +2,30 @@ import { type Tx } from '../database/prisma-client';
 import { Prisma } from '../generated/prisma/client';
 import { Errors } from './errors';
 
-/** Open question 3: one organization per user in v1 (a pending or active membership). */
-export async function assertNoOpenMembership(
+/**
+ * Decided 2026-11-24 (replaces open question 3's default of one organization per person): a person
+ * may belong to several organizations, but has at most one pending or active membership in each.
+ */
+export async function assertNotInOrganization(
   tx: Tx,
   userId: string,
+  organizationId: string,
   who: 'you' | 'they',
 ): Promise<void> {
   const open = await tx.membership.findFirst({
-    where: { userId, status: { in: ['pending', 'active'] } },
+    where: { userId, organizationId, status: { in: ['pending', 'active'] } },
     select: { id: true },
   });
-  if (open) {
-    throw Errors.conflict(
-      'ALREADY_IN_ORGANIZATION',
-      who === 'you'
-        ? 'You already belong to or have applied to an organization.'
-        : 'This person already belongs to or has applied to an organization.',
-    );
-  }
+  if (open) throw alreadyIn(who);
 }
+
+const alreadyIn = (who: 'you' | 'they') =>
+  Errors.conflict(
+    'ALREADY_IN_ORGANIZATION',
+    who === 'you'
+      ? 'You already belong to or have applied to this organization.'
+      : 'This person already belongs to or has applied to this organization.',
+  );
 
 /** A rejected applicant may re-apply after 7 days (assumed, spec section 4). */
 export const REAPPLY_AFTER_DAYS = 7;
@@ -40,9 +45,8 @@ export function assertReapplyAllowed(
 }
 
 /**
- * Creates a membership, mapping the one-open-membership unique index to a clear 409. The check
- * above it cannot always see the other membership: row-level security hides other organizations'
- * rows, so the database index is the final guard.
+ * Creates a membership, mapping the one-open-membership-per-organization unique index to a clear
+ * 409; the database index is the final guard against two requests at once.
  */
 export async function createMembershipOnce<T>(
   create: () => Promise<T>,
@@ -52,12 +56,7 @@ export async function createMembershipOnce<T>(
     return await create();
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-      throw Errors.conflict(
-        'ALREADY_IN_ORGANIZATION',
-        who === 'you'
-          ? 'You already belong to or have applied to an organization.'
-          : 'This person already belongs to or has applied to an organization.',
-      );
+      throw alreadyIn(who);
     }
     throw error;
   }

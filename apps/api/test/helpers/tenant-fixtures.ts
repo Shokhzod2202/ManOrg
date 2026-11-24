@@ -111,6 +111,7 @@ export async function createTenantWithEveryTable(label: string): Promise<TenantF
         occurrenceDate: new Date('2026-01-01T00:00:00Z'),
       },
     });
+    await tx.taskAssignee.create({ data: { ...org, taskId: task.id, employeeId: employee!.id } });
     await tx.taskPhoto.create({
       data: {
         ...org,

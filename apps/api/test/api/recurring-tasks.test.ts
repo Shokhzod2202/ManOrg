@@ -146,6 +146,22 @@ describe('repeating tasks (phase 3)', () => {
     expect(audit.map((a) => a.action)).toContain('recurring_task.update');
   });
 
+  it('can be for everyone, including people who join later (decided 2026-11-24)', async () => {
+    const tomorrow = addDays(localDate(TZ), 1);
+    const rule = await api
+      .as(w.a.admin, w.a.id)
+      .post('/recurring-tasks')
+      .send({ title: 'Wipe the doors', forAll: true, frequency: 'daily', startDate: tomorrow })
+      .expect(201);
+    expect(rule.body).toMatchObject({ forAll: true, assignee: null, assignees: [] });
+    const later = await api.hireEmployee(w.a.id, w.a.admin, 'New Starter');
+    await app.get(RecurringTasksService).generate(new Date(`${tomorrow}T03:00:00Z`));
+    const seen = await api.as(later, w.a.id).get('/tasks?status=open').expect(200);
+    expect(
+      seen.body.items.find((x: { title: string }) => x.title === 'Wipe the doors'),
+    ).toMatchObject({ forAll: true, recurringTaskId: rule.body.id });
+  });
+
   it('checks the rule and who may manage it', async () => {
     const today = localDate(TZ);
     await api

@@ -1508,7 +1508,7 @@ paths:
     post:
       operationId: createProduct
       summary: Add a product (PRD-1)
-      description: Name, picture (imageKey from /product-images), ingredients and minutes per 10 are all required.
+      description: Name and minutes per 10 are required. The picture (imageKey from /product-images), ingredients and price can be added now or later by editing.
       tags: [products]
       parameters:
         - $ref: '#/components/parameters/OrganizationId'
@@ -4105,16 +4105,23 @@ components:
     CreateProductRequest:
       type: object
       additionalProperties: false
-      required: [name, imageKey, minutesPer10, ingredients]
+      required: [name, minutesPer10]
       properties:
         name: { type: string, minLength: 1, maxLength: 120 }
-        imageKey: { type: string }
+        imageKey:
+          type: string
+          description: From POST /product-images. Leave out to use a placeholder until a picture is added.
         minutesPer10: { type: integer, minimum: 1, maximum: 10000 }
         ingredients:
           type: array
-          minItems: 1
           maxItems: 100
+          default: []
           items: { $ref: '#/components/schemas/ProductIngredientInput' }
+        unitPrice:
+          type: integer
+          minimum: 0
+          maximum: 100000000
+          description: Whole won per unit (F-001). Needs prices.manage.
         available: { type: boolean, default: true }
     UpdateProductRequest:
       type: object
@@ -4126,7 +4133,6 @@ components:
         minutesPer10: { type: integer, minimum: 1, maximum: 10000 }
         ingredients:
           type: array
-          minItems: 1
           maxItems: 100
           items: { $ref: '#/components/schemas/ProductIngredientInput' }
         available: { type: boolean }
@@ -4474,6 +4480,8 @@ components:
           title,
           description,
           assignee,
+          assignees,
+          forAll,
           createdBy,
           dueDate,
           recurringTaskId,
@@ -4495,6 +4503,11 @@ components:
           oneOf:
             - $ref: '#/components/schemas/PersonRef'
             - type: 'null'
+        assignees:
+          type: array
+          description: Everyone the task is for (empty when it is for everyone or for the admins).
+          items: { $ref: '#/components/schemas/PersonRef' }
+        forAll: { type: boolean, description: For every employee, including people who join later. }
         createdBy:
           oneOf:
             - $ref: '#/components/schemas/PersonRef'
@@ -4525,11 +4538,20 @@ components:
     CreateTaskRequest:
       type: object
       additionalProperties: false
-      required: [title, assigneeId, dueDate]
+      required: [title, dueDate]
       properties:
         title: { type: string, minLength: 1, maxLength: 200 }
         description: { type: string, maxLength: 2000 }
-        assigneeId: { type: string, format: uuid }
+        assigneeId: { type: string, format: uuid, description: One employee. }
+        assigneeIds:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items: { type: string, format: uuid }
+          description: Several employees; any of them finishes the task for all.
+        forAll:
+          type: boolean
+          description: Every employee, including people who join later. Give only one of assigneeId, assigneeIds or forAll.
         dueDate: { type: string, format: date }
     RecurringTask:
       type: object
@@ -4539,6 +4561,8 @@ components:
           title,
           description,
           assignee,
+          assignees,
+          forAll,
           frequency,
           weekdays,
           dayOfMonth,
@@ -4557,6 +4581,10 @@ components:
           oneOf:
             - $ref: '#/components/schemas/PersonRef'
             - type: 'null'
+        assignees:
+          type: array
+          items: { $ref: '#/components/schemas/PersonRef' }
+        forAll: { type: boolean }
         frequency: { type: string, enum: [daily, weekly, monthly] }
         weekdays: { type: array, items: { type: integer, minimum: 0, maximum: 6 } }
         dayOfMonth: { type: [integer, 'null'], minimum: 1, maximum: 31 }
@@ -4576,11 +4604,20 @@ components:
     CreateRecurringTaskRequest:
       type: object
       additionalProperties: false
-      required: [title, assigneeId, frequency, startDate]
+      required: [title, frequency, startDate]
       properties:
         title: { type: string, minLength: 1, maxLength: 200 }
         description: { type: [string, 'null'], maxLength: 2000 }
-        assigneeId: { type: string, format: uuid }
+        assigneeId: { type: string, format: uuid, description: One employee. }
+        assigneeIds:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items: { type: string, format: uuid }
+          description: Several employees; each made task is shared by them.
+        forAll:
+          type: boolean
+          description: Every employee, including people who join later. Give only one of assigneeId, assigneeIds or forAll.
         frequency: { type: string, enum: [daily, weekly, monthly] }
         weekdays: { type: array, maxItems: 7, items: { type: integer, minimum: 0, maximum: 6 } }
         dayOfMonth: { type: [integer, 'null'], minimum: 1, maximum: 31 }
@@ -4593,7 +4630,16 @@ components:
       properties:
         title: { type: string, minLength: 1, maxLength: 200 }
         description: { type: [string, 'null'], maxLength: 2000 }
-        assigneeId: { type: string, format: uuid }
+        assigneeId: { type: string, format: uuid, description: One employee. }
+        assigneeIds:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items: { type: string, format: uuid }
+          description: Several employees; each made task is shared by them.
+        forAll:
+          type: boolean
+          description: Every employee, including people who join later. Give only one of assigneeId, assigneeIds or forAll.
         frequency: { type: string, enum: [daily, weekly, monthly] }
         weekdays: { type: array, maxItems: 7, items: { type: integer, minimum: 0, maximum: 6 } }
         dayOfMonth: { type: [integer, 'null'], minimum: 1, maximum: 31 }
@@ -4607,7 +4653,16 @@ components:
       properties:
         title: { type: string, minLength: 1, maxLength: 200 }
         description: { type: [string, 'null'], maxLength: 2000 }
-        assigneeId: { type: string, format: uuid }
+        assigneeId: { type: string, format: uuid, description: One employee. }
+        assigneeIds:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items: { type: string, format: uuid }
+          description: Several employees; any of them finishes the task for all.
+        forAll:
+          type: boolean
+          description: Every employee, including people who join later. Give only one of assigneeId, assigneeIds or forAll.
         dueDate: { type: string, format: date }
     CaptureToken:
       type: object

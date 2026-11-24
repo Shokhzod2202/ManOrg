@@ -77,13 +77,15 @@ export class ProductsService {
 
   create(user: AuthUser, org: OrgContext, input: CreateProductInput) {
     return this.db.run(dbContext(user, org), async (tx) => {
-      await this.assertImage(org, input.imageKey);
+      if (input.unitPrice !== undefined && !orgCan(org, 'prices.manage')) throw Errors.forbidden();
+      if (input.imageKey !== undefined) await this.assertImage(org, input.imageKey);
       await this.assertIngredients(tx, org, input.ingredients);
+      const imageKey = input.imageKey ?? (await this.placeholderImage(org));
       const product = await tx.product.create({
         data: {
           organizationId: org.organizationId,
           name: input.name,
-          imageUrl: input.imageKey,
+          imageUrl: imageKey,
           minutesPer10: input.minutesPer10,
           available: input.available,
           // organization_id comes from the product through the composite key.
@@ -104,7 +106,25 @@ export class ProductsService {
         entityId: product.id,
         after: snapshot(product),
       });
-      return this.present(product);
+      if (input.unitPrice === undefined) return this.present(product);
+      await tx.productPrice.create({
+        data: {
+          organizationId: org.organizationId,
+          productId: product.id,
+          unitPrice: input.unitPrice,
+          createdById: user.userId,
+        },
+      });
+      await this.audit.record(tx, {
+        organizationId: org.organizationId,
+        actor: actorFor(user),
+        action: 'product.price',
+        entity: 'product',
+        entityId: product.id,
+        before: { unitPrice: null },
+        after: { unitPrice: input.unitPrice },
+      });
+      return this.present(await this.find(tx, org, product.id));
     });
   }
 

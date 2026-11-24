@@ -431,7 +431,8 @@ function NewIngredient({ onCreated }: { onCreated: () => void }) {
             type="number"
             min={0}
             step={1}
-            value={f.packPrice}
+            value={f.packPrice || ''}
+            placeholder="0"
             onChange={(e) => setF({ ...f, packPrice: Number(e.target.value) })}
           />
         </label>

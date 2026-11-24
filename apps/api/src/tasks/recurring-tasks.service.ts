@@ -17,6 +17,8 @@ const fields = {
   title: z.string().trim().min(1).max(200),
   description: z.string().trim().max(2000).nullable().optional(),
   assigneeId: z.uuid(),
+  assigneeIds: z.array(z.uuid()).min(1).max(200),
+  forAll: z.boolean(),
   frequency: z.enum(['daily', 'weekly', 'monthly']),
   weekdays: z.array(z.number().int().min(0).max(6)).max(7).optional(),
   dayOfMonth: z.number().int().min(1).max(31).nullable().optional(),
@@ -26,6 +28,9 @@ const fields = {
 
 const rules = <
   T extends {
+    assigneeId?: string;
+    assigneeIds?: string[];
+    forAll?: boolean;
     frequency?: string;
     weekdays?: number[];
     dayOfMonth?: number | null;
@@ -36,6 +41,13 @@ const rules = <
   v: T,
   ctx: z.RefinementCtx,
 ) => {
+  const who = [v.assigneeId !== undefined, v.assigneeIds !== undefined, v.forAll === true];
+  if (who.filter(Boolean).length > 1)
+    ctx.addIssue({
+      code: 'custom',
+      path: ['assigneeIds'],
+      message: 'Choose people or "For all", not both.',
+    });
   if (v.frequency === 'weekly' && !v.weekdays?.length) {
     ctx.addIssue({ code: 'custom', path: ['weekdays'], message: 'Choose at least one weekday.' });
   }
@@ -47,12 +59,24 @@ const rules = <
   }
 };
 
-export const createRecurringSchema = z.strictObject(fields).superRefine(rules);
+const optionalWho = {
+  assigneeId: fields.assigneeId.optional(),
+  assigneeIds: fields.assigneeIds.optional(),
+  forAll: fields.forAll.optional(),
+};
+export const createRecurringSchema = z
+  .strictObject({ ...fields, ...optionalWho })
+  .superRefine(rules)
+  .superRefine((v, ctx) => {
+    if (!v.assigneeId && !v.assigneeIds && !v.forAll)
+      ctx.addIssue({ code: 'custom', path: ['assigneeIds'], message: 'Choose who it is for.' });
+  });
 export const updateRecurringSchema = z
   .strictObject(fields)
   .partial()
   .extend({ active: z.boolean().optional() })
-  .refine((v) => Object.values(v).some((x) => x !== undefined), 'Send at least one field.');
+  .refine((v) => Object.values(v).some((x) => x !== undefined), 'Send at least one field.')
+  .superRefine(rules);
 export type CreateRecurringInput = z.infer<typeof createRecurringSchema>;
 export type UpdateRecurringInput = z.infer<typeof updateRecurringSchema>;
 
@@ -101,11 +125,11 @@ export class RecurringTasksService {
 
   create(user: AuthUser, org: OrgContext, input: CreateRecurringInput) {
     return this.db.run(dbContext(user, org), async (tx) => {
-      await activeMembers(tx, org.organizationId, [input.assigneeId]);
+      const who = await this.who(tx, org, input);
       const rule = await tx.recurringTask.create({
         data: {
           organizationId: org.organizationId,
-          assigneeId: input.assigneeId,
+          ...who,
           title: input.title,
           description: input.description ?? null,
           frequency: input.frequency,
@@ -145,7 +169,11 @@ export class RecurringTasksService {
       });
       if (!before) throw Errors.notFound('Repeating task');
       if (before.version !== version) throw Errors.versionConflict();
-      if (input.assigneeId) await activeMembers(tx, org.organizationId, [input.assigneeId]);
+      const changesWho =
+        input.assigneeId !== undefined ||
+        input.assigneeIds !== undefined ||
+        input.forAll !== undefined;
+      const who = changesWho ? await this.who(tx, org, input) : null;
       const frequency = input.frequency ?? before.frequency;
       const weekdays = input.weekdays ?? before.weekdays;
       const dayOfMonth = input.dayOfMonth !== undefined ? input.dayOfMonth : before.dayOfMonth;
@@ -158,7 +186,7 @@ export class RecurringTasksService {
         data: {
           ...(input.title !== undefined ? { title: input.title } : {}),
           ...(input.description !== undefined ? { description: input.description } : {}),
-          ...(input.assigneeId !== undefined ? { assigneeId: input.assigneeId } : {}),
+          ...(who ?? {}),
           frequency,
           weekdays: frequency === 'weekly' ? [...new Set(weekdays)].sort() : [],
           dayOfMonth: frequency === 'monthly' ? dayOfMonth : null,
@@ -181,6 +209,20 @@ export class RecurringTasksService {
       });
       return this.present(tx, after);
     });
+  }
+
+  /** One person, several people (kept in assigneeIds) or everyone; people must be active members. */
+  private async who(
+    tx: Tx,
+    org: OrgContext,
+    input: { assigneeId?: string; assigneeIds?: string[]; forAll?: boolean },
+  ): Promise<{ assigneeId: string | null; assigneeIds: string[]; forAll: boolean }> {
+    if (input.forAll) return { assigneeId: null, assigneeIds: [], forAll: true };
+    const ids = [...new Set(input.assigneeIds ?? (input.assigneeId ? [input.assigneeId] : []))];
+    await activeMembers(tx, org.organizationId, ids);
+    return ids.length === 1
+      ? { assigneeId: ids[0]!, assigneeIds: [], forAll: false }
+      : { assigneeId: null, assigneeIds: ids, forAll: false };
   }
 
   /** The job: today's tasks for every bakery, in each bakery's own time zone. */
@@ -217,26 +259,44 @@ export class RecurringTasksService {
         select: { id: true },
       });
       if (exists) continue;
-      // Someone who has left gets no new tasks; the rule stays for the admin to reassign.
-      const member = await tx.membership.findFirst({
-        where: { organizationId, userId: r.assigneeId, status: 'active' },
-      });
-      if (!member) continue;
+      // People who have left get no new tasks; with nobody left the rule waits for the admin.
+      const named = r.assigneeId ? [r.assigneeId] : r.assigneeIds;
+      const people = r.forAll
+        ? []
+        : (
+            await tx.membership.findMany({
+              where: { organizationId, userId: { in: named }, status: 'active' },
+              select: { userId: true },
+            })
+          ).map((m) => m.userId);
+      if (!r.forAll && !people.length) continue;
       const task = await tx.task.create({
         data: {
           organizationId,
-          assigneeId: r.assigneeId,
+          assigneeId: !r.forAll && people.length === 1 ? people[0]! : null,
+          forAll: r.forAll,
           createdById: r.createdById,
           title: r.title,
           description: r.description,
           dueDate: day(date),
           recurringTaskId: r.id,
           occurrenceDate: day(date),
+          ...(people.length > 1
+            ? { assignees: { create: people.map((employeeId) => ({ employeeId })) } }
+            : {}),
         },
       });
+      const told = r.forAll
+        ? (
+            await tx.membership.findMany({
+              where: { organizationId, status: 'active', role: 'employee' },
+              select: { userId: true },
+            })
+          ).map((m) => m.userId)
+        : people;
       await this.notifications.notify(tx, {
         organizationId,
-        userIds: [r.assigneeId],
+        userIds: told,
         type: 'task.assigned',
         payload: { taskId: task.id, title: task.title, dueDate: date, repeating: true },
       });
@@ -254,10 +314,14 @@ export class RecurringTasksService {
   }
 
   private async present(tx: Tx, r: Awaited<ReturnType<Tx['recurringTask']['findFirstOrThrow']>>) {
-    const assignee = await tx.user.findUnique({
-      where: { id: r.assigneeId },
+    const ids = r.assigneeId ? [r.assigneeId] : r.assigneeIds;
+    const people = await tx.user.findMany({
+      where: { id: { in: ids } },
       select: { id: true, name: true },
     });
+    const assignees = ids
+      .map((id) => people.find((p) => p.id === id))
+      .filter((p): p is { id: string; name: string } => !!p);
     const last = await tx.task.findFirst({
       where: { recurringTaskId: r.id },
       orderBy: { occurrenceDate: 'desc' },
@@ -267,7 +331,9 @@ export class RecurringTasksService {
       id: r.id,
       title: r.title,
       description: r.description,
-      assignee,
+      assignee: r.assigneeId ? (assignees[0] ?? null) : null,
+      assignees,
+      forAll: r.forAll,
       frequency: r.frequency,
       weekdays: r.weekdays,
       dayOfMonth: r.dayOfMonth,

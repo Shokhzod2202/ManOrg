@@ -1,6 +1,6 @@
 'use client';
 
-import { type ReactNode } from 'react';
+import { type InputHTMLAttributes, type ReactNode, useState } from 'react';
 import { type ApiError } from '../lib/api';
 import { t } from '../lib/i18n';
 
@@ -103,6 +103,19 @@ const PATHS: Record<string, ReactNode> = {
       <rect x="14" y="3" width="7" height="7" rx="1.5" />
       <rect x="3" y="14" width="7" height="7" rx="1.5" />
       <rect x="14" y="14" width="7" height="7" rx="1.5" />
+    </>
+  ),
+  eye: (
+    <>
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+      <circle cx="12" cy="12" r="3" />
+    </>
+  ),
+  eyeOff: (
+    <>
+      <path d="M10.6 5.1A10 10 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3 3.9M6.6 6.6A17 17 0 0 0 2 12s3.5 7 10 7a9.6 9.6 0 0 0 5.4-1.6" />
+      <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+      <path d="M3 3l18 18" />
     </>
   ),
 };
@@ -241,5 +254,24 @@ export function AddProduct({
           </option>
         ))}
     </select>
+  );
+}
+
+/** A password field with an eye button that shows or hides what was typed. */
+export function PasswordInput(props: Omit<InputHTMLAttributes<HTMLInputElement>, 'type'>) {
+  const [shown, setShown] = useState(false);
+  return (
+    <span className="password">
+      <input {...props} type={shown ? 'text' : 'password'} />
+      <button
+        type="button"
+        className="eye"
+        aria-label={shown ? t('Hide password') : t('Show password')}
+        aria-pressed={shown}
+        onClick={() => setShown(!shown)}
+      >
+        <Icon name={shown ? 'eyeOff' : 'eye'} />
+      </button>
+    </span>
   );
 }

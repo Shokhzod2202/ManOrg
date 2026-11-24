@@ -115,6 +115,7 @@ function ProductForm({ product, onDone }: { product?: Product; onDone: () => voi
   const [name, setName] = useState(product?.name ?? '');
   const [minutes, setMinutes] = useState(product?.minutesPer10 ?? 30);
   const [file, setFile] = useState<File | null>(null);
+  const [price, setPrice] = useState('');
   const [err, setErr] = useState<ApiError | null>(null);
   const [busy, setBusy] = useState(false);
   const ingredients = useApi<{ items: { id: string; name: string }[] }>(
@@ -126,7 +127,6 @@ function ProductForm({ product, onDone }: { product?: Product; onDone: () => voi
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if ((!product && !file) || !uses.size) return;
     setBusy(true);
     setErr(null);
     try {
@@ -148,8 +148,13 @@ function ProductForm({ product, onDone }: { product?: Product; onDone: () => voi
         ...(imageKey ? { imageKey } : {}),
       };
       if (product) await patch(`/products/${product.id}`, body, { ifMatch: product.version });
-      else await post('/products', body);
+      else
+        await post('/products', {
+          ...body,
+          ...(price.trim() ? { unitPrice: Math.round(Number(price)) } : {}),
+        });
       setName('');
+      setPrice('');
       setFile(null);
       setUses(new Set());
       setOpen(false);
@@ -169,7 +174,7 @@ function ProductForm({ product, onDone }: { product?: Product; onDone: () => voi
     );
   return (
     <form className="card" onSubmit={submit}>
-      <h2>{product ? `Edit ${product.name}` : t('New product')}</h2>
+      <h2>{product ? t('Edit {name}', { name: product.name }) : t('New product')}</h2>
       <ErrorBox error={err} />
       <div className="grid2">
         <label className="field">
@@ -186,9 +191,23 @@ function ProductForm({ product, onDone }: { product?: Product; onDone: () => voi
             onChange={(e) => setMinutes(Number(e.target.value))}
           />
         </label>
+        {product ? null : (
+          <label className="field">
+            {t('Price per piece (won, optional)')}
+            <input
+              type="number"
+              min={0}
+              step={1}
+              inputMode="numeric"
+              placeholder={t('Set later')}
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+            />
+          </label>
+        )}
       </div>
       <div className="field">
-        {t('Ingredients (at least one)')}
+        {t('Ingredients (optional, can be added later)')}
         <div className="row wrap">
           {ingredients.data?.items.map((i) => (
             <label key={i.id} className="chip">
@@ -211,16 +230,15 @@ function ProductForm({ product, onDone }: { product?: Product; onDone: () => voi
         </div>
       </div>
       <label className="field">
-        {product ? t('New picture (optional)') : t('Picture (JPEG or PNG)')}
+        {product ? t('New picture (optional)') : t('Picture (optional, JPEG or PNG)')}
         <input
           type="file"
           accept="image/jpeg,image/png"
-          required={!product}
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
         />
       </label>
       <div className="row">
-        <button className="btn" disabled={busy || !uses.size}>
+        <button className="btn" disabled={busy || !name.trim()}>
           {product ? t('Save') : t('Add product')}
         </button>
         <button

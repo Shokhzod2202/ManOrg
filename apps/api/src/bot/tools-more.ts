@@ -25,7 +25,9 @@ const uuid = z.uuid();
 const taskInput = z.strictObject({
   title: z.string().trim().min(1).max(200),
   description: z.string().trim().max(2000).optional(),
-  assignee_id: uuid,
+  assignee_id: uuid.optional().describe('One employee'),
+  assignee_ids: z.array(uuid).min(1).max(200).optional().describe('Several employees'),
+  for_all: z.boolean().optional().describe('Every employee, including people who join later'),
   due_date: isoDate,
 });
 const orderInput = z.strictObject({
@@ -303,7 +305,14 @@ export class MoreBotTools {
     switch (name) {
       case 'create_task': {
         const t = raw as z.infer<typeof taskInput>;
-        const who = await this.employeeName(ctx, t.assignee_id);
+        const given = [t.assignee_id, t.assignee_ids, t.for_all ? true : undefined].filter(
+          (x) => x !== undefined,
+        );
+        if (given.length !== 1)
+          throw new ToolInputError('Give exactly one of assignee_id, assignee_ids or for_all.');
+        const ids = t.assignee_ids ?? (t.assignee_id ? [t.assignee_id] : []);
+        const names = await Promise.all(ids.map((id) => this.employeeName(ctx, id)));
+        const who = t.for_all ? 'every employee' : names.join(', ');
         return one(`New task for ${who}`, t.title, null, {
           for: who,
           due: t.due_date,
@@ -546,7 +555,9 @@ export class MoreBotTools {
         const t = input as z.infer<typeof taskInput>;
         return this.tasks.create(user, org, {
           title: t.title,
-          assigneeId: t.assignee_id,
+          ...(t.for_all
+            ? { forAll: true }
+            : { assigneeIds: t.assignee_ids ?? (t.assignee_id ? [t.assignee_id] : []) }),
           dueDate: t.due_date,
           ...(t.description ? { description: t.description } : {}),
         });

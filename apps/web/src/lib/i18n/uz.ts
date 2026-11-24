@@ -156,8 +156,8 @@ export const uz: Record<string, string> = {
   'Ends next day': 'Ertasi kuni tugaydi',
   'Every change shows a preview first. Nothing changes until you press Confirm.':
     'Har bir oʻzgarish avval koʻrsatiladi. Tasdiqlashni bosmaguningizcha hech narsa oʻzgarmaydi.',
-  'Every contractor’s order in one list, matrix or tile view, with Made ticks the whole kitchen can see.':
-    'Barcha mijozlar buyurtmalari roʻyxat, jadval yoki plitka koʻrinishida, butun oshxona koʻradigan “Tayyor” belgilari bilan.',
+  'Every contractor’s order in one list, matrix or tile view, with Made ticks the whole team can see.':
+    'Barcha mijozlar buyurtmalari roʻyxat, jadval yoki plitka koʻrinishida, butun jamoa koʻradigan “Tayyor” belgilari bilan.',
   'Every day': 'Har kuni',
   'Every month on day {day}': 'Har oyning {day}-kuni',
   'Every month on the last day': 'Har oyning oxirgi kuni',
@@ -400,7 +400,7 @@ export const uz: Record<string, string> = {
   Reversed: 'Bekor qilingan',
   Review: 'Koʻrib chiqish',
   Role: 'Rol',
-  'Run your bakery’s day in one place': 'Novvoyxonangiz kunini bir joyda boshqaring',
+  'Run your organization’s day in one place': 'Tashkilotingiz kunini bir joyda boshqaring',
   Sat: 'Sh',
   Saturday: 'Shanba',
   Save: 'Saqlash',
@@ -610,4 +610,43 @@ export const uz: Record<string, string> = {
   '{what} time': '{what} vaqti',
   '“Approve the waiting shift corrections and accept City Cafe’s added baguettes.”':
     '“Kutilayotgan smena tuzatishlarini tasdiqla va City Cafe qoʻshgan bagetlarni qabul qil.”',
+  'Already yours': 'Allaqachon sizniki',
+  'Applied to {name}. You can switch to it once an admin approves.':
+    '{name} ga ariza berildi. Admin tasdiqlagach unga oʻtishingiz mumkin.',
+  'Contractor (orders from organizations)': 'Mijoz (tashkilotlardan buyurtma beradi)',
+  'Create a new organization': 'Yangi tashkilot yaratish',
+  'Edit {name}': '{name} ni tahrirlash',
+  'Everyone (also people who join later)': 'Hamma (keyin qoʻshiladiganlar ham)',
+  'For everyone': 'Hamma uchun',
+  'Hide password': 'Parolni yashirish',
+  'Ingredients (optional, can be added later)': 'Masalliqlar (ixtiyoriy, keyin qoʻshish mumkin)',
+  'Join an organization': 'Tashkilotga qoʻshilish',
+  'Join another organization': 'Boshqa tashkilotga qoʻshilish',
+  'No employees yet. Choose Everyone: people who join later will see the task.':
+    'Hali xodim yoʻq. “Hamma”ni tanlang: keyin qoʻshiladiganlar ham vazifani koʻradi.',
+  'No organization with that name.': 'Bunday nomli tashkilot yoʻq.',
+  'One task for {n} people: whoever does it takes the photo, and it is done for all.':
+    '{n} kishi uchun bitta vazifa: kim bajarsa surat oladi va hamma uchun bajarilgan boʻladi.',
+  'Open now': 'Hozir ochiq',
+  'Organization (makes and delivers products)': 'Tashkilot (mahsulot tayyorlaydi va yetkazadi)',
+  'Picture (optional, JPEG or PNG)': 'Rasm (ixtiyoriy, JPEG yoki PNG)',
+  'Price per piece (won, optional)': 'Dona narxi (von, ixtiyoriy)',
+  'Set later': 'Keyin belgilash',
+  'Show password': 'Parolni koʻrsatish',
+  'Switch organization': 'Tashkilotni almashtirish',
+  Switch: 'Oʻtish',
+  'The passwords do not match.': 'Parollar mos kelmadi.',
+  'Type the password again': 'Parolni qayta kiriting',
+  'Waiting for approval': 'Tasdiq kutilmoqda',
+  'You apply as an employee. An admin of that organization approves you.':
+    'Siz xodim sifatida ariza berasiz. Shu tashkilot admini tasdiqlaydi.',
+  'You become its admin. Your other organizations stay as they are.':
+    'Siz uning admini boʻlasiz. Boshqa tashkilotlaringiz oʻzgarmaydi.',
+  'for everyone': 'hamma uchun',
+  'You already belong to or have applied to this organization.':
+    'Siz bu tashkilotga allaqachon aʼzosiz yoki ariza bergansiz.',
+  'This person already belongs to or has applied to this organization.':
+    'Bu odam bu tashkilotga allaqachon aʼzo yoki ariza bergan.',
+  'Choose people or "For all", not both.': 'Odamlarni yoki “Hamma”ni tanlang, ikkalasini emas.',
+  'Choose who the task is for.': 'Vazifa kim uchunligini tanlang.',
 };

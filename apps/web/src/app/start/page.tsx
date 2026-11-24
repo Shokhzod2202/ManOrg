@@ -111,7 +111,7 @@ export default function StartPage() {
             className={mode === 'join' ? 'on' : ''}
             onClick={() => setMode('join')}
           >
-            {t('Join a bakery')}
+            {t('Join an organization')}
           </button>
           <button
             role="tab"
@@ -124,7 +124,7 @@ export default function StartPage() {
         </div>
         {mode === 'join' ? (
           <form className="stack" onSubmit={search}>
-            <Field label={t('Bakery name')}>
+            <Field label={t('Organization name')}>
               <input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
@@ -133,7 +133,9 @@ export default function StartPage() {
               />
             </Field>
             <button className="btn">{t('Search')}</button>
-            {found?.length === 0 ? <p className="muted">{t('No bakery with that name.')}</p> : null}
+            {found?.length === 0 ? (
+              <p className="muted">{t('No organization with that name.')}</p>
+            ) : null}
             {found?.map((o) => (
               <div key={o.id} className="row between card">
                 <span>{o.name}</span>
@@ -163,8 +165,8 @@ export default function StartPage() {
                 value={type}
                 onChange={(e) => setType(e.target.value as 'provider' | 'contractor')}
               >
-                <option value="provider">{t('Bakery (makes and delivers products)')}</option>
-                <option value="contractor">{t('Contractor (orders from bakeries)')}</option>
+                <option value="provider">{t('Organization (makes and delivers products)')}</option>
+                <option value="contractor">{t('Contractor (orders from organizations)')}</option>
               </select>
             </Field>
             <button className="btn big" disabled={busy}>

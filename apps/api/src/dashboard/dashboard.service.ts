@@ -171,7 +171,16 @@ export class DashboardService {
       this.output.getOutput(user, org, { from: today, to: today }),
       this.db.run(dbContext(user, org), (tx) =>
         tx.task.findMany({
-          where: { organizationId: org.organizationId, assigneeId: user.userId, status: 'open' },
+          where: {
+            organizationId: org.organizationId,
+            status: 'open',
+            // Theirs, shared with them, or for everyone (decided 2026-11-24).
+            OR: [
+              { assigneeId: user.userId },
+              { forAll: true },
+              { assignees: { some: { employeeId: user.userId } } },
+            ],
+          },
           select: { id: true, title: true, dueDate: true },
           orderBy: [{ dueDate: 'asc' }],
         }),

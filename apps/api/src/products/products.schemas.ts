@@ -12,19 +12,23 @@ const ingredients = z
       quantityPer10: z.number().positive().max(1_000_000).optional(),
     }),
   )
-  .min(1, 'Add at least one ingredient.')
   .max(100)
   .refine(
     (list) => new Set(list.map((i) => i.ingredientId)).size === list.length,
     'List each ingredient once.',
   );
 
-/** PRD-1: name, picture, ingredients and minutes per 10 are all required. */
+/**
+ * PRD-1: name and minutes per 10 are required. Decided 2026-11-24: the picture and ingredients can
+ * be added later by editing (a placeholder picture is used until then), and the price can be set
+ * here (F-001 FIN-1; needs prices.manage).
+ */
 export const createProductSchema = z.strictObject({
   name,
-  imageKey,
+  imageKey: imageKey.optional(),
   minutesPer10,
-  ingredients,
+  ingredients: ingredients.default([]),
+  unitPrice: z.number().int('Use whole won.').min(0).max(100_000_000).optional(),
   available: z.boolean().default(true),
 });
 

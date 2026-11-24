@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { actorFor, AuditService } from '../audit/audit.service';
 import { Errors } from '../common/errors';
 import {
-  assertNoOpenMembership,
+  assertNotInOrganization,
   assertReapplyAllowed,
   createMembershipOnce,
 } from '../common/memberships';
@@ -62,7 +62,6 @@ export class OrganizationsService {
   create(user: AuthUser, input: CreateOrganizationInput) {
     const organizationId = randomUUID();
     return this.db.run({ organizationId: null, userId: user.userId }, async (tx) => {
-      await assertNoOpenMembership(tx, user.userId, 'you');
       const org = await tx.organization.create({
         data: {
           id: organizationId,
@@ -142,7 +141,7 @@ export class OrganizationsService {
     user: AuthUser,
     target: { id: string; name: string; type: 'provider' | 'contractor' },
   ) {
-    await assertNoOpenMembership(tx, user.userId, 'you');
+    await assertNotInOrganization(tx, user.userId, target.id, 'you');
     const lastRejected = await tx.membership.findFirst({
       where: { userId: user.userId, organizationId: target.id, status: 'rejected' },
       orderBy: { decidedAt: 'desc' },

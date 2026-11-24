@@ -163,6 +163,86 @@ describe('completing a task with a camera photo (TSK-2, TSK-3)', () => {
   });
 });
 
+describe('tasks for several people or for everyone (decided 2026-11-24)', () => {
+  const create = (body: Record<string, unknown>) =>
+    api
+      .as(w.a.admin, w.a.id)
+      .post('/tasks')
+      .send({ dueDate: localDate(TZ), ...body });
+  const titles = async (who: typeof w.a.employee) =>
+    (await api.as(who, w.a.id).get('/tasks?status=open').expect(200)).body.items.map(
+      (x: { title: string }) => x.title,
+    );
+
+  it('a task for everyone reaches people who join later, and one of them finishes it for all', async () => {
+    const res = await create({ title: 'Mop the floor', forAll: true }).expect(201);
+    expect(res.body).toMatchObject({ forAll: true, assignee: null, assignees: [] });
+    const later = await api.hireEmployee(w.a.id, w.a.admin, 'Late Joiner');
+    expect(await titles(later)).toContain('Mop the floor');
+    expect(await titles(w.a.employee)).toContain('Mop the floor');
+    const token = await api
+      .as(later, w.a.id)
+      .post(`/tasks/${res.body.id}/capture-token`)
+      .expect(201);
+    await api
+      .as(later, w.a.id)
+      .post(`/tasks/${res.body.id}/complete`)
+      .field('captureToken', token.body.captureToken)
+      .attach('photo', jpegWithExifDate(exifAgo(1)), 'camera.jpg')
+      .expect(200);
+    expect(await titles(w.a.employee)).not.toContain('Mop the floor');
+  });
+
+  it('a task for several people is seen by them only; the admin can change who it is for', async () => {
+    const other = await api.hireEmployee(w.a.id, w.a.admin, 'Second Baker');
+    const third = await api.hireEmployee(w.a.id, w.a.admin, 'Third Baker');
+    const res = await create({
+      title: 'Count the trays',
+      assigneeIds: [w.a.employee.userId, other.userId],
+    }).expect(201);
+    expect(res.body.assignees.map((p: { id: string }) => p.id).sort()).toEqual(
+      [w.a.employee.userId, other.userId].sort(),
+    );
+    expect(await titles(other)).toContain('Count the trays');
+    expect(await titles(third)).not.toContain('Count the trays');
+    await api.as(third, w.a.id).get(`/tasks/${res.body.id}`).expect(404);
+    // Edited: now Third Baker only; Third Baker is told.
+    const edited = await api
+      .as(w.a.admin, w.a.id)
+      .patch(`/tasks/${res.body.id}`)
+      .set('If-Match', String(res.body.version))
+      .send({ assigneeIds: [third.userId] })
+      .expect(200);
+    expect(edited.body).toMatchObject({ assignee: { id: third.userId }, forAll: false });
+    expect(await titles(other)).not.toContain('Count the trays');
+    expect(await titles(third)).toContain('Count the trays');
+    const inbox = await api.as(third).get('/notifications?unread=true').expect(200);
+    expect(
+      inbox.body.items.some(
+        (n: { type: string; payload: { taskId?: string } }) =>
+          n.type === 'task.assigned' && n.payload.taskId === res.body.id,
+      ),
+    ).toBe(true);
+    const audit = await auditFor(res.body.id, { organizationId: w.a.id, userId: w.a.admin.userId });
+    expect(audit.map((a) => a.action)).toEqual(
+      expect.arrayContaining(['task.create', 'task.update']),
+    );
+  });
+
+  it('works with no employees yet, and refuses people from another organization or two choices', async () => {
+    await create({ title: 'X', forAll: true, assigneeIds: [w.a.employee.userId] }).expect(400);
+    await create({ title: 'X' }).expect(400);
+    await create({ title: 'X', assigneeIds: [w.b.employee.userId] }).expect(400);
+    const fresh = await api.register('Solo Owner');
+    const org = await api.createOrganization(fresh, 'Solo Bakery', 'provider');
+    await api
+      .as(fresh, org)
+      .post('/tasks')
+      .send({ title: 'Clean before opening', forAll: true, dueDate: localDate(TZ) })
+      .expect(201);
+  });
+});
+
 describe('ingredient orders (ING-5 to ING-7)', () => {
   it('turns an employee order into an admin task, then fulfils and checks it', async () => {
     const created = await api
