@@ -95,6 +95,9 @@ export function refresh(): Promise<boolean> {
   return refreshing;
 }
 
+/** Fired when the server refuses an action, so the session re-reads the person's roles. */
+export const ACCESS_CHANGED = 'manorg:access-changed';
+
 /** Calls the REST API under /api/v1. Throws ApiError with the API's code, message and fields. */
 export async function api<T>(
   method: string,
@@ -126,6 +129,10 @@ export async function api<T>(
   }
   if (res.status === 401 && !retried && !path.startsWith('/auth/') && (await refresh())) {
     return api<T>(method, path, opts, true);
+  }
+  if (res.status === 403 && org && typeof window !== 'undefined') {
+    // The role may have changed since this page loaded (decided 2026-11-26): re-check it.
+    window.dispatchEvent(new Event(ACCESS_CHANGED));
   }
   if (res.status === 204) return undefined as T;
   const data = (await res.json().catch(() => null)) as {

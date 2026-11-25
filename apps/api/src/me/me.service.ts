@@ -181,6 +181,8 @@ export class MeService {
         id: m.id,
         role: m.role,
         status: m.status,
+        owner: m.owner,
+        worksShifts: m.role === 'employee' || m.worksShifts,
         organization: m.organization,
       })),
     };

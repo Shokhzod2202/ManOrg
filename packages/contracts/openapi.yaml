@@ -3442,8 +3442,8 @@ paths:
   /members/{id}:
     patch:
       operationId: updateMember
-      summary: Change a member's role or remove them (ACC-7)
-      description: Audited. The organization always keeps one active admin. Takes effect on the member's next request.
+      summary: Change a member's role, remove them, or switch whether an admin works shifts (ACC-7)
+      description: Audited. The organization always keeps one active admin. Only the owner makes, demotes or removes admins (an admin may step down or leave); the owner cannot be demoted or removed. Takes effect on the member's next request.
       tags: [members]
       parameters:
         - $ref: '#/components/parameters/IdPath'
@@ -3467,6 +3467,26 @@ paths:
         '409': { $ref: '#/components/responses/Conflict' }
         '422': { $ref: '#/components/responses/Unprocessable' }
         '428': { $ref: '#/components/responses/PreconditionRequired' }
+
+  /members/{id}/owner:
+    post:
+      operationId: transferOwnership
+      summary: Hand ownership to another admin
+      description: Owner only. The new owner must be an active admin; the old owner stays an admin. Audited.
+      tags: [members]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: The new owner.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Member' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
 
 components:
   securitySchemes:
@@ -3656,11 +3676,17 @@ components:
           description: Newest first; includes pending and rejected applications.
           items:
             type: object
-            required: [id, role, status, organization]
+            required: [id, role, status, owner, worksShifts, organization]
             properties:
               id: { type: string, format: uuid }
               role: { $ref: '#/components/schemas/MembershipRole' }
               status: { $ref: '#/components/schemas/MembershipStatus' }
+              owner:
+                type: boolean
+                description: The organization's owner, who alone changes who is an admin.
+              worksShifts:
+                type: boolean
+                description: Has a punch card and shows in shift lists (always true for employees).
               organization: { $ref: '#/components/schemas/OrganizationSummary' }
     TelegramStatus:
       type: object
@@ -5203,7 +5229,7 @@ components:
           description: 'Spec section 9: show "You came to work. Start shift" on arrival. Default on.'
     Member:
       type: object
-      required: [id, role, status, version, user, createdAt]
+      required: [id, role, status, owner, worksShifts, version, user, createdAt]
       properties:
         id:
           type: string
@@ -5211,6 +5237,12 @@ components:
           description: Membership id.
         role: { $ref: '#/components/schemas/MembershipRole' }
         status: { $ref: '#/components/schemas/MembershipStatus' }
+        owner:
+          type: boolean
+          description: The organization's owner, who alone changes who is an admin.
+        worksShifts:
+          type: boolean
+          description: Has a punch card and shows in shift lists (always true for employees).
         version:
           type: integer
           description: Send as If-Match when editing.
@@ -5228,7 +5260,12 @@ components:
       additionalProperties: false
       minProperties: 1
       properties:
-        role: { $ref: '#/components/schemas/MembershipRole' }
+        role:
+          $ref: '#/components/schemas/MembershipRole'
+          description: Only the owner makes, demotes or removes admins; the owner cannot be changed.
+        worksShifts:
+          type: boolean
+          description: For admins only; any admin may switch it, for themselves or others.
         status:
           type: string
           const: removed

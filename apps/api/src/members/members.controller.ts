@@ -1,4 +1,4 @@
-import { Controller, Get, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
+import { Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
 import { IfMatchVersion } from '../common/if-match';
 import {
   type AuthUser,
@@ -50,5 +50,16 @@ export class MembersController {
     @ZodBody(updateMemberSchema) body: UpdateMemberInput,
   ) {
     return this.members.update(user, org, id, version, body);
+  }
+
+  /** Decided 2026-11-26: the owner hands ownership to another admin. */
+  @Post(':id/owner')
+  @HttpCode(200)
+  transferOwnership(
+    @CurrentUser() user: AuthUser,
+    @CurrentOrg() org: OrgContext,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.members.transferOwnership(user, org, id);
   }
 }

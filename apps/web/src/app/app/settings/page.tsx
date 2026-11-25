@@ -5,7 +5,7 @@ import { type FormEvent, useRef, useState } from 'react';
 import { Avatar, Empty, ErrorBox, Loading, PageHead, PasswordInput } from '../../../components/ui';
 import { api, type ApiError, del, get, patch, post, put, type Schemas } from '../../../lib/api';
 import { useSession } from '../../../lib/session';
-import { useApi } from '../../../lib/use-api';
+import { refreshApi, useApi } from '../../../lib/use-api';
 import { LanguagePicker, t } from '../../../lib/i18n';
 
 type Access = Schemas['EmployeeAccess'];
@@ -30,7 +30,8 @@ export default function SettingsPage() {
           path="/organization/employee-access"
         />
       ) : null}
-      {s.actor === 'org_admin' ? (
+      {s.actor === 'org_admin' ? <WhoWorksShifts /> : null}
+      {s.actor === 'org_admin' && s.membership?.owner ? (
         <Switches<Bot>
           title={t('Bot permissions')}
           sub={t(
@@ -230,6 +231,67 @@ function Organizations() {
           ))}
         </form>
       ) : null}
+    </section>
+  );
+}
+
+/**
+ * Decided 2026-11-26: admins do not work shifts unless switched on here. Switched on, an admin
+ * shows in the shift editor and timesheets and has a punch card and hours like an employee. Any
+ * admin can switch it for any admin, themselves included.
+ */
+function WhoWorksShifts() {
+  const s = useSession();
+  const { data, error, loading, reload, setData } = useApi<{ items: Schemas['Member'][] }>(
+    '/members',
+  );
+  const [err, setErr] = useState<ApiError | null>(null);
+  const admins = (data?.items ?? []).filter((m) => m.role === 'admin');
+
+  async function toggle(m: Schemas['Member'], on: boolean) {
+    setErr(null);
+    // Shown at once; put back by the reload if the server refuses.
+    setData({
+      ...data!,
+      items: data!.items.map((x) => (x.id === m.id ? { ...x, worksShifts: on } : x)),
+    });
+    try {
+      await patch(`/members/${m.id}`, { worksShifts: on }, { ifMatch: m.version });
+      reload();
+      refreshApi('/shifts', '/dashboard', '/members');
+      if (m.user.id === s.me?.id) await s.reload();
+    } catch (e) {
+      setErr(e as ApiError);
+      reload();
+    }
+  }
+
+  return (
+    <section className="card">
+      <h2>{t('Admins who work shifts')}</h2>
+      <p className="muted small" style={{ margin: 0 }}>
+        {t(
+          'Employees always work shifts. Switch on an admin who also works: they appear in the shift editor and timesheets, and get a punch card and their own hours.',
+        )}
+      </p>
+      {loading && !data ? <Loading /> : null}
+      <ErrorBox error={error ?? err} />
+      {admins.map((m) => (
+        <label key={m.id} className="row between" style={{ minHeight: 44 }}>
+          <span>
+            {m.user.name}
+            {m.user.id === s.me?.id ? <span className="muted small"> · {t('You')}</span> : null}
+          </span>
+          <input
+            type="checkbox"
+            role="switch"
+            checked={m.worksShifts}
+            aria-label={t('{name} works shifts', { name: m.user.name })}
+            onChange={(e) => void toggle(m, e.target.checked)}
+            style={{ width: 22, height: 22 }}
+          />
+        </label>
+      ))}
     </section>
   );
 }

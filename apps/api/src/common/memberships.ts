@@ -84,3 +84,11 @@ export async function activeMembers(
   }
   return rows.map((r) => r.user);
 }
+
+/**
+ * Decided 2026-11-26: who works shifts, and so appears in shift plans, timesheets, punch flags and
+ * the Today on-shift list: every employee, and admins switched on in Settings.
+ */
+export const WORKS_SHIFTS = {
+  OR: [{ role: 'employee' as const }, { role: 'admin' as const, worksShifts: true }],
+};

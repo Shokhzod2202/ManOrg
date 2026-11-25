@@ -683,4 +683,20 @@ export const uz: Record<string, string> = {
     'Email yoki parolni oʻzgartirish uchun joriy parolni kiriting.',
   'Use a JPEG, PNG or WebP picture.': 'JPEG, PNG yoki WebP rasmdan foydalaning.',
   'Use a picture of at most 5 MB.': 'Koʻpi bilan 5 MB rasmdan foydalaning.',
+  'Admins who work shifts': 'Smenada ishlaydigan adminlar',
+  'Employees always work shifts. Switch on an admin who also works: they appear in the shift editor and timesheets, and get a punch card and their own hours.':
+    'Xodimlar doim smenada ishlaydi. Ishlaydigan adminni yoqing: u smena tahririda va tabelda chiqadi, ish vaqti kartasi va oʻz soatlariga ega boʻladi.',
+  'Make owner': 'Egasi qilish',
+  'Make {name} the owner? You stay an admin, but only the new owner can change admins.':
+    '{name} ni egasi qilasizmi? Siz admin boʻlib qolasiz, lekin adminlarni faqat yangi egasi oʻzgartira oladi.',
+  'Only the owner can make, demote or remove admins.':
+    'Admin qilish, pasaytirish yoki olib tashlashni faqat egasi qila oladi.',
+  Owner: 'Egasi',
+  '{name} works shifts': '{name} smenada ishlaydi',
+  'The owner cannot be demoted or removed. The owner can hand ownership to another admin first.':
+    'Egasini pasaytirib yoki olib tashlab boʻlmaydi. Egasi avval egalikni boshqa adminga topshirishi mumkin.',
+  'Only the owner can change the bot permissions.':
+    'Bot ruxsatlarini faqat egasi oʻzgartira oladi.',
+  'Employees always work shifts.': 'Xodimlar doim smenada ishlaydi.',
+  'Make the person an admin first.': 'Avval uni admin qiling.',
 };

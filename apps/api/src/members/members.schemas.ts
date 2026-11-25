@@ -16,8 +16,13 @@ export const updateMemberSchema = z
   .strictObject({
     role: z.enum(['admin', 'employee']).optional(),
     status: z.literal('removed').optional(),
+    /** Decided 2026-11-26: an admin who also works shifts (punch card, shift lists, hours). */
+    worksShifts: z.boolean().optional(),
   })
-  .refine((v) => v.role !== undefined || v.status !== undefined, 'Send role or status.');
+  .refine(
+    (v) => v.role !== undefined || v.status !== undefined || v.worksShifts !== undefined,
+    'Send role, status or worksShifts.',
+  );
 
 export type ListMembersInput = z.infer<typeof listMembersSchema>;
 export type CreateMemberInput = z.infer<typeof createMemberSchema>;

@@ -55,6 +55,9 @@ export class SettingsController {
     @IfMatchVersion() version: number,
     @ZodBody(updateBotAccessSchema) body: UpdateBotAccessInput,
   ) {
+    // Decided 2026-11-26: these switches can let the bot change who is an admin, so only the owner
+    // changes them.
+    if (!org.owner) throw Errors.forbidden('Only the owner can change the bot permissions.');
     return this.settings.update(user, org, 'botAccess', version, body);
   }
 

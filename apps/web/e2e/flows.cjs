@@ -450,7 +450,8 @@ async function as(b, email, vp = { width: 1280, height: 900 }) {
   const newcomer = await b.newPage({ viewport: { width: 390, height: 844 } });
   const email = `owner${Date.now()}@example.test`;
   await newcomer.goto(`${W}/register`);
-  await newcomer.fill('label:has-text("Your name") input', 'Second Owner');
+  const newcomerName = `Second Owner ${Date.now() % 1000000}`;
+  await newcomer.fill('label:has-text("Your name") input', newcomerName);
   await newcomer.fill('input[type=email]', email);
   const pw = newcomer.locator('.password input');
   await pw.nth(0).fill('Password123!');
@@ -502,13 +503,13 @@ async function as(b, email, vp = { width: 1280, height: 900 }) {
   await boss.goto(`${W}/app/people`);
   const applications = boss.locator('section:has(h2:has-text("Applications"))');
   await applications
-    .locator(':is(div, tr):has-text("Second Owner")')
+    .locator(':is(div, tr):has-text("' + newcomerName + '")')
     .last()
     .locator('button:has-text("Approve")')
     .click();
   const appeared = await boss
     .locator('section:has(h2:has-text("Members"))')
-    .locator('text=Second Owner')
+    .getByText(newcomerName)
     .first()
     .waitFor({ timeout: 5000 })
     .then(
@@ -550,6 +551,66 @@ async function as(b, email, vp = { width: 1280, height: 900 }) {
     '| still signed in after the change',
   );
   if (avatar !== 1 || !wrongShown) throw new Error('Account settings failed');
+
+  // 20. Decided 2026-11-26. The owner makes the newcomer an admin of Sunrise, then an employee
+  // again while the newcomer's app is open: the newcomer's menu drops back to the employee one
+  // without a reload. Then the owner switches on "works shifts" for themselves and gets a punch
+  // card on Today, and switches it off again.
+  const sunriseOpen = async () => {
+    await newcomer.goto(`${W}/app/settings`);
+    await newcomer.waitForSelector('h2:has-text("Your organizations")');
+    const row = newcomer.locator('div.row', { hasText: 'Sunrise' }).first();
+    if (await row.locator('button:has-text("Switch")').count())
+      await row.locator('button:has-text("Switch")').click();
+    await newcomer.waitForURL(`${W}/app`);
+  };
+  await sunriseOpen();
+  const roleSelect = () =>
+    boss
+      .locator('section:has(h2:has-text("Members")) tr', { hasText: newcomerName })
+      .locator('select');
+  await boss.goto(`${W}/app/people`);
+  await roleSelect().selectOption('admin');
+  await boss.waitForTimeout(800);
+  await newcomer.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await newcomer.waitForSelector('nav.tabbar a:has-text("Deliveries")', { timeout: 10000 });
+  await boss.goto(`${W}/app/people`);
+  await roleSelect().selectOption('employee');
+  await boss.waitForTimeout(800);
+  await newcomer.evaluate(() => window.dispatchEvent(new Event('focus')));
+  const demoted = await newcomer
+    .waitForSelector('nav.tabbar a:has-text("Deliveries")', { state: 'detached', timeout: 10000 })
+    .then(
+      () => true,
+      () => false,
+    );
+  const ownerPill = await boss
+    .locator('section:has(h2:has-text("Members")) .pill:has-text("Owner")')
+    .count();
+  log(
+    '20 owner shown:',
+    ownerPill === 1,
+    '| demoted admin sees the employee menu without a reload:',
+    demoted,
+  );
+  if (!demoted || ownerPill !== 1) throw new Error('Demotion or owner label failed');
+  await boss.goto(`${W}/app/settings`);
+  const mine = boss.locator('section:has(h2:has-text("Admins who work shifts")) label', {
+    hasText: 'You',
+  });
+  await mine.locator('input').check();
+  await boss.goto(`${W}/app`);
+  const card = await boss
+    .waitForSelector('section[aria-label="Punch card"]', { timeout: 10000 })
+    .then(
+      () => true,
+      () => false,
+    );
+  await boss.goto(`${W}/app/settings`);
+  await mine.locator('input').uncheck();
+  await boss.waitForTimeout(800);
+  log('20 admin switched on to work shifts gets a punch card:', card);
+  if (!card) throw new Error('Admin punch card missing');
 
   await b.close();
 })().catch((e) => {

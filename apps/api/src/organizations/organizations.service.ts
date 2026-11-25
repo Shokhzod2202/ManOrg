@@ -77,7 +77,14 @@ export class OrganizationsService {
       const membership = await createMembershipOnce(
         () =>
           tx.membership.create({
-            data: { organizationId: org.id, userId: user.userId, role: 'admin', status: 'active' },
+            // The creator is the owner (decided 2026-11-26).
+            data: {
+              organizationId: org.id,
+              userId: user.userId,
+              role: 'admin',
+              status: 'active',
+              owner: true,
+            },
           }),
         'you',
       );

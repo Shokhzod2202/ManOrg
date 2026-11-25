@@ -872,9 +872,14 @@ table.t td {
   text-decoration: none;
   color: var(--ink);
 }
+.kpi {
+  min-width: 0;
+}
+/* Big numbers shrink on narrow tiles, so ₩4,567,500 fits two tiles across a phone. */
 .kpi b {
-  font: 800 28px var(--heading);
+  font: 800 clamp(18px, 6.2vw, 28px) var(--heading);
   color: var(--primary);
+  overflow-wrap: anywhere;
 }
 .kpi span {
   color: var(--muted);

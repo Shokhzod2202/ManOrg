@@ -74,10 +74,12 @@ function Applications() {
 
 /** ACC-7, ACC-8: members, roles and removal. Every change is audited on the server. */
 function Members({ provider }: { provider: boolean }) {
-  const { me } = useSession();
+  const { me, membership } = useSession();
+  // Decided 2026-11-26: only the owner makes, demotes or removes admins.
+  const iAmOwner = membership?.owner === true;
   const { data, error, loading, reload } = useApi<{ items: Member[] }>('/members');
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState<'admin' | 'employee'>('admin');
+  const [role, setRole] = useState<'admin' | 'employee'>(iAmOwner ? 'admin' : 'employee');
   const [err, setErr] = useState<ApiError | null>(null);
 
   async function run(fn: () => Promise<unknown>) {
@@ -92,7 +94,12 @@ function Members({ provider }: { provider: boolean }) {
   }
   async function add(e: FormEvent) {
     e.preventDefault();
-    await run(() => post('/members', { email: email.trim(), role: provider ? role : 'admin' }));
+    await run(() =>
+      post('/members', {
+        email: email.trim(),
+        role: provider && iAmOwner ? role : provider ? 'employee' : 'admin',
+      }),
+    );
     setEmail('');
   }
 
@@ -123,7 +130,12 @@ function Members({ provider }: { provider: boolean }) {
                 {m.user.email}
               </td>
               <td data-label={t('Role')}>
-                {provider && m.user.id !== me?.id ? (
+                {m.owner ? (
+                  <span className="pill blue" style={{ marginRight: 6 }}>
+                    {t('Owner')}
+                  </span>
+                ) : null}
+                {provider && iAmOwner && m.user.id !== me?.id && !m.owner ? (
                   <select
                     className="input"
                     value={m.role}
@@ -142,50 +154,83 @@ function Members({ provider }: { provider: boolean }) {
                 )}
               </td>
               <td data-label="">
-                {m.user.id !== me?.id ? (
-                  <button
-                    className="btn ghost"
-                    onClick={() => {
-                      if (window.confirm(t('Remove {name}?', { name: m.user.name })))
-                        void run(() =>
-                          patch(`/members/${m.id}`, { status: 'removed' }, { ifMatch: m.version }),
-                        );
-                    }}
-                  >
-                    {t('Remove')}
-                  </button>
-                ) : (
+                {m.user.id === me?.id ? (
                   <span className="muted small">{t('You')}</span>
+                ) : (
+                  <span className="row wrap" style={{ justifyContent: 'flex-end' }}>
+                    {iAmOwner && m.role === 'admin' && !m.owner ? (
+                      <button
+                        className="btn ghost"
+                        onClick={() => {
+                          if (
+                            window.confirm(
+                              t(
+                                'Make {name} the owner? You stay an admin, but only the new owner can change admins.',
+                                { name: m.user.name },
+                              ),
+                            )
+                          )
+                            void run(() => post(`/members/${m.id}/owner`));
+                        }}
+                      >
+                        {t('Make owner')}
+                      </button>
+                    ) : null}
+                    {!m.owner && (iAmOwner || m.role === 'employee') ? (
+                      <button
+                        className="btn ghost"
+                        onClick={() => {
+                          if (window.confirm(t('Remove {name}?', { name: m.user.name })))
+                            void run(() =>
+                              patch(
+                                `/members/${m.id}`,
+                                { status: 'removed' },
+                                { ifMatch: m.version },
+                              ),
+                            );
+                        }}
+                      >
+                        {t('Remove')}
+                      </button>
+                    ) : null}
+                  </span>
                 )}
               </td>
             </tr>
           ))}
         </tbody>
       </table>
-      <form className="row wrap" onSubmit={add}>
-        <input
-          className="input"
-          type="email"
-          required
-          placeholder={t('Email of an existing account')}
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          style={{ flex: 1, minWidth: 200 }}
-          aria-label={t('Email')}
-        />
-        {provider ? (
-          <select
+      {!provider && !iAmOwner ? null : (
+        <form className="row wrap" onSubmit={add}>
+          <input
             className="input"
-            value={role}
-            onChange={(e) => setRole(e.target.value as 'admin' | 'employee')}
-            aria-label={t('Role')}
-          >
-            <option value="admin">{t('Admin')}</option>
-            <option value="employee">{t('Employee')}</option>
-          </select>
-        ) : null}
-        <button className="btn">{t('Add')}</button>
-      </form>
+            type="email"
+            required
+            placeholder={t('Email of an existing account')}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            style={{ flex: 1, minWidth: 200 }}
+            aria-label={t('Email')}
+          />
+          {provider && iAmOwner ? (
+            <select
+              className="input"
+              value={role}
+              onChange={(e) => setRole(e.target.value as 'admin' | 'employee')}
+              aria-label={t('Role')}
+            >
+              <option value="admin">{t('Admin')}</option>
+              <option value="employee">{t('Employee')}</option>
+            </select>
+          ) : null}
+          <button className="btn">{t('Add')}</button>
+        </form>
+      )}
+      {!iAmOwner ? (
+        <span className="muted small">
+          {t('Only the owner can make, demote or remove admins.')}
+        </span>
+      ) : null}
     </section>
   );
 }

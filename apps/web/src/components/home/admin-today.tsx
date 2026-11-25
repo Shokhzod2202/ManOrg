@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import { useSession } from '../../lib/session';
+import { MyPunchCard } from './punch-card';
 import { formatDate, formatMinutes, formatTime, type Schemas } from '../../lib/api';
 import { useApi } from '../../lib/use-api';
 import { OrdersBoard } from '../orders/board';
@@ -37,6 +39,7 @@ const STATUS: Record<string, string> = {
 
 /** DSH-1: everything an admin needs today on one screen, refreshed every 30 seconds. */
 export function AdminToday() {
+  const { membership } = useSession();
   const { data, error, loading, reload } = useApi<Today>('/dashboard/today', 30_000);
   if (loading && !data) return <Loading />;
   if (!data) return <ErrorBox error={error} onRetry={reload} />;
@@ -56,6 +59,7 @@ export function AdminToday() {
     <div className="page wide">
       <PageHead title={t('Today')} sub={formatDate(data.today)} />
       <ErrorBox error={error} onRetry={reload} />
+      {membership?.worksShifts ? <MyPunchCard /> : null}
       <div className="kpis">
         <div className="kpi">
           <b>{data.onShift.length}</b>

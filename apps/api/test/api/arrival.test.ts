@@ -23,6 +23,8 @@ async function check(now: Date) {
     actor: 'employee' as const,
     employeeAccess: {} as never,
     botAccess: {} as never,
+    owner: false,
+    worksShifts: false,
   };
   return app.get(ShiftsService).arrival({ userId: w.a.employee.userId }, org, now);
 }

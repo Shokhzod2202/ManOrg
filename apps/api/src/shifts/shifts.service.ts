@@ -2,7 +2,7 @@ import { translate } from '../common/i18n';
 import { Injectable } from '@nestjs/common';
 import { actorFor, AuditService } from '../audit/audit.service';
 import { Errors } from '../common/errors';
-import { activeMembers } from '../common/memberships';
+import { activeMembers, WORKS_SHIFTS } from '../common/memberships';
 import { type AuthUser, dbContext, orgCan, type OrgContext } from '../common/request-context';
 import { addDays, hhmmToTime, localDate, timeToHhmm } from '../common/time';
 import { DatabaseService } from '../database/database.service';
@@ -242,7 +242,7 @@ export class ShiftsService {
       const clock = { timezone: o.timezone, punchToleranceMin: o.punchToleranceMin };
       sent += await this.db.run({ organizationId: o.id, userId: null }, async (tx) => {
         const members = await tx.membership.findMany({
-          where: { organizationId: o.id, status: 'active', role: 'employee' },
+          where: { organizationId: o.id, status: 'active', ...WORKS_SHIFTS },
           select: { userId: true, user: { select: { name: true } } },
         });
         if (!members.length) return 0;
@@ -302,8 +302,15 @@ export class ShiftsService {
     const employeeId = input.employee_id ?? user.userId;
     if (employeeId !== user.userId && !orgCan(org, 'punch.edit')) throw Errors.forbidden();
     return this.db.run(dbContext(user, org), async (tx) => {
-      const [member] = await this.members(tx, org, [employeeId]);
-      if (!member) throw Errors.notFound('Employee');
+      const [member] = await this.members(tx, org, [employeeId], user.userId);
+      if (!member) {
+        // An admin who does not work shifts has no punches (decided 2026-11-26).
+        const me = await tx.user.findUniqueOrThrow({
+          where: { id: user.userId },
+          select: { id: true, name: true },
+        });
+        return { employee: me, days: [] };
+      }
       const days = await this.timesheet.days(
         tx,
         org.organizationId,
@@ -323,6 +330,7 @@ export class ShiftsService {
         tx,
         org,
         onlySelf ? [user.userId] : input.employee_id ? [input.employee_id] : undefined,
+        user.userId,
       );
       const days = await this.timesheet.days(
         tx,
@@ -600,17 +608,23 @@ export class ShiftsService {
   }
 
   /** Active members (all, or the given ids), by name. Unknown ids answer 404. */
-  private async members(tx: Tx, org: OrgContext, ids?: string[]) {
+  private async members(tx: Tx, org: OrgContext, ids?: string[], selfId?: string) {
     const rows = await tx.membership.findMany({
       where: {
         organizationId: org.organizationId,
         status: 'active',
+        ...WORKS_SHIFTS,
         ...(ids ? { userId: { in: ids } } : {}),
       },
       select: { user: { select: { id: true, name: true } } },
       orderBy: { createdAt: 'asc' },
     });
-    if (ids && rows.length !== new Set(ids).size) throw Errors.notFound('Employee');
+    // An admin who does not work shifts asks about themselves: nothing to show, not an error.
+    const found = new Set(rows.map((r) => r.user.id));
+    const missing = [...new Set(ids ?? [])].filter((id) => !found.has(id));
+    if (missing.some((id) => !(org.role === 'admin' && id === selfId))) {
+      throw Errors.notFound('Employee');
+    }
     return rows.map((r) => r.user);
   }
 }

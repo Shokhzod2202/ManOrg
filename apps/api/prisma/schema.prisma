@@ -284,6 +284,12 @@ model Membership {
   status         MembershipStatus
   decidedById    String?          @map("decided_by") @db.Uuid
   decidedAt      DateTime?        @map("decided_at") @db.Timestamptz(3)
+  /// Decided 2026-11-26: the organization's owner, an admin with power over the other admins.
+  /// At most one per organization (partial unique index in the migration).
+  owner          Boolean          @default(false)
+  /// Decided 2026-11-26: an admin who also works shifts gets a punch card and shows in shift
+  /// lists; off by default. Employees always work shifts.
+  worksShifts    Boolean          @default(false) @map("works_shifts")
   version        Int              @default(1)
   createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)

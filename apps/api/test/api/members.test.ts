@@ -35,6 +35,8 @@ describe('GET /members', () => {
       id: expect.any(String),
       role: 'admin',
       status: 'active',
+      owner: true,
+      worksShifts: false,
       version: 1,
       user: {
         id: w.a.admin.userId,
@@ -167,7 +169,7 @@ describe('PATCH /members/{id}', () => {
     });
   });
 
-  it('keeps at least one admin', async () => {
+  it('keeps at least one admin: the owner cannot be demoted', async () => {
     const m = await memberOf(w.b.id, w.b.admin.userId, w.b.admin);
     const res = await api
       .as(w.b.admin, w.b.id)
@@ -175,7 +177,7 @@ describe('PATCH /members/{id}', () => {
       .set('If-Match', String(m.version))
       .send({ role: 'employee' })
       .expect(409);
-    expect(res.body.error.code).toBe('LAST_ADMIN');
+    expect(res.body.error.code).toBe('OWNER_PROTECTED');
   });
 
   it('removes a member, who loses access at once', async () => {

@@ -10,7 +10,7 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { get, patch, refresh, type Schemas, session, sessionCall } from './api';
+import { ACCESS_CHANGED, get, patch, refresh, type Schemas, session, sessionCall } from './api';
 import { linkPhoneApp, phoneAppOrg, phoneAppSignedOut } from './native';
 
 type Me = Schemas['Me'];
@@ -79,6 +79,34 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  // Decided 2026-11-26: roles change while the app is open (an admin is made an employee, or
+  // removed). Re-read the account when the person comes back to the app, every minute while it is
+  // open, and right after the server refuses something, so menus match what the server allows.
+  const recheck = useCallback(async () => {
+    if (!session.access()) return;
+    try {
+      setMe(await get<Me>('/me', { org: null }));
+    } catch {
+      // Offline or signed out: the next call handles it.
+    }
+  }, []);
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void recheck();
+    };
+    const onRefused = () => void recheck();
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    window.addEventListener(ACCESS_CHANGED, onRefused);
+    const timer = setInterval(() => void recheck(), 60_000);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+      window.removeEventListener(ACCESS_CHANGED, onRefused);
+      clearInterval(timer);
+    };
+  }, [recheck]);
 
   const value = useMemo<SessionValue>(() => {
     const membership =

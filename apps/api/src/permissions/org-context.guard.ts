@@ -2,11 +2,16 @@ import { type CanActivate, type ExecutionContext, Injectable } from '@nestjs/com
 import { Reflector } from '@nestjs/core';
 import { z } from 'zod';
 import { Errors } from '../common/errors';
-import { type AppRequest, ORG_REQUIREMENT, type OrgRequirement } from '../common/request-context';
+import {
+  type AppRequest,
+  memberCan,
+  ORG_REQUIREMENT,
+  type OrgRequirement,
+} from '../common/request-context';
 import { DatabaseService } from '../database/database.service';
 import { resolveBotAccess } from './bot-access';
 import { resolveEmployeeAccess } from './employee-access';
-import { actorFor, can } from './permissions';
+import { actorFor } from './permissions';
 
 const uuid = z.uuid();
 
@@ -52,6 +57,8 @@ export class OrgContextGuard implements CanActivate {
         select: {
           id: true,
           role: true,
+          owner: true,
+          worksShifts: true,
           organization: {
             select: { id: true, type: true, employeeAccess: true, botAccess: true },
           },
@@ -65,7 +72,10 @@ export class OrgContextGuard implements CanActivate {
       employeeAccess: resolveEmployeeAccess(membership.organization.employeeAccess),
       botAccess: resolveBotAccess(membership.organization.botAccess),
     };
-    if (requirement.capability && !can(actor, requirement.capability, settings)) {
+    if (
+      requirement.capability &&
+      !memberCan(actor, requirement.capability, settings, membership.worksShifts)
+    ) {
       throw Errors.forbidden();
     }
 
@@ -76,6 +86,8 @@ export class OrgContextGuard implements CanActivate {
       role: membership.role,
       actor,
       ...settings,
+      owner: membership.owner,
+      worksShifts: membership.worksShifts,
     };
     return true;
   }

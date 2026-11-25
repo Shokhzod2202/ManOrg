@@ -676,4 +676,19 @@ export const ko: Record<string, string> = {
     '이메일이나 비밀번호를 바꾸려면 현재 비밀번호를 입력하세요.',
   'Use a JPEG, PNG or WebP picture.': 'JPEG, PNG 또는 WebP 사진을 사용하세요.',
   'Use a picture of at most 5 MB.': '5MB 이하의 사진을 사용하세요.',
+  'Admins who work shifts': '근무하는 관리자',
+  'Employees always work shifts. Switch on an admin who also works: they appear in the shift editor and timesheets, and get a punch card and their own hours.':
+    '직원은 항상 근무합니다. 함께 근무하는 관리자를 켜면 근무 편집과 근무 기록에 나오고, 출퇴근 카드와 자신의 근무 시간을 갖게 됩니다.',
+  'Make owner': '소유자로 지정',
+  'Make {name} the owner? You stay an admin, but only the new owner can change admins.':
+    '{name}님을 소유자로 지정할까요? 나는 관리자로 남지만, 관리자 변경은 새 소유자만 할 수 있습니다.',
+  'Only the owner can make, demote or remove admins.':
+    '관리자 지정, 강등, 삭제는 소유자만 할 수 있습니다.',
+  Owner: '소유자',
+  '{name} works shifts': '{name} 근무',
+  'The owner cannot be demoted or removed. The owner can hand ownership to another admin first.':
+    '소유자는 강등하거나 삭제할 수 없습니다. 소유자가 먼저 다른 관리자에게 소유권을 넘길 수 있습니다.',
+  'Only the owner can change the bot permissions.': '봇 권한은 소유자만 바꿀 수 있습니다.',
+  'Employees always work shifts.': '직원은 항상 근무합니다.',
+  'Make the person an admin first.': '먼저 관리자로 지정하세요.',
 };

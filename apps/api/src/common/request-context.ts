@@ -24,12 +24,35 @@ export interface OrgContext {
   employeeAccess: EmployeeAccess;
   /** The organization's resolved Bot permissions setting. */
   botAccess: BotAccess;
+  /** Decided 2026-11-26: the owner, an admin with power over the other admins. */
+  owner: boolean;
+  /** Decided 2026-11-26: an admin who also works shifts (punch card, shift lists, hours). */
+  worksShifts: boolean;
 }
 
 /** Permission check inside a service, for parts of a response or action the route allows. */
 export function orgCan(org: OrgContext, capability: Capability): boolean {
-  return can(org.actor, capability, org);
+  return memberCan(org.actor, capability, org, org.worksShifts);
 }
+
+/**
+ * The matrix, plus decided 2026-11-26: an admin switched on to work shifts also punches in and
+ * out and asks for punch corrections, like an employee.
+ */
+export function memberCan(
+  actor: Actor,
+  capability: Capability,
+  settings: Pick<OrgContext, 'employeeAccess' | 'botAccess'>,
+  worksShifts: boolean,
+): boolean {
+  if (can(actor, capability, settings)) return true;
+  return actor === 'org_admin' && worksShifts && ADMIN_WORKER_CAPABILITIES.has(capability);
+}
+
+const ADMIN_WORKER_CAPABILITIES: ReadonlySet<Capability> = new Set<Capability>([
+  'punch.self',
+  'punch.requestChange',
+]);
 
 export interface AppRequest extends Request {
   user?: AuthUser;

@@ -2114,10 +2114,30 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Change a member's role or remove them (ACC-7)
-         * @description Audited. The organization always keeps one active admin. Takes effect on the member's next request.
+         * Change a member's role, remove them, or switch whether an admin works shifts (ACC-7)
+         * @description Audited. The organization always keeps one active admin. Only the owner makes, demotes or removes admins (an admin may step down or leave); the owner cannot be demoted or removed. Takes effect on the member's next request.
          */
         patch: operations["updateMember"];
+        trace?: never;
+    };
+    "/members/{id}/owner": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Hand ownership to another admin
+         * @description Owner only. The new owner must be an active admin; the old owner stays an admin. Audited.
+         */
+        post: operations["transferOwnership"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
 }
@@ -2205,6 +2225,10 @@ export interface components {
                 id: string;
                 role: components["schemas"]["MembershipRole"];
                 status: components["schemas"]["MembershipStatus"];
+                /** @description The organization's owner, who alone changes who is an admin. */
+                owner: boolean;
+                /** @description Has a punch card and shows in shift lists (always true for employees). */
+                worksShifts: boolean;
                 organization: components["schemas"]["OrganizationSummary"];
             }[];
         };
@@ -3369,6 +3393,10 @@ export interface components {
             id: string;
             role: components["schemas"]["MembershipRole"];
             status: components["schemas"]["MembershipStatus"];
+            /** @description The organization's owner, who alone changes who is an admin. */
+            owner: boolean;
+            /** @description Has a punch card and shows in shift lists (always true for employees). */
+            worksShifts: boolean;
             /** @description Send as If-Match when editing. */
             version: number;
             user: components["schemas"]["UserSummary"];
@@ -3381,7 +3409,10 @@ export interface components {
             role: components["schemas"]["MembershipRole"];
         };
         UpdateMemberRequest: {
+            /** @description Only the owner makes, demotes or removes admins; the owner cannot be changed. */
             role?: components["schemas"]["MembershipRole"];
+            /** @description For admins only; any admin may switch it, for themselves or others. */
+            worksShifts?: boolean;
             /** @constant */
             status?: "removed";
         };
@@ -7631,6 +7662,35 @@ export interface operations {
             409: components["responses"]["Conflict"];
             422: components["responses"]["Unprocessable"];
             428: components["responses"]["PreconditionRequired"];
+        };
+    };
+    transferOwnership: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The new owner. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Member"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["Unprocessable"];
         };
     };
 }

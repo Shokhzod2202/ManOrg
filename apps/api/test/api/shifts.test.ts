@@ -84,8 +84,11 @@ describe('PUT /shifts (SHF-1)', () => {
 
 describe('GET /shifts (SHF-2)', () => {
   it('shows everyone’s plan to employees while All employees’ shifts is open, else only their own', async () => {
+    const second = await api.hireEmployee(w.b.id, w.b.admin, 'B Second Employee');
     const open = await api.as(w.b.employee, w.b.id).get('/shifts').expect(200);
-    expect(open.body.items.length).toBeGreaterThan(1);
+    expect(open.body.items.map((i: { employee: { id: string } }) => i.employee.id)).toEqual(
+      expect.arrayContaining([w.b.employee.userId, second.userId]),
+    );
     const access = await api.as(w.b.admin, w.b.id).get('/organization/employee-access').expect(200);
     await api
       .as(w.b.admin, w.b.id)

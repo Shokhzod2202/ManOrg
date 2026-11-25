@@ -21,6 +21,8 @@ function setup(opts: {
       ? {
           id: 'm-1',
           role: opts.membership.role,
+          owner: false,
+          worksShifts: false,
           organization: {
             id: ORG,
             type: opts.membership.type,
@@ -128,6 +130,8 @@ describe('OrgContextGuard', () => {
       actor: 'org_admin',
       employeeAccess: expect.objectContaining({ allShifts: true, finance: false }),
       botAccess: { decideApplications: false, manageMembers: false, manageEmployeeAccess: false },
+      owner: false,
+      worksShifts: false,
     });
   });
 });

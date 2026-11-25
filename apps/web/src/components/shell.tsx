@@ -77,6 +77,19 @@ export function AppShell({ children }: { children: ReactNode }) {
     else if (!s.membership) router.replace('/start');
   }, [s.ready, s.me, s.membership, router]);
 
+  // A page this role cannot use (for example after being made an employee) goes back home.
+  useEffect(() => {
+    if (!s.ready || !s.membership) return;
+    const allowed = [
+      ...navFor(s.actor).map((i) => i.href),
+      '/app/notifications',
+      '/app/more',
+      '/app/settings',
+    ];
+    const ok = allowed.some((h) => (h === '/app' ? path === '/app' : path.startsWith(h)));
+    if (!ok) router.replace('/app');
+  }, [s.ready, s.membership, s.actor, path, router]);
+
   if (!s.ready || !s.me || !s.membership) return <Loading />;
   const items = navFor(s.actor);
   const isOn = (href: string) => (href === '/app' ? path === '/app' : path.startsWith(href));
