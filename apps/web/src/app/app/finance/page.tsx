@@ -1,5 +1,6 @@
 'use client';
 
+import { confirmAction } from '../../../components/confirm';
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { Empty, ErrorBox, Loading, PageHead } from '../../../components/ui';
 import { api, type ApiError, formatDate, post, put, type Schemas, today } from '../../../lib/api';
@@ -652,12 +653,12 @@ function SettlementAdmin({ contractorId }: { contractorId: string }) {
 
   async function close(p: Period) {
     if (
-      !window.confirm(
+      !(await confirmAction(
         t('Close {start} to {end}? Its report is then fixed for good.', {
           start: p.startDate,
           end: p.endDate,
         }),
-      )
+      ))
     )
       return;
     setErr(null);
@@ -928,7 +929,7 @@ function ContractorPayments({
     }
   }
   async function withdraw(id: string) {
-    if (!window.confirm(t('Withdraw this payment confirmation?'))) return;
+    if (!(await confirmAction(t('Withdraw this payment confirmation?')))) return;
     try {
       await post(`/payments/${id}/cancel`);
       list.reload();

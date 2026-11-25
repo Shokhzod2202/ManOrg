@@ -1,5 +1,6 @@
 'use client';
 
+import { confirmAction } from '../../../components/confirm';
 import { sortProducts, useProductSort } from '../../../lib/product-sort';
 import { useEffect, useState } from 'react';
 import { Empty, ErrorBox, Flag, Loading, PageHead } from '../../../components/ui';
@@ -334,7 +335,12 @@ function MyTeams({ onChange }: { onChange: () => void }) {
     }
   }
   async function remove(tm: Team) {
-    if (!window.confirm(t('Delete team {name}? Output already logged stays.', { name: tm.name })))
+    if (
+      !(await confirmAction(
+        t('Delete team {name}? Output already logged stays.', { name: tm.name }),
+        { confirmLabel: t('Delete'), danger: true },
+      ))
+    )
       return;
     try {
       await del(`/teams/${tm.id}`, { ifMatch: tm.version });

@@ -1175,3 +1175,145 @@ table.t.valued tr.sum td.amt {
 .value-panel[open] .value-more svg {
   transform: rotate(180deg);
 }
+
+/* Decided 2026-11-30: confirmations inside the page (Telegram does not show browser pop-ups). */
+.confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(10, 20, 40, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.confirm-box {
+  background: var(--bg);
+  border-radius: 16px;
+  padding: 20px;
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+}
+.confirm-box p {
+  margin: 0;
+}
+.confirm-message {
+  font-weight: 600;
+  font-size: 16px;
+}
+.btn.danger {
+  background: var(--flag);
+  border-color: var(--flag);
+  color: #fff;
+}
+.more-menu {
+  position: relative;
+  display: inline-flex;
+}
+.more-btn {
+  min-width: 44px;
+  font-size: 20px;
+  line-height: 1;
+  letter-spacing: 1px;
+}
+.more-list {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 50;
+  min-width: 190px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+}
+.more-list button {
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 10px 12px;
+  min-height: 44px;
+  border-radius: 8px;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.more-list button:hover,
+.more-list button:focus-visible {
+  background: var(--soft);
+}
+.more-list button.danger {
+  color: var(--flag);
+}
+
+/* Decided 2026-11-30: Work hours. */
+.month-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.month-switch b {
+  min-width: 140px;
+  text-align: center;
+}
+.hours-person summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 14px;
+  cursor: pointer;
+  min-height: 36px;
+  list-style: none;
+}
+.hours-person summary::-webkit-details-marker {
+  display: none;
+}
+.hours-person[open] summary svg {
+  transform: rotate(180deg);
+}
+.hours-figures {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.hours-h {
+  font-size: 14px;
+  margin: 0 0 6px;
+}
+.hours-person table.t tr.sum td {
+  border-bottom: 0;
+}
+.hours-person tr.cancelled td {
+  color: var(--muted);
+}
+.avans-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.avans-form input:nth-child(3) {
+  grid-column: 1 / -1;
+}
+.avans-form .btn {
+  grid-column: 1 / -1;
+}
+.hours-person .grid2 {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+}
+.avans-form .input {
+  width: 100%;
+  min-width: 0;
+}
+.hours-figures svg {
+  margin-left: auto;
+}

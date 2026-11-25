@@ -1,5 +1,6 @@
 'use client';
 
+import { confirmAction } from '../confirm';
 import { useState } from 'react';
 import { type ApiError, formatMinutes, formatTime, post, type Schemas } from '../../lib/api';
 import { ErrorBox } from '../ui';
@@ -15,7 +16,11 @@ export function PunchCard({ card, onChange }: { card: Card; onChange: () => void
   const [error, setError] = useState<ApiError | null>(null);
 
   async function punch(action: keyof typeof LABEL) {
-    if (action === 'end' && !window.confirm(t('End your shift now?'))) return;
+    if (
+      action === 'end' &&
+      !(await confirmAction(t('End your shift now?'), { confirmLabel: t('End shift') }))
+    )
+      return;
     setBusy(true);
     setError(null);
     try {

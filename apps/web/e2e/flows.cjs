@@ -15,6 +15,19 @@ async function as(b, email, vp = { width: 1280, height: 900 }) {
   await signIn(page, W, email);
   return page;
 }
+// Decided 2026-11-30: confirmations are shown inside the page, not as browser pop-ups.
+async function confirmInPage(page) {
+  await page.locator('.confirm-box button:not(.ghost)').click();
+  await page.locator('.confirm-box').waitFor({ state: 'detached' });
+}
+// Opens the ⋯ menu on a member's row, picks the action and confirms it.
+async function rowAction(page, rowText, action) {
+  const row = page.locator('section:has(h2:has-text("Members")) tr', { hasText: rowText }).first();
+  await row.locator('.more-btn').click();
+  await row.locator(`.more-list button:has-text("${action}")`).click();
+  await confirmInPage(page);
+}
+
 (async () => {
   const b = await chromium.launch();
   // 1. Admin records City Cafe's delivery and completes it.
@@ -596,25 +609,31 @@ async function as(b, email, vp = { width: 1280, height: 900 }) {
   if (!demoted || ownerPill !== 1) throw new Error('Demotion or owner label failed');
   // Decided 2026-11-27: ownership is shared. The owner makes the newcomer an owner too; the
   // newcomer then stops being one themselves; the owner then makes them an employee again.
+  // Decided 2026-11-30: these actions sit in the row's ⋯ menu and ask for confirmation in the page.
   await boss.goto(`${W}/app/people`);
-  boss.once('dialog', (d) => void d.accept());
-  await boss
-    .locator('section:has(h2:has-text("Members")) tr', { hasText: newcomerName })
-    .locator('button:has-text("Make owner")')
-    .click();
+  await rowAction(boss, newcomerName, 'Make owner');
   await boss.waitForTimeout(1000);
   const owners = await boss
     .locator('section:has(h2:has-text("Members")) .pill:has-text("Owner")')
     .count();
+  const undoOwner = await boss
+    .locator('section:has(h2:has-text("Members")) tr', { hasText: newcomerName })
+    .locator('button:has-text("Undo")')
+    .count();
   await newcomer.goto(`${W}/app/people`);
-  newcomer.once('dialog', (d) => void d.accept());
-  await newcomer.click('button:has-text("Stop being an owner")');
-  await newcomer.waitForSelector('button:has-text("Stop being an owner")', { state: 'detached' });
+  await rowAction(newcomer, 'You', 'Stop being an owner');
+  await newcomer.waitForTimeout(1000);
   await boss.goto(`${W}/app/people`);
   await roleSelect().selectOption('employee');
   await boss.waitForTimeout(800);
-  log('20 ownership shared: owners shown =', owners, '| the new owner stepped down themselves');
-  if (owners !== 2) throw new Error('Shared ownership failed');
+  log(
+    '20 ownership shared: owners shown =',
+    owners,
+    '| undo offered:',
+    undoOwner === 1,
+    '| the new owner stepped down themselves',
+  );
+  if (owners !== 2 || undoOwner !== 1) throw new Error('Shared ownership failed');
   await boss.goto(`${W}/app/settings`);
   const mine = boss.locator('section:has(h2:has-text("Admins who work shifts")) label', {
     hasText: 'You',
@@ -645,12 +664,17 @@ async function as(b, email, vp = { width: 1280, height: 900 }) {
   await teamsCard.locator('label.chip', { hasText: newcomerName }).locator('input').check();
   await teamsCard.locator('button:has-text("Save team")').click();
   await teamsCard.locator(`text=${pairName}`).waitFor();
-  boss.once('dialog', (d) => void d.accept());
-  await boss
-    .locator('section:has(h2:has-text("Members")) tr', { hasText: newcomerName })
-    .locator('button:has-text("Remove")')
-    .click();
+  await rowAction(boss, newcomerName, 'Remove');
   await boss.locator('section:has(h2:has-text("Removed members"))').waitFor();
+  const undoRemove = await boss
+    .locator('section:has(h2:has-text("Removed members")) div.stack', { hasText: newcomerName })
+    .locator('button:has-text("Undo remove")')
+    .first()
+    .waitFor({ timeout: 8000 })
+    .then(
+      () => 1,
+      () => 0,
+    );
   const teamRow = teamsCard.locator('div.row', { hasText: pairName }).first();
   const shownRemoved = await teamRow
     .filter({ hasText: '(removed)' })
@@ -675,20 +699,21 @@ async function as(b, email, vp = { width: 1280, height: 900 }) {
     );
   const teamError = await boss.locator('section:has(h2:has-text("Teams")) .error').count();
   const removedCard = boss.locator('section:has(h2:has-text("Removed members"))');
-  boss.once('dialog', (d) => void d.accept());
   await removedCard
     .locator('div.stack', { hasText: newcomerName })
     .locator('button:has-text("Remove from shifts and teams")')
     .click();
+  await confirmInPage(boss);
   await removedCard.locator('.pill.ok:has-text("Done")').first().waitFor();
   log(
     '21 removed member shown as removed on the team:',
     shownRemoved,
     '| taken off without an error:',
     teamError === 0 && takenOff,
-    '| cleared from shifts and teams',
+    '| cleared from shifts and teams | undo offered:',
+    undoRemove === 1,
   );
-  if (!shownRemoved || teamError !== 0 || !takenOff)
+  if (!shownRemoved || teamError !== 0 || !takenOff || undoRemove !== 1)
     throw new Error('Editing a team after removing someone failed');
 
   // 22. Decided 2026-11-29. The admin gives Mina a name and title for this organization; the
@@ -839,6 +864,40 @@ async function as(b, email, vp = { width: 1280, height: 900 }) {
     orderTotal || 'missing',
   );
   if (!sumOk || !orderTotal) throw new Error('Order value failed');
+
+  // 25. Decided 2026-11-30. Work hours (in More): the admin logs an avans for Mina, confirms it
+  // in the page, sees it beside her month, then cancels it.
+  const minaHours = boss.locator('details.hours-person', { hasText: 'Mina Park' });
+  await boss.goto(`${W}/app/hours`);
+  await minaHours.waitFor();
+  if (!(await minaHours.evaluate((el) => el.open))) await minaHours.locator('summary').click();
+  await minaHours.locator('input[type=number]').fill('12345');
+  await minaHours.locator('button:has-text("Log avans")').click();
+  await confirmInPage(boss);
+  const logged = await minaHours
+    .locator('tr:not(.cancelled)', { hasText: '₩12,345' })
+    .first()
+    .waitFor({ timeout: 8000 })
+    .then(
+      () => true,
+      () => false,
+    );
+  await minaHours
+    .locator('tr:not(.cancelled)', { hasText: '₩12,345' })
+    .first()
+    .locator('button')
+    .click();
+  await confirmInPage(boss);
+  const cancelled = await minaHours
+    .locator('tr.cancelled', { hasText: '₩12,345' })
+    .first()
+    .waitFor({ timeout: 8000 })
+    .then(
+      () => true,
+      () => false,
+    );
+  log('25 avans logged beside the hours:', logged, '| cancelled and kept as cancelled:', cancelled);
+  if (!logged || !cancelled) throw new Error('Avans failed');
 
   await b.close();
 })().catch((e) => {

@@ -1,6 +1,8 @@
 'use client';
 
 import { type FormEvent, useState } from 'react';
+import { confirmAction } from '../../../components/confirm';
+import { MoreMenu } from '../../../components/menu';
 import { Avatar, Empty, ErrorBox, Loading, PageHead } from '../../../components/ui';
 import { type ApiError, del, formatDate, patch, post, type Schemas } from '../../../lib/api';
 import { useSession } from '../../../lib/session';
@@ -10,6 +12,17 @@ import { t } from '../../../lib/i18n';
 type Member = Schemas['Member'];
 type Application = Schemas['Application'];
 type Team = Schemas['Team'];
+
+/** Decided 2026-11-30: removing someone or making them an owner can be undone for 3 days. */
+const UNDO_MS = 3 * 86_400_000;
+const undoable = (at: string | null | undefined) =>
+  !!at && Date.now() - new Date(at).getTime() < UNDO_MS;
+const undoLeft = (at: string) => {
+  const hours = Math.max(1, Math.ceil((new Date(at).getTime() + UNDO_MS - Date.now()) / 3_600_000));
+  return hours >= 24
+    ? t('{n} days left', { n: Math.ceil(hours / 24) })
+    : t('{n} hours left', { n: hours });
+};
 
 export default function PeoplePage() {
   const { actor } = useSession();
@@ -30,7 +43,13 @@ function Applications() {
   const { data, error, reload } = useApi<{ items: Application[] }>('/applications', 60_000);
   const [err, setErr] = useState<ApiError | null>(null);
   async function decide(id: string, ok: boolean) {
-    if (!ok && !window.confirm(t('Reject this application? They can apply again after 7 days.')))
+    if (
+      !ok &&
+      !(await confirmAction(t('Reject this application? They can apply again after 7 days.'), {
+        confirmLabel: t('Reject'),
+        danger: true,
+      }))
+    )
       return;
     setErr(null);
     try {
@@ -91,14 +110,41 @@ type HandOver = {
  * shift plan, teams, open and repeating tasks, ingredient ordering and the products they log.
  */
 function RemovedMembers() {
+  const { membership } = useSession();
+  const iAmOwner = membership?.owner === true;
   const removed = useApi<{ items: Member[] }>('/members?status=removed');
   const active = useApi<{ items: Member[] }>('/members');
   const [to, setTo] = useState<Record<string, string>>({});
   const [done, setDone] = useState<Record<string, string>>({});
   const [err, setErr] = useState<ApiError | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const items = removed.data?.items ?? [];
+  const items = [...(removed.data?.items ?? [])].sort((a, b) =>
+    (b.removedAt ?? '').localeCompare(a.removedAt ?? ''),
+  );
   if (!items.length) return null;
+
+  async function undo(m: Member) {
+    const name = m.displayName || m.user.name;
+    const ok = await confirmAction(t('Undo removing {name}?', { name }), {
+      detail: t(
+        'They become a member again. Work you already handed over stays with its new person.',
+      ),
+      confirmLabel: t('Undo remove'),
+    });
+    if (!ok) return;
+    setErr(null);
+    setBusy(m.id);
+    try {
+      await post(`/members/${m.id}/restore`);
+      removed.reload();
+      active.reload();
+      refreshApi('/members', '/teams', '/shifts', '/dashboard');
+    } catch (e) {
+      setErr(e as ApiError);
+    } finally {
+      setBusy(null);
+    }
+  }
   const employees = (active.data?.items ?? []).filter((m) => m.role === 'employee');
 
   async function act(m: Member, toUserId: string | null) {
@@ -113,7 +159,7 @@ function RemovedMembers() {
           'Take {name} out of the weekly shifts, teams, open and repeating tasks, ingredient ordering and products? Their past work stays as it is.',
           { name: m.displayName || m.user.name },
         );
-    if (!window.confirm(question)) return;
+    if (!(await confirmAction(question))) return;
     setErr(null);
     setBusy(m.id);
     try {
@@ -161,6 +207,14 @@ function RemovedMembers() {
                 </span>
               ) : null}
             </span>
+            {undoable(m.removedAt) && (iAmOwner || m.role === 'employee') ? (
+              <span className="row" style={{ gap: 6 }}>
+                <span className="muted small">{undoLeft(m.removedAt!)}</span>
+                <button className="btn" disabled={busy === m.id} onClick={() => void undo(m)}>
+                  {t('Undo remove')}
+                </button>
+              </span>
+            ) : null}
           </div>
           <div className="row wrap">
             <select
@@ -338,6 +392,25 @@ function Members({ provider }: { provider: boolean }) {
                     {t('Owner')}
                   </span>
                 ) : null}
+                {m.owner && m.ownerGrantedBy === me?.id && undoable(m.ownerGrantedAt) ? (
+                  <button
+                    className="btn ghost small-btn"
+                    style={{ marginRight: 6 }}
+                    onClick={async () => {
+                      const name = m.displayName || m.user.name;
+                      if (
+                        await confirmAction(t('Undo making {name} an owner?', { name }), {
+                          detail: t('They go back to the role they had before.'),
+                          confirmLabel: t('Undo'),
+                        })
+                      )
+                        void run(() => del(`/members/${m.id}/owner`));
+                    }}
+                    title={undoLeft(m.ownerGrantedAt!)}
+                  >
+                    {t('Undo')}
+                  </button>
+                ) : null}
                 {provider && iAmOwner && m.user.id !== me?.id && !m.owner ? (
                   <select
                     className="input"
@@ -357,70 +430,13 @@ function Members({ provider }: { provider: boolean }) {
                 )}
               </td>
               <td data-label="">
-                {m.user.id === me?.id ? (
-                  <span className="row wrap" style={{ justifyContent: 'flex-end' }}>
-                    <span className="muted small">{t('You')}</span>
-                    {m.owner && (data?.items ?? []).filter((x) => x.owner).length > 1 ? (
-                      <button
-                        className="btn ghost"
-                        onClick={() => {
-                          if (
-                            window.confirm(
-                              t(
-                                'Stop being an owner? You stay an admin; the other owners keep it.',
-                              ),
-                            )
-                          )
-                            void run(() => del(`/members/${m.id}/owner`));
-                        }}
-                      >
-                        {t('Stop being an owner')}
-                      </button>
-                    ) : null}
-                  </span>
-                ) : (
-                  <span className="row wrap" style={{ justifyContent: 'flex-end' }}>
-                    {iAmOwner && !m.owner ? (
-                      <button
-                        className="btn ghost"
-                        onClick={() => {
-                          if (
-                            window.confirm(
-                              t(
-                                'Make {name} an owner too? Owners change who is an admin and the bot permissions. You stay an owner.',
-                                { name: m.displayName || m.user.name },
-                              ),
-                            )
-                          )
-                            void run(() => post(`/members/${m.id}/owner`));
-                        }}
-                      >
-                        {t('Make owner')}
-                      </button>
-                    ) : null}
-                    {!m.owner && (iAmOwner || m.role === 'employee') ? (
-                      <button
-                        className="btn ghost"
-                        onClick={() => {
-                          if (
-                            window.confirm(
-                              t('Remove {name}?', { name: m.displayName || m.user.name }),
-                            )
-                          )
-                            void run(() =>
-                              patch(
-                                `/members/${m.id}`,
-                                { status: 'removed' },
-                                { ifMatch: m.version },
-                              ),
-                            );
-                        }}
-                      >
-                        {t('Remove')}
-                      </button>
-                    ) : null}
-                  </span>
-                )}
+                <MemberActions
+                  member={m}
+                  self={m.user.id === me?.id}
+                  iAmOwner={iAmOwner}
+                  owners={(data?.items ?? []).filter((x) => x.owner).length}
+                  run={run}
+                />
               </td>
             </tr>
           ))}
@@ -459,6 +475,91 @@ function Members({ provider }: { provider: boolean }) {
   );
 }
 
+/**
+ * Decided 2026-11-30: "Make owner", "Remove" and "Stop being an owner" sit in the row's ⋯ menu
+ * and each asks for confirmation; removing and making an owner can be undone for 3 days.
+ */
+function MemberActions({
+  member: m,
+  self,
+  iAmOwner,
+  owners,
+  run,
+}: {
+  member: Member;
+  self: boolean;
+  iAmOwner: boolean;
+  owners: number;
+  run: (fn: () => Promise<unknown>) => Promise<void>;
+}) {
+  const name = m.displayName || m.user.name;
+  const items = self
+    ? m.owner && owners > 1
+      ? [
+          {
+            label: t('Stop being an owner'),
+            onSelect: async () => {
+              if (
+                await confirmAction(
+                  t('Stop being an owner? You stay an admin; the other owners keep it.'),
+                  { confirmLabel: t('Stop being an owner') },
+                )
+              )
+                void run(() => del(`/members/${m.id}/owner`));
+            },
+          },
+        ]
+      : []
+    : [
+        ...(iAmOwner && !m.owner
+          ? [
+              {
+                label: t('Make owner'),
+                onSelect: async () => {
+                  if (
+                    await confirmAction(t('Make {name} an owner too?', { name }), {
+                      detail: t(
+                        'Owners change who is an admin and the bot permissions. You stay an owner. You can undo this for 3 days.',
+                      ),
+                      confirmLabel: t('Make owner'),
+                    })
+                  )
+                    void run(() => post(`/members/${m.id}/owner`));
+                },
+              },
+            ]
+          : []),
+        ...(!m.owner && (iAmOwner || m.role === 'employee')
+          ? [
+              {
+                label: t('Remove'),
+                danger: true,
+                onSelect: async () => {
+                  if (
+                    await confirmAction(t('Remove {name}?', { name }), {
+                      detail: t(
+                        'Their past work stays, marked removed. You can undo this for 3 days under Removed members.',
+                      ),
+                      confirmLabel: t('Remove'),
+                      danger: true,
+                    })
+                  )
+                    void run(() =>
+                      patch(`/members/${m.id}`, { status: 'removed' }, { ifMatch: m.version }),
+                    );
+                },
+              },
+            ]
+          : []),
+      ];
+  return (
+    <span className="row wrap" style={{ justifyContent: 'flex-end' }}>
+      {self ? <span className="muted small">{t('You')}</span> : null}
+      <MoreMenu label={t('More actions for {name}', { name })} items={items} />
+    </span>
+  );
+}
+
 /** OUT-3 with admin-made shared teams (decision 2026-11-14). */
 function Teams() {
   const { data, error, reload } = useApi<{ items: Team[] }>('/teams');
@@ -491,7 +592,13 @@ function Teams() {
     }
   }
   async function remove(tm: Team) {
-    if (!window.confirm(`Delete team ${tm.name}? Output already logged stays.`)) return;
+    if (
+      !(await confirmAction(
+        t('Delete team {name}? Output already logged stays.', { name: tm.name }),
+        { confirmLabel: t('Delete'), danger: true },
+      ))
+    )
+      return;
     try {
       await del(`/teams/${tm.id}`, { ifMatch: tm.version });
       reload();

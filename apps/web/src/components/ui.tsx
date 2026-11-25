@@ -6,6 +6,12 @@ import { t } from '../lib/i18n';
 
 const PATHS: Record<string, ReactNode> = {
   chevron: <path d="m6 9 6 6 6-6" />,
+  clock: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </>
+  ),
   home: (
     <>
       <circle cx="12" cy="12" r="9" />

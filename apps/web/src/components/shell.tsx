@@ -21,6 +21,8 @@ export function navFor(actor: Actor | null): Item[] {
       { href: '/app/orders', label: 'Orders', icon: 'orders' },
       { href: '/app/deliveries', label: 'Deliveries', icon: 'deliveries' },
       { href: '/app/shifts', label: 'Shifts', icon: 'shifts' },
+      // Decided 2026-11-30: worked hours and advances; first in More on phones.
+      { href: '/app/hours', label: 'Work hours', icon: 'clock' },
       { href: '/app/output', label: 'Output', icon: 'output' },
       { href: '/app/tasks', label: 'Tasks', icon: 'tasks' },
       { href: '/app/products', label: 'Products', icon: 'products' },
@@ -37,6 +39,7 @@ export function navFor(actor: Actor | null): Item[] {
       { href: '/app/orders', label: 'Orders', icon: 'orders' },
       { href: '/app/output', label: 'Output', icon: 'output' },
       { href: '/app/shifts', label: 'Shifts', icon: 'shifts' },
+      { href: '/app/hours', label: 'Work hours', icon: 'clock' },
       { href: '/app/tasks', label: 'Tasks', icon: 'tasks' },
       { href: '/app/ingredients', label: 'Ingredients', icon: 'ingredients' },
       { href: '/app/settings', label: 'Settings', icon: 'settings' },

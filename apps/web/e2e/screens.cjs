@@ -13,6 +13,7 @@ const roles = {
       '/app/orders',
       '/app/deliveries',
       '/app/shifts',
+      '/app/hours',
       '/app/output',
       '/app/tasks',
       '/app/products',
@@ -28,7 +29,15 @@ const roles = {
   ],
   mina: [
     'mina@sunrise.test',
-    ['/app', '/app/orders', '/app/output', '/app/shifts', '/app/tasks', '/app/ingredients'],
+    [
+      '/app',
+      '/app/orders',
+      '/app/output',
+      '/app/shifts',
+      '/app/hours',
+      '/app/tasks',
+      '/app/ingredients',
+    ],
   ],
   cafe: [
     'admin@citycafe.test',

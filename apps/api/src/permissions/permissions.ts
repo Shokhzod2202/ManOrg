@@ -99,6 +99,11 @@ const MATRIX = {
   // Phase 2 (spec section 10): the Bot screen is in the admin app only.
   'bot.use': { employee: false, org_admin: 'any', contractor_admin: false },
 
+  // Decided 2026-11-30: worked hours from punch cards (each person their own) and salary
+  // advances ("avans"), which admins log when they transfer the money.
+  'hours.read': { employee: 'own', org_admin: 'any', contractor_admin: false },
+  'advances.manage': { employee: false, org_admin: 'any', contractor_admin: false },
+
   // docs/F-001.md section 3 (built after the MVP gate)
   'prices.manage': { employee: false, org_admin: 'any', contractor_admin: false },
   'finance.view': { employee: setting('finance'), org_admin: 'any', contractor_admin: 'own' },

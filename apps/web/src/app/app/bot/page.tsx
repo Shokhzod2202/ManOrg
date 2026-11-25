@@ -1,5 +1,6 @@
 'use client';
 
+import { confirmAction } from '../../../components/confirm';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { Empty, ErrorBox, Icon, Loading, PageHead } from '../../../components/ui';
 import { type ApiError, get, post, type Schemas } from '../../../lib/api';
@@ -99,7 +100,8 @@ export default function BotPage() {
     setErr(null);
     let second = false;
     if (action === 'confirm' && p.needsSecondConfirmation) {
-      if (!window.confirm(`This changes ${p.rows} rows. Apply all of them?`)) return;
+      if (!(await confirmAction(t('This changes {n} rows. Apply all of them?', { n: p.rows }))))
+        return;
       second = true;
     }
     try {

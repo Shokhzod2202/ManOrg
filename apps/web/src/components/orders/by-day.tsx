@@ -1,5 +1,6 @@
 'use client';
 
+import { confirmAction } from '../confirm';
 import { useEffect, useState } from 'react';
 import { type ApiError, formatDate, put, type Schemas, today } from '../../lib/api';
 import { useApi } from '../../lib/use-api';
@@ -234,7 +235,10 @@ function EditOrder({
       const lines = Object.entries(qty)
         .filter(([, q]) => q > 0)
         .map(([productId, quantity]) => ({ productId, quantity }));
-      if (!lines.length && !window.confirm('No products left: this cancels the order. Continue?'))
+      if (
+        !lines.length &&
+        !(await confirmAction(t('No products left: this cancels the order. Continue?')))
+      )
         return;
       await put(`/orders/${order.id}/lines`, { lines }, { ifMatch: order.version });
       onDone();

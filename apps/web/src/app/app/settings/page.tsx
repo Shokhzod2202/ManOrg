@@ -1,5 +1,6 @@
 'use client';
 
+import { confirmAction } from '../../../components/confirm';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useRef, useState } from 'react';
 import { Avatar, Empty, ErrorBox, Loading, PageHead, PasswordInput } from '../../../components/ui';
@@ -387,7 +388,7 @@ function Account() {
     await run(() => api('POST', '/me/avatar', { form, org: null }), t('Picture saved.'));
   }
   async function signOutEverywhere() {
-    if (!window.confirm(t('Sign out on every device, this one too?'))) return;
+    if (!(await confirmAction(t('Sign out on every device, this one too?')))) return;
     try {
       await post('/me/sign-out-everywhere', undefined, { org: null });
     } finally {

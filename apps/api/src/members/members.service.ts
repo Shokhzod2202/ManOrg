@@ -28,6 +28,8 @@ type MemberRow = {
   owner: boolean;
   worksShifts: boolean;
   removedAt: Date | null;
+  ownerGrantedById: string | null;
+  ownerGrantedAt: Date | null;
   displayName: string | null;
   title: string | null;
   createdAt: Date;
@@ -43,6 +45,9 @@ function present(m: MemberRow) {
     owner: m.owner,
     worksShifts: m.role === 'employee' || m.worksShifts,
     removedAt: m.removedAt,
+    // Decided 2026-11-30: who made them an owner and when; that owner may undo it for 3 days.
+    ownerGrantedBy: m.owner ? m.ownerGrantedById : null,
+    ownerGrantedAt: m.owner ? m.ownerGrantedAt : null,
     // Decided 2026-11-29: the organization's name for the person (user.name stays their account
     // name) and their title.
     displayName: m.displayName,
@@ -208,7 +213,14 @@ export class MembersService {
       if (target.owner) return this.presentOne(tx, id);
       await tx.membership.update({
         where: { id },
-        data: { owner: true, role: 'admin', version: { increment: 1 } },
+        data: {
+          owner: true,
+          role: 'admin',
+          ownerGrantedById: user.userId,
+          ownerGrantedAt: new Date(),
+          ownerPreviousRole: target.role,
+          version: { increment: 1 },
+        },
       });
       await this.audit.record(tx, {
         organizationId: org.organizationId,
@@ -226,13 +238,23 @@ export class MembersService {
   /**
    * An owner stops being an owner (staying an admin). Only for oneself: owners never take
    * ownership from each other. The organization always keeps at least one owner.
+   * Decided 2026-11-30: the one exception is undo. For 3 days the owner who made someone an
+   * owner may take it back, and the person returns to the role they had before.
    */
   leaveOwnership(user: AuthUser, org: OrgContext, id: string) {
     ownerOnly(user, org);
-    if (id !== org.membershipId) {
-      throw Errors.forbidden('Owners can only stop being an owner themselves.');
-    }
+    const self = id === org.membershipId;
     return this.db.run(dbContext(user, org), async (tx) => {
+      const target = await tx.membership.findFirst({
+        where: { id, organizationId: org.organizationId, status: 'active', owner: true },
+      });
+      if (!target) throw Errors.notFound('Owner');
+      if (!self) {
+        if (target.ownerGrantedById !== user.userId) {
+          throw Errors.forbidden('Owners can only stop being an owner themselves.');
+        }
+        if (!withinUndo(target.ownerGrantedAt)) throw undoExpired();
+      }
       const owners = await tx.$queryRaw<{ id: string }[]>`
         SELECT id FROM memberships
         WHERE organization_id = ${org.organizationId}::uuid AND owner AND status = 'active'
@@ -243,18 +265,70 @@ export class MembersService {
           'Make someone else an owner before you stop being one.',
         );
       }
+      const role = self ? target.role : (target.ownerPreviousRole ?? target.role);
       await tx.membership.update({
         where: { id },
-        data: { owner: false, version: { increment: 1 } },
+        data: {
+          owner: false,
+          role,
+          ownerGrantedById: null,
+          ownerGrantedAt: null,
+          ownerPreviousRole: null,
+          version: { increment: 1 },
+        },
       });
       await this.audit.record(tx, {
         organizationId: org.organizationId,
         actor: actorFor(user),
-        action: 'membership.owner_leave',
+        action: self ? 'membership.owner_leave' : 'membership.owner_undo',
         entity: 'membership',
         entityId: id,
-        before: { owner: true },
-        after: { owner: false },
+        before: { owner: true, role: target.role },
+        after: { owner: false, role },
+      });
+      return this.presentOne(tx, id);
+    });
+  }
+
+  /**
+   * Decided 2026-11-30: undo a removal within 3 days. The person is a member again with the same
+   * role; anything already handed over to someone else stays with them.
+   */
+  restore(user: AuthUser, org: OrgContext, id: string) {
+    return this.db.run(dbContext(user, org), async (tx) => {
+      const member = await tx.membership.findFirst({
+        where: { id, organizationId: org.organizationId, status: 'removed' },
+      });
+      if (!member) throw Errors.notFound('Removed member');
+      if (member.role === 'admin') ownerOnly(user, org);
+      if (!withinUndo(member.removedAt)) throw undoExpired();
+      const open = await tx.membership.findFirst({
+        where: {
+          organizationId: org.organizationId,
+          userId: member.userId,
+          status: { in: ['pending', 'active'] },
+        },
+        select: { id: true },
+      });
+      if (open) {
+        throw Errors.conflict(
+          'ALREADY_MEMBER',
+          'They have joined or applied again since; decide that application instead.',
+        );
+      }
+      const result = await tx.membership.updateMany({
+        where: { id, version: member.version },
+        data: { status: 'active', removedAt: null, version: { increment: 1 } },
+      });
+      if (result.count !== 1) throw Errors.versionConflict();
+      await this.audit.record(tx, {
+        organizationId: org.organizationId,
+        actor: actorFor(user),
+        action: 'membership.restore',
+        entity: 'membership',
+        entityId: id,
+        before: { status: 'removed', removedAt: member.removedAt },
+        after: { status: 'active', removedAt: null },
       });
       return this.presentOne(tx, id);
     });
@@ -464,6 +538,15 @@ export class MembersService {
       throw Errors.conflict('LAST_ADMIN', 'Add another admin before changing the last one.');
     }
   }
+}
+
+/** Decided 2026-11-30: removing someone or making them an owner can be undone for 3 days. */
+export const UNDO_DAYS = 3;
+function withinUndo(at: Date | null): boolean {
+  return at !== null && Date.now() - at.getTime() <= UNDO_DAYS * 86_400_000;
+}
+function undoExpired() {
+  return Errors.conflict('UNDO_EXPIRED', `This can only be undone for ${UNDO_DAYS} days.`);
 }
 
 /** Decided 2026-11-26: only owners change who is an admin. The bot never does. */

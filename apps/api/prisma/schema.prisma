@@ -261,6 +261,7 @@ model Organization {
   punchChangeRequests        PunchChangeRequest[]
   products                   Product[]
   productTypes               ProductType[]
+  salaryAdvances             SalaryAdvance[]
   ingredients                Ingredient[]
   productIngredients         ProductIngredient[]
   employeeProducts           EmployeeProduct[]
@@ -295,29 +296,34 @@ model Organization {
 /// A user's place in an organization. Role lives here, so approval is one status change.
 /// One pending-or-active membership per user (open question 3) is a partial unique index in SQL.
 model Membership {
-  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId String           @map("organization_id") @db.Uuid
-  userId         String           @map("user_id") @db.Uuid
-  role           MembershipRole
-  status         MembershipStatus
-  decidedById    String?          @map("decided_by") @db.Uuid
-  decidedAt      DateTime?        @map("decided_at") @db.Timestamptz(3)
+  id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId    String           @map("organization_id") @db.Uuid
+  userId            String           @map("user_id") @db.Uuid
+  role              MembershipRole
+  status            MembershipStatus
+  decidedById       String?          @map("decided_by") @db.Uuid
+  decidedAt         DateTime?        @map("decided_at") @db.Timestamptz(3)
   /// Decided 2026-11-29: the name the organization's admins give this person, shown instead of
   /// their account name everywhere inside the organization; and their job title.
-  displayName    String?          @map("display_name")
-  title          String?
+  displayName       String?          @map("display_name")
+  title             String?
   /// Decided 2026-11-28: when the person was removed. Their data before it stays visible, marked
   /// removed; from it on they are out of shifts, team credit and lists.
-  removedAt      DateTime?        @map("removed_at") @db.Timestamptz(3)
+  removedAt         DateTime?        @map("removed_at") @db.Timestamptz(3)
   /// Decided 2026-11-26: the organization's owner, an admin with power over the other admins.
   /// Several owners may share it (decided 2026-11-27); there is always at least one.
-  owner          Boolean          @default(false)
+  owner             Boolean          @default(false)
   /// Decided 2026-11-26: an admin who also works shifts gets a punch card and shows in shift
   /// lists; off by default. Employees always work shifts.
-  worksShifts    Boolean          @default(false) @map("works_shifts")
-  version        Int              @default(1)
-  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt      DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  worksShifts       Boolean          @default(false) @map("works_shifts")
+  /// Decided 2026-11-30: who made this person an owner, when, and their role before it, so the
+  /// owner who did it can undo it within 3 days.
+  ownerGrantedById  String?          @map("owner_granted_by") @db.Uuid
+  ownerGrantedAt    DateTime?        @map("owner_granted_at") @db.Timestamptz(3)
+  ownerPreviousRole MembershipRole?  @map("owner_previous_role")
+  version           Int              @default(1)
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   user         User         @relation(fields: [userId], references: [id], onDelete: Restrict)
@@ -1267,4 +1273,30 @@ model RecurringTask {
 
   @@index([organizationId, active])
   @@map("recurring_tasks")
+}
+
+/// Decided 2026-11-30: an advance on salary ("avans") an admin paid an employee, in whole won,
+/// shown beside that month's worked hours. Never edited or deleted: a mistake is cancelled
+/// (with who and when) and logged again.
+model SalaryAdvance {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  employeeId     String    @map("employee_id") @db.Uuid
+  amount         Int
+  /// The organization's local date the money was transferred; the month it counts in.
+  paidOn         DateTime  @map("paid_on") @db.Date
+  note           String?
+  createdById    String    @map("created_by") @db.Uuid
+  cancelledAt    DateTime? @map("cancelled_at") @db.Timestamptz(3)
+  cancelledById  String?   @map("cancelled_by") @db.Uuid
+  cancelReason   String?   @map("cancel_reason")
+  version        Int       @default(1)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, paidOn])
+  @@index([organizationId, employeeId, paidOn])
+  @@map("salary_advances")
 }

@@ -351,16 +351,20 @@ export class ShiftsService {
       return {
         from: input.from,
         to: input.to,
-        employees: members.map((m) => {
-          const on = removed.get(m.id) ?? null;
-          return {
-            employee: m,
-            color: employeeColorIndex(m.id),
-            // Decided 2026-11-28: a removed person shows up to the day they were removed.
-            removedOn: on,
-            days: (days.get(m.id) ?? []).filter((d) => !on || d.date <= on),
-          };
-        }),
+        employees: members
+          .map((m) => {
+            const on = removed.get(m.id) ?? null;
+            return {
+              employee: m,
+              color: employeeColorIndex(m.id),
+              // Decided 2026-11-28: a removed person shows up to the day they were removed.
+              removedOn: on,
+              days: (days.get(m.id) ?? []).filter((d) => !on || d.date <= on),
+            };
+          })
+          // Decided 2026-11-30: a removed person is listed only in a range where they punched,
+          // so their hours stay visible in the weeks they worked and nowhere else.
+          .filter((e) => !e.removedOn || e.days.some((d) => d.sessions.length > 0)),
       };
     });
   }

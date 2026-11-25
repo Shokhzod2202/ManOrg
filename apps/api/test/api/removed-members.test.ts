@@ -138,6 +138,25 @@ describe('shifts after someone is removed', () => {
     await plan(w.a.employee, [0, 1]);
     // Their punch history is still there for the admin.
     await admin().get(`/punch?from=${from}&to=${today()}&employee_id=${leaver.userId}`).expect(200);
+    // Decided 2026-11-30: in a later range where they never punched, they are not listed.
+    const later = await admin()
+      .get(`/dashboard/shifts?from=${addDays(today(), 1)}&to=${addDays(today(), 7)}`)
+      .expect(200);
+    expect(
+      later.body.employees.map((e: { employee: { id: string } }) => e.employee.id),
+    ).not.toContain(leaver.userId);
+  });
+
+  it('drops a removed person who never punched from the shift dashboard', async () => {
+    const idle = await api.hireEmployee(w.a.id, w.a.admin, 'Never Punched');
+    await plan(idle, [0, 1, 2, 3, 4, 5, 6]);
+    await remove(idle);
+    const dash = await admin()
+      .get(`/dashboard/shifts?from=${addDays(today(), -6)}&to=${today()}`)
+      .expect(200);
+    expect(
+      dash.body.employees.map((e: { employee: { id: string } }) => e.employee.id),
+    ).not.toContain(idle.userId);
   });
 });
 

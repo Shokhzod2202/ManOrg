@@ -1196,6 +1196,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/work-hours": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Worked hours and advances for one month
+         * @description Decided 2026-11-30. Hours come from punch cards only, never the shift plan: a shift counts once ended, on the local date it started, paused time left out. Admins see everyone who works shifts (removed people only for months they worked or were paid in); anyone else sees only themselves (403 for another person).
+         */
+        get: operations["getWorkHours"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/salary-advances": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Log an advance on salary (avans)
+         * @description Admins log it when they transfer the money (decided 2026-11-30). paidOn defaults to today and may not be in the future. Audited. Never edited or deleted; cancel a mistake instead.
+         */
+        post: operations["createSalaryAdvance"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/salary-advances/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel a mistaken advance
+         * @description It stays listed as cancelled and no longer counts. Audited. 409 ALREADY_CANCELLED.
+         */
+        post: operations["cancelSalaryAdvance"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/punch-change-requests": {
         parameters: {
             query?: never;
@@ -2238,6 +2298,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/members/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Undo a removal
+         * @description Within 3 days of the removal (409 UNDO_EXPIRED after that; 409 ALREADY_MEMBER if they have applied or joined again). Admins need an owner. Work already handed over stays with its new person. Audited. Decided 2026-11-30.
+         */
+        post: operations["restoreMember"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/members/{id}/owner": {
         parameters: {
             query?: never;
@@ -2254,7 +2334,7 @@ export interface paths {
         post: operations["addOwner"];
         /**
          * Stop being an owner
-         * @description For your own membership only; owners never take ownership from each other. At least one owner stays (409 LAST_OWNER). You stay an admin. Audited.
+         * @description For your own membership, you stay an admin. Owners never take ownership from each other, except that for 3 days the owner who made someone an owner may undo it and the person returns to their earlier role (409 UNDO_EXPIRED after that; decided 2026-11-30). At least one owner stays (409 LAST_OWNER). Audited.
          */
         delete: operations["leaveOwnership"];
         options?: never;
@@ -2792,6 +2872,63 @@ export interface components {
             endTime: string;
             /** @description True for a night shift: it ends on the day after it starts. */
             endsNextDay: boolean;
+        };
+        SalaryAdvance: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            employeeId: string;
+            /** @description Whole won. */
+            amount: number;
+            /**
+             * Format: date
+             * @description The day the money was sent.
+             */
+            paidOn: string;
+            note: string | null;
+            /** Format: uuid */
+            createdById: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            cancelledAt: string | null;
+            cancelReason: string | null;
+        };
+        WorkHoursMonth: {
+            /** @example 2026-11 */
+            month: string;
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            /** Format: date */
+            today: string;
+            timezone: string;
+            people: {
+                employee: components["schemas"]["PersonRef"];
+                /** Format: date */
+                removedOn: string | null;
+                /** @description Finished shifts only. */
+                minutes: number;
+                daysWorked: number;
+                /** @description Shifts still open or never ended; counted once ended. */
+                unfinished: number;
+                days: {
+                    /** Format: date */
+                    date: string;
+                    minutes: number;
+                    shifts: number;
+                }[];
+                advances: {
+                    /** @description Cancelled advances do not count. */
+                    total: number;
+                    items: components["schemas"]["SalaryAdvance"][];
+                };
+            }[];
+            totals: {
+                minutes: number;
+                advances: number;
+            };
         };
         PersonRef: {
             /** Format: uuid */
@@ -3619,9 +3756,16 @@ export interface components {
             worksShifts: boolean;
             /**
              * Format: date-time
-             * @description When the person was removed (decided 2026-11-28).
+             * @description When the person was removed (decided 2026-11-28). The removal can be undone for 3 days (decided 2026-11-30).
              */
             removedAt: string | null;
+            /**
+             * Format: uuid
+             * @description The owner who made this person an owner; that owner may undo it for 3 days after ownerGrantedAt (decided 2026-11-30).
+             */
+            ownerGrantedBy?: string | null;
+            /** Format: date-time */
+            ownerGrantedAt?: string | null;
             /** @description The name the organization's admins gave the person; shown instead of the account name (user.name) everywhere inside the organization. */
             displayName: string | null;
             /** @description The person's title here, e.g. Head baker. */
@@ -6183,6 +6327,111 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    getWorkHours: {
+        parameters: {
+            query?: {
+                /** @description YYYY-MM; defaults to the current month in the organization's time zone. */
+                month?: string;
+                employee_id?: string;
+            };
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The month. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkHoursMonth"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createSalaryAdvance: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    employeeId: string;
+                    /** @description Whole won. */
+                    amount: number;
+                    /** Format: date */
+                    paidOn?: string;
+                    note?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The advance. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SalaryAdvance"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    cancelSalaryAdvance: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    reason?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The cancelled advance. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SalaryAdvance"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
     listPunchChangeRequests: {
         parameters: {
             query?: {
@@ -8137,6 +8386,35 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    restoreMember: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The member, active again. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Member"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
         };
     };
     addOwner: {

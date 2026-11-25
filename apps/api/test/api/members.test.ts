@@ -38,6 +38,8 @@ describe('GET /members', () => {
       owner: true,
       worksShifts: false,
       removedAt: null,
+      ownerGrantedBy: null,
+      ownerGrantedAt: null,
       displayName: null,
       title: null,
       version: 1,

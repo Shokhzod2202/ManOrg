@@ -78,6 +78,17 @@ export class MembersController {
     return this.members.handOver(user, org, id, body);
   }
 
+  /** Decided 2026-11-30: undo a removal within 3 days. */
+  @Post(':id/restore')
+  @HttpCode(200)
+  restore(
+    @CurrentUser() user: AuthUser,
+    @CurrentOrg() org: OrgContext,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.members.restore(user, org, id);
+  }
+
   /** Decided 2026-11-27: an owner makes another member an owner too. */
   @Post(':id/owner')
   @HttpCode(200)
@@ -89,7 +100,10 @@ export class MembersController {
     return this.members.shareOwnership(user, org, id);
   }
 
-  /** An owner stops being an owner (themselves only; at least one owner stays). */
+  /**
+   * An owner stops being an owner (themselves; at least one owner stays), or, within 3 days, the
+   * owner who made someone an owner undoes it (decided 2026-11-30).
+   */
   @Delete(':id/owner')
   leaveOwnership(
     @CurrentUser() user: AuthUser,

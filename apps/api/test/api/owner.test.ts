@@ -103,11 +103,12 @@ describe('owners', () => {
   });
 
   it('owners never take ownership from each other; each can stop being one, one stays', async () => {
-    // Another owner cannot demote, remove or un-own an owner.
+    // Another owner cannot demote, remove or un-own an owner (only the owner who made them one
+    // may undo it, for 3 days: decided 2026-11-30, see undo.test.ts).
     const res = await patchMember(second, await memberOf(worker.userId), { role: 'employee' });
     expect(res.body.error.code).toBe('OWNER_PROTECTED');
     await api
-      .as(second, orgId)
+      .as(owner, orgId)
       .delete(`/members/${(await memberOf(worker.userId)).id}/owner`)
       .expect(403);
     // Each steps down for themselves while another owner remains.
