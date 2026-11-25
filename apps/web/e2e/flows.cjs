@@ -740,13 +740,14 @@ async function as(b, email, vp = { width: 1280, height: 900 }) {
     let link = null;
     for (let i = 0; i < 20 && !link; i += 1) {
       const logText = fs.readFileSync(process.env.API_LOG, 'utf8');
-      const all = [
-        ...logText.matchAll(
-          /Email to ([^:]+): [^\n]*\n[\s\S]*?(http\S*\/reset-password\?token=[\w-]+)/g,
-        ),
-      ];
-      const mine = all.filter((m) => m[1] === email).at(-1);
-      link = mine ? mine[2].replace(/^http:\/\/localhost:3000/, W) : null;
+      // One email per "Email to" block, so a message without a link never reaches the next one.
+      const mine = logText
+        .split('Email to ')
+        .filter((block) => block.startsWith(`${email}:`))
+        .map((block) => /(http\S*\/reset-password\?token=[\w-]+)/.exec(block)?.[1])
+        .filter(Boolean)
+        .at(-1);
+      link = mine ? mine.replace(/^http:\/\/localhost:3000/, W) : null;
       if (!link) await visitor.waitForTimeout(500);
     }
     if (!link) throw new Error('No reset email in the API log');
@@ -765,6 +766,52 @@ async function as(b, email, vp = { width: 1280, height: 900 }) {
   } else {
     log('22 forgot password: skipped (set API_LOG to the API log file to run it)');
   }
+
+  // 23. Decided 2026-11-30. A product type made while adding a product; "By type" shows it as a
+  // heading; in "Custom order" the admin drags a product to the top and the order is kept.
+  const oshName = `Osh ${Date.now() % 100000}`;
+  const typeName = `Meal ${Date.now() % 100000}`;
+  await boss.goto(`${W}/app/products`);
+  await boss.click('button:has-text("New product")');
+  await boss.fill('form label:has-text("Name") input', oshName);
+  await boss.selectOption('form .field:has-text("Type") select', '__new');
+  await boss.fill('input[aria-label="New type name"]', typeName);
+  await boss.click('form .field:has-text("Type") button:has-text("Add")');
+  await boss.waitForSelector(`form .field:has-text("Type") select option:has-text("${typeName}")`, {
+    state: 'attached',
+  });
+  await boss.click('button:has-text("Add product")');
+  await boss.waitForSelector(`text=${oshName}`);
+  await boss.click('[role=tab]:has-text("By type")');
+  const heading = await boss
+    .waitForSelector(`tr.group th:has-text("${typeName}")`, { timeout: 8000 })
+    .then(
+      () => true,
+      () => false,
+    );
+  await boss.click('[role=tab]:has-text("Custom order")');
+  const rowsLoc = boss.locator('table.products tbody tr:not(.group)');
+  await rowsLoc.nth(1).waitFor();
+  const secondName = (await rowsLoc.nth(1).locator('td[data-label="Name"]').innerText()).trim();
+  const handle = rowsLoc.nth(1).locator('.drag-handle');
+  await handle.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+  const from = await handle.boundingBox();
+  const to = await rowsLoc.first().boundingBox();
+  await boss.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  await boss.mouse.down();
+  await boss.mouse.move(from.x + from.width / 2, to.y + 2, { steps: 12 });
+  await boss.mouse.up();
+  await boss.waitForTimeout(1500);
+  await boss.reload();
+  await rowsLoc.first().waitFor();
+  const firstName = (await rowsLoc.first().locator('td[data-label="Name"]').innerText()).trim();
+  log(
+    '23 type heading shown:',
+    heading,
+    '| dragged to the top and kept:',
+    firstName === secondName,
+  );
+  if (!heading || firstName !== secondName) throw new Error('Product types or custom order failed');
 
   await b.close();
 })().catch((e) => {

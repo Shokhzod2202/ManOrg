@@ -15,6 +15,8 @@ export const updateMeSchema = z
         ordersView: z.enum(['list', 'matrix', 'products']).optional(),
         /** Spec section 9: the employee can turn the arrival prompt off. */
         arrivalPrompt: z.boolean().optional(),
+        /** Decided 2026-11-30: how product lists are sorted. */
+        productSort: z.enum(['custom', 'name', 'type']).optional(),
       })
       .optional(),
   })

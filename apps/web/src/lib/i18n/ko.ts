@@ -746,4 +746,19 @@ export const ko: Record<string, string> = {
   "{name}'s products": '{name}의 제품',
   'This reset link has expired or was already used. Ask for a new one.':
     '재설정 링크가 만료되었거나 이미 사용되었습니다. 새 링크를 요청하세요.',
+  '+ New type…': '+ 새 종류…',
+  'A to Z': '가나다순',
+  'By type': '종류별',
+  'Custom order': '지정 순서',
+  'Drag {name} to a new place': '{name}을(를) 끌어서 옮기기',
+  'Drag ⠿ (or use the arrows) to set the order. Everyone who chooses Custom order sees products in this order.':
+    '⠿를 끌거나 화살표로 순서를 정하세요. ‘지정 순서’를 고른 모든 사람이 이 순서로 제품을 봅니다.',
+  'Move {name} down': '{name} 아래로',
+  'Move {name} up': '{name} 위로',
+  'New type name': '새 종류 이름',
+  'No type': '종류 없음',
+  'Sort products': '제품 정렬',
+  'e.g. Meal, Bakery': '예: 식사, 베이커리',
+  'Not a product type here.': '이 조직의 제품 종류가 아닙니다.',
+  'Another type has this name.': '같은 이름의 종류가 있습니다.',
 };

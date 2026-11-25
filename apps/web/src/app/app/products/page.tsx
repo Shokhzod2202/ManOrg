@@ -1,23 +1,48 @@
 'use client';
 
-import { type FormEvent, useEffect, useState } from 'react';
+import {
+  type FormEvent,
+  type PointerEvent as ReactPointerEvent,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { Empty, ErrorBox, Loading, PageHead } from '../../../components/ui';
 import { api, type ApiError, get, patch, post, put, type Schemas } from '../../../lib/api';
-import { useApi } from '../../../lib/use-api';
+import { groupByType, SortPicker, sortProducts, useProductSort } from '../../../lib/product-sort';
+import { refreshApi, useApi } from '../../../lib/use-api';
 import { t } from '../../../lib/i18n';
 
 type Product = Schemas['Product'];
 type Member = Schemas['Member'];
 
-/** PRD-1 to PRD-3: products A to Z, no categories (decision 2026-11-14). */
+type ProductType = Schemas['ProductType'];
+const sortKey = (p: Product) => ({
+  name: p.name,
+  sortOrder: p.sortOrder,
+  typeName: p.type?.name ?? null,
+});
+
+/**
+ * PRD-1 to PRD-3. Decided 2026-11-30: products have types, and three sorts (custom, A to Z, by
+ * type). In the custom order the admin drags products into place, with a finger or a mouse.
+ */
 export default function ProductsPage() {
   const { data, error, loading, reload } = useApi<{ items: Product[] }>('/products');
   const [q, setQ] = useState('');
   const [err, setErr] = useState<ApiError | null>(null);
   const [editing, setEditing] = useState<Product | null>(null);
-  const items = [...(data?.items ?? [])]
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .filter((p) => p.name.toLowerCase().includes(q.toLowerCase()));
+  const [mode] = useProductSort();
+  // While dragging or saving, the order on screen comes from here.
+  const [draft, setDraft] = useState<string[] | null>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const rows = useRef(new Map<string, HTMLTableRowElement>());
+  const canDrag = mode === 'custom' && !q.trim();
+
+  const sorted = sortProducts(data?.items ?? [], mode, sortKey);
+  const byId = new Map(sorted.map((p) => [p.id, p]));
+  const ordered = draft ? draft.map((id) => byId.get(id)).filter((p): p is Product => !!p) : sorted;
+  const items = ordered.filter((p) => p.name.toLowerCase().includes(q.toLowerCase()));
 
   async function toggle(p: Product) {
     setErr(null);
@@ -29,9 +54,88 @@ export default function ProductsPage() {
     }
   }
 
+  async function saveOrder(ids: string[]) {
+    setErr(null);
+    setDraft(ids);
+    try {
+      await put('/products/order', { productIds: ids });
+      await reload();
+      refreshApi('/catalog', '/orders', '/employees');
+    } catch (e) {
+      setErr(e as ApiError);
+    } finally {
+      setDraft(null);
+    }
+  }
+
+  function move(id: string, by: number) {
+    const ids = items.map((p) => p.id);
+    const i = ids.indexOf(id);
+    const j = i + by;
+    if (i < 0 || j < 0 || j >= ids.length) return;
+    [ids[i], ids[j]] = [ids[j]!, ids[i]!];
+    void saveOrder(ids);
+  }
+
+  // Drag with pointer events, so it works with a finger in the phone and Telegram apps too. The
+  // window follows the pointer: the dragged row moves in the page, which would lose a capture.
+  const drag = useRef<{ id: string; order: string[] } | null>(null);
+  function dragStart(e: ReactPointerEvent, id: string) {
+    e.preventDefault();
+    drag.current = { id, order: items.map((p) => p.id) };
+    startOrder.current = drag.current.order;
+    setDragId(id);
+    setDraft(drag.current.order);
+  }
+  useEffect(() => {
+    if (!dragId) return;
+    const onMove = (e: PointerEvent) => {
+      const d = drag.current;
+      if (!d) return;
+      const others = d.order.filter((x) => x !== d.id);
+      let at = 0;
+      for (const id of others) {
+        const r = rows.current.get(id)?.getBoundingClientRect();
+        if (r && e.clientY > r.top + r.height / 2) at += 1;
+      }
+      const next = [...others];
+      next.splice(at, 0, d.id);
+      if (next.join() !== d.order.join()) {
+        d.order = next;
+        setDraft(next);
+      }
+    };
+    const onUp = () => {
+      const d = drag.current;
+      drag.current = null;
+      setDragId(null);
+      if (!d) return;
+      // Only save when the order really changed.
+      if (d.order.join() !== startOrder.current.join()) void saveOrder(d.order);
+      else setDraft(null);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+    // The handlers read the drag from refs; they only need re-binding when a drag starts.
+  }, [dragId]);
+  const startOrder = useRef<string[]>([]);
+
+  const groups =
+    mode === 'type' && !draft
+      ? groupByType(items, sortKey)
+      : [{ type: undefined as string | null | undefined, items }];
+
   return (
     <div className="page">
-      <PageHead title={t('Products')} sub={data ? `${data.items.length} products` : undefined} />
+      <PageHead title={t('Products')} sub={data ? `${data.items.length} products` : undefined}>
+        <SortPicker />
+      </PageHead>
       {editing ? (
         <ProductForm
           key={editing.id}
@@ -51,60 +155,191 @@ export default function ProductsPage() {
         onChange={(e) => setQ(e.target.value)}
         aria-label={t('Search products')}
       />
+      {canDrag && items.length > 1 ? (
+        <p className="muted small" style={{ margin: 0 }}>
+          {t(
+            'Drag ⠿ (or use the arrows) to set the order. Everyone who chooses Custom order sees products in this order.',
+          )}
+        </p>
+      ) : null}
       {loading && !data ? <Loading /> : null}
       <ErrorBox error={error ?? err} onRetry={reload} />
       {data && !data.items.length ? (
         <Empty>{t('No products yet. Add the first one above.')}</Empty>
       ) : null}
       {items.length ? (
-        <table className="t cards">
+        <table className="t cards products">
           <thead>
             <tr>
+              {canDrag ? <th /> : null}
               <th />
               <th>{t('Name')}</th>
+              <th>{t('Type')}</th>
               <th>{t('Price')}</th>
               <th>{t('Minutes per 10')}</th>
               <th>{t('Ingredients')}</th>
               <th>{t('Status')}</th>
             </tr>
           </thead>
-          <tbody>
-            {items.map((p) => (
-              <tr key={p.id}>
-                <td data-label="">
-                  <img className="thumb" src={p.imageUrl} alt="" />
-                </td>
-                <td data-label={t('Name')}>
-                  <button
-                    type="button"
-                    className="btn ghost"
-                    onClick={() => {
-                      setEditing(p);
-                      window.scrollTo({ top: 0, behavior: 'smooth' });
-                    }}
-                    aria-label={`Edit ${p.name}`}
-                  >
-                    {p.name}
-                  </button>
-                </td>
-                <td data-label={t('Price')}>
-                  <PriceCell product={p} onSaved={reload} />
-                </td>
-                <td data-label={t('Minutes per 10')}>{p.minutesPer10}</td>
-                <td data-label={t('Ingredients')} className="small">
-                  {p.ingredients.map((i) => i.name).join(', ') || '—'}
-                </td>
-                <td data-label={t('Status')}>
-                  <button className={p.available ? 'btn ghost' : 'btn'} onClick={() => toggle(p)}>
-                    {p.available ? t('Available') : t('Hidden')}
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
+          {groups.map((g) => (
+            <tbody key={g.type ?? 'all'}>
+              {g.type !== undefined ? (
+                <tr className="group">
+                  <th colSpan={8}>{g.type ?? t('No type')}</th>
+                </tr>
+              ) : null}
+              {g.items.map((p, i) => (
+                <tr
+                  key={p.id}
+                  ref={(el) => {
+                    if (el) rows.current.set(p.id, el);
+                    else rows.current.delete(p.id);
+                  }}
+                  className={dragId === p.id ? 'dragging' : undefined}
+                >
+                  {canDrag ? (
+                    <td data-label="" className="order-cell">
+                      <span className="row" style={{ gap: 4 }}>
+                        <button
+                          type="button"
+                          className="drag-handle"
+                          aria-label={t('Drag {name} to a new place', { name: p.name })}
+                          onPointerDown={(e) => dragStart(e, p.id)}
+                        >
+                          ⠿
+                        </button>
+                        <button
+                          type="button"
+                          className="btn ghost small-btn"
+                          disabled={i === 0 || draft !== null}
+                          aria-label={t('Move {name} up', { name: p.name })}
+                          onClick={() => move(p.id, -1)}
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          className="btn ghost small-btn"
+                          disabled={i === g.items.length - 1 || draft !== null}
+                          aria-label={t('Move {name} down', { name: p.name })}
+                          onClick={() => move(p.id, 1)}
+                        >
+                          ↓
+                        </button>
+                      </span>
+                    </td>
+                  ) : null}
+                  <td data-label="">
+                    <img className="thumb" src={p.imageUrl} alt="" />
+                  </td>
+                  <td data-label={t('Name')}>
+                    <button
+                      type="button"
+                      className="btn ghost"
+                      onClick={() => {
+                        setEditing(p);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      aria-label={t('Edit {name}', { name: p.name })}
+                    >
+                      {p.name}
+                    </button>
+                  </td>
+                  <td data-label={t('Type')} className="small">
+                    {p.type?.name ?? '—'}
+                  </td>
+                  <td data-label={t('Price')}>
+                    <PriceCell product={p} onSaved={reload} />
+                  </td>
+                  <td data-label={t('Minutes per 10')}>{p.minutesPer10}</td>
+                  <td data-label={t('Ingredients')} className="small">
+                    {p.ingredients.map((x) => x.name).join(', ') || '—'}
+                  </td>
+                  <td data-label={t('Status')}>
+                    <button className={p.available ? 'btn ghost' : 'btn'} onClick={() => toggle(p)}>
+                      {p.available ? t('Available') : t('Hidden')}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          ))}
         </table>
       ) : null}
       <AssignProducts products={data?.items ?? []} />
+    </div>
+  );
+}
+
+/**
+ * Decided 2026-11-30: the product's type. "+ New type…" makes a new one on the spot (e.g. Meal for
+ * osh and moshkichir, Bakery for bread and somsa).
+ */
+function TypePicker({ value, onChange }: { value: string; onChange: (id: string) => void }) {
+  const types = useApi<{ items: ProductType[] }>('/product-types');
+  const [adding, setAdding] = useState(false);
+  const [name, setName] = useState('');
+  const [err, setErr] = useState<ApiError | null>(null);
+
+  async function add() {
+    if (!name.trim()) return;
+    setErr(null);
+    try {
+      const created = await post<ProductType>('/product-types', { name: name.trim() });
+      await types.reload();
+      onChange(created.id);
+      setAdding(false);
+      setName('');
+    } catch (e) {
+      setErr(e as ApiError);
+    }
+  }
+
+  return (
+    <div className="field">
+      {t('Type')}
+      {adding ? (
+        <span className="row" style={{ gap: 6 }}>
+          <input
+            className="input"
+            autoFocus
+            maxLength={60}
+            placeholder={t('e.g. Meal, Bakery')}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                void add();
+              }
+            }}
+            aria-label={t('New type name')}
+          />
+          <button type="button" className="btn" onClick={() => void add()}>
+            {t('Add')}
+          </button>
+          <button type="button" className="btn ghost" onClick={() => setAdding(false)}>
+            {t('Cancel')}
+          </button>
+        </span>
+      ) : (
+        <select
+          value={value}
+          onChange={(e) => {
+            if (e.target.value === '__new') setAdding(true);
+            else onChange(e.target.value);
+          }}
+        >
+          <option value="">{t('No type')}</option>
+          {types.data?.items.map((x) => (
+            <option key={x.id} value={x.id}>
+              {x.name}
+            </option>
+          ))}
+          <option value="__new">{t('+ New type…')}</option>
+        </select>
+      )}
+      <ErrorBox error={err} />
     </div>
   );
 }
@@ -116,6 +351,7 @@ function ProductForm({ product, onDone }: { product?: Product; onDone: () => voi
   const [minutes, setMinutes] = useState(product?.minutesPer10 ?? 30);
   const [file, setFile] = useState<File | null>(null);
   const [price, setPrice] = useState('');
+  const [typeId, setTypeId] = useState(product?.type?.id ?? '');
   const [err, setErr] = useState<ApiError | null>(null);
   const [busy, setBusy] = useState(false);
   const ingredients = useApi<{ items: { id: string; name: string }[] }>(
@@ -146,6 +382,7 @@ function ProductForm({ product, onDone }: { product?: Product; onDone: () => voi
             : { ingredientId };
         }),
         ...(imageKey ? { imageKey } : {}),
+        typeId: typeId || null,
       };
       if (product) await patch(`/products/${product.id}`, body, { ifMatch: product.version });
       else
@@ -155,6 +392,7 @@ function ProductForm({ product, onDone }: { product?: Product; onDone: () => voi
         });
       setName('');
       setPrice('');
+      setTypeId('');
       setFile(null);
       setUses(new Set());
       setOpen(false);
@@ -206,6 +444,7 @@ function ProductForm({ product, onDone }: { product?: Product; onDone: () => voi
           </label>
         )}
       </div>
+      <TypePicker value={typeId} onChange={setTypeId} />
       <div className="field">
         {t('Ingredients (optional, can be added later)')}
         <div className="row wrap">

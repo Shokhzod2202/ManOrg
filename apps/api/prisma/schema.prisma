@@ -260,6 +260,7 @@ model Organization {
   punchEvents                PunchEvent[]
   punchChangeRequests        PunchChangeRequest[]
   products                   Product[]
+  productTypes               ProductType[]
   ingredients                Ingredient[]
   productIngredients         ProductIngredient[]
   employeeProducts           EmployeeProduct[]
@@ -425,12 +426,17 @@ model Product {
   /// Minutes an employee needs to prepare 10 units.
   minutesPer10   Int       @map("minutes_per_10")
   available      Boolean   @default(true)
+  /// Decided 2026-11-30: the product's type (e.g. Meal, Bakery), and its place in the admin's
+  /// custom order.
+  typeId         String?   @map("type_id") @db.Uuid
+  sortOrder      Int       @default(0) @map("sort_order")
   deletedAt      DateTime? @map("deleted_at") @db.Timestamptz(3)
   version        Int       @default(1)
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   organization     Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  type             ProductType?        @relation(fields: [typeId], references: [id], onDelete: SetNull)
   ingredients      ProductIngredient[]
   employeeProducts EmployeeProduct[]
   outputEntries    OutputEntry[]
@@ -438,6 +444,22 @@ model Product {
 
   @@unique([id, organizationId])
   @@map("products")
+}
+
+/// Decided 2026-11-30: kinds of product an organization sells, e.g. Meal (osh, moshkichir) or
+/// Bakery (bread, somsa). Admins create them while adding or editing products.
+model ProductType {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  name           String
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  products     Product[]
+
+  @@unique([organizationId, name])
+  @@map("product_types")
 }
 
 /// Ordering time schedule: weekly day and time (open question 14), e.g. Tuesday 18:00.

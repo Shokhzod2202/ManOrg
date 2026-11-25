@@ -148,6 +148,7 @@ describe('preferences (decided 2026-11-13)', () => {
     expect((await api.as(fresh).get('/me').expect(200)).body.preferences).toEqual({
       ordersView: 'products',
       arrivalPrompt: true,
+      productSort: 'custom',
     });
     await api
       .as(fresh)
@@ -157,6 +158,7 @@ describe('preferences (decided 2026-11-13)', () => {
     expect((await api.as(fresh).get('/me').expect(200)).body.preferences).toEqual({
       ordersView: 'matrix',
       arrivalPrompt: true,
+      productSort: 'custom',
     });
     await api
       .as(fresh)

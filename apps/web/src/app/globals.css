@@ -1076,3 +1076,47 @@ fieldset.who legend {
   background: #fff4e5;
   color: var(--warn-ink, #7a4b00);
 }
+
+/* Decided 2026-11-30: dragging products into the custom order, with a finger or a mouse. */
+.drag-handle {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink-2);
+  font-size: 20px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.drag-handle:active {
+  cursor: grabbing;
+}
+tr.dragging td {
+  background: var(--soft);
+}
+tr.group th {
+  text-align: left;
+  background: var(--soft);
+  color: var(--primary-dark, var(--primary));
+  font-weight: 700;
+  padding: 8px 12px;
+}
+.small-btn {
+  min-height: 36px;
+  min-width: 36px;
+  padding: 0 8px;
+}
+/* A product type heading in a list sorted by type. */
+.type-heading {
+  padding: 10px 8px 4px;
+  font-weight: 700;
+  color: var(--primary);
+  border-bottom: 1px solid var(--border);
+}
+/* The whole cell around the handle: a finger there drags instead of scrolling the page. */
+.order-cell,
+.order-cell * {
+  touch-action: none;
+}

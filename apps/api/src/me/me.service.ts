@@ -195,13 +195,21 @@ export class MeService {
 function readPreferences(stored: unknown): {
   ordersView: 'list' | 'matrix' | 'products';
   arrivalPrompt: boolean;
+  productSort: 'custom' | 'name' | 'type';
 } {
-  const p = (stored ?? {}) as { ordersView?: unknown; arrivalPrompt?: unknown };
+  const p = (stored ?? {}) as {
+    ordersView?: unknown;
+    arrivalPrompt?: unknown;
+    productSort?: unknown;
+  };
   return {
     ordersView:
       p.ordersView === 'list' || p.ordersView === 'matrix' || p.ordersView === 'products'
         ? p.ordersView
         : 'products',
     arrivalPrompt: p.arrivalPrompt !== false,
+    // Decided 2026-11-30: how product lists are sorted: the admin's custom order (default), A to
+    // Z, or by product type.
+    productSort: p.productSort === 'name' || p.productSort === 'type' ? p.productSort : 'custom',
   };
 }

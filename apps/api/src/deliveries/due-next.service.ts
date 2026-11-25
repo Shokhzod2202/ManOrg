@@ -147,6 +147,16 @@ export class DueNextService {
         },
       }),
     ]);
+    // Decided 2026-11-30: each line carries its product's place and type, so the board sorts
+    // like the product list (custom, A to Z or by type).
+    const products = new Map(
+      (
+        await tx.product.findMany({
+          where: { organizationId: providerId },
+          select: { id: true, sortOrder: true, type: { select: { name: true } } },
+        })
+      ).map((p) => [p.id, { sortOrder: p.sortOrder, typeName: p.type?.name ?? null }]),
+    );
     const isDone = new Set(done.map((d) => `${d.contractorOrgId}:${isoOf(d.deliveryDate)}`));
     const next = new Map<string, (typeof orders)[number]>();
     for (const o of orders) {
@@ -184,6 +194,8 @@ export class DueNextService {
             lineId: l.id,
             productId: l.productId,
             productName: l.productName,
+            sortOrder: products.get(l.productId)?.sortOrder ?? 0,
+            typeName: products.get(l.productId)?.typeName ?? null,
             quantity: l.quantity,
             madeQuantity: l.madeQuantity,
           })),
@@ -200,13 +212,22 @@ export class DueNextService {
 
 /** TOD-4: totals match the sum of the orders due next; made shows production progress. */
 function totals(
-  lines: { productId: string; productName: string; quantity: number; madeQuantity: number }[],
+  lines: {
+    productId: string;
+    productName: string;
+    sortOrder: number;
+    typeName: string | null;
+    quantity: number;
+    madeQuantity: number;
+  }[],
 ) {
   const map = new Map<
     string,
     {
       productId: string;
       productName: string;
+      sortOrder: number;
+      typeName: string | null;
       quantity: number;
       madeQuantity: number;
       done: boolean;
@@ -216,6 +237,8 @@ function totals(
     const t = map.get(l.productId) ?? {
       productId: l.productId,
       productName: l.productName,
+      sortOrder: l.sortOrder,
+      typeName: l.typeName,
       quantity: 0,
       madeQuantity: 0,
       done: false,

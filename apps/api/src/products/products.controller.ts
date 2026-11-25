@@ -29,7 +29,14 @@ import {
   updateProductSchema,
 } from './products.schemas';
 import { MAX_PRODUCT_IMAGE_BYTES, ProductsService } from './products.service';
-import { type SetProductPriceInput, setProductPriceSchema } from './products.schemas';
+import {
+  type ProductOrderInput,
+  productOrderSchema,
+  type ProductTypeInput,
+  productTypeSchema,
+  type SetProductPriceInput,
+  setProductPriceSchema,
+} from './products.schemas';
 
 @Controller()
 export class ProductsController {
@@ -129,5 +136,44 @@ export class ProductsController {
     @ZodBody(setEmployeeProductsSchema) body: SetEmployeeProductsInput,
   ) {
     return this.products.setEmployeeProducts(user, org, id, body);
+  }
+
+  /** Decided 2026-11-30: product types (e.g. Meal, Bakery), made while adding or editing products. */
+  @Get('product-types')
+  @RequireOrg('products.manage')
+  listTypes(@CurrentUser() user: AuthUser, @CurrentOrg() org: OrgContext) {
+    return this.products.listTypes(user, org);
+  }
+
+  @Post('product-types')
+  @RequireOrg('products.manage')
+  createType(
+    @CurrentUser() user: AuthUser,
+    @CurrentOrg() org: OrgContext,
+    @ZodBody(productTypeSchema) body: ProductTypeInput,
+  ) {
+    return this.products.createType(user, org, body);
+  }
+
+  @Patch('product-types/:id')
+  @RequireOrg('products.manage')
+  renameType(
+    @CurrentUser() user: AuthUser,
+    @CurrentOrg() org: OrgContext,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @ZodBody(productTypeSchema) body: ProductTypeInput,
+  ) {
+    return this.products.renameType(user, org, id, body);
+  }
+
+  /** Decided 2026-11-30: the admin's custom product order (drag and drop on Products). */
+  @Put('products/order')
+  @RequireOrg('products.manage')
+  setOrder(
+    @CurrentUser() user: AuthUser,
+    @CurrentOrg() org: OrgContext,
+    @ZodBody(productOrderSchema) body: ProductOrderInput,
+  ) {
+    return this.products.setOrder(user, org, body);
   }
 }

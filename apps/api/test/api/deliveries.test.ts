@@ -127,6 +127,8 @@ describe("Today's Orders and My Orders (TOD-1 to TOD-7)", () => {
       {
         productId: w.a.productId,
         productName: 'Alpha Bread',
+        sortOrder: expect.any(Number),
+        typeName: null,
         quantity: 30,
         madeQuantity: 0,
         done: false,
@@ -160,7 +162,15 @@ describe("Today's Orders and My Orders (TOD-1 to TOD-7)", () => {
     await api.as(joon, w.a.id).get(`/employees/${w.a.employee.userId}/orders/due-next`).expect(403);
     const adminView = await admin().get(`/employees/${joon.userId}/orders/due-next`).expect(200);
     expect(adminView.body.totals).toEqual([
-      { productId: pilaf, productName: 'Pilaf', quantity: 12, madeQuantity: 0, done: false },
+      {
+        productId: pilaf,
+        productName: 'Pilaf',
+        sortOrder: expect.any(Number),
+        typeName: null,
+        quantity: 12,
+        madeQuantity: 0,
+        done: false,
+      },
     ]);
   });
 

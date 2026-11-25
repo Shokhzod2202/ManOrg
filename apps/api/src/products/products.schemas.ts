@@ -29,6 +29,8 @@ export const createProductSchema = z.strictObject({
   minutesPer10,
   ingredients: ingredients.default([]),
   unitPrice: z.number().int('Use whole won.').min(0).max(100_000_000).optional(),
+  /** Decided 2026-11-30: the product type (null for none). */
+  typeId: z.uuid().nullable().optional(),
   available: z.boolean().default(true),
 });
 
@@ -39,6 +41,7 @@ export const updateProductSchema = z
     imageKey: imageKey.optional(),
     minutesPer10: minutesPer10.optional(),
     ingredients: ingredients.optional(),
+    typeId: z.uuid().nullable().optional(),
     available: z.boolean().optional(),
   })
   .refine((v) => Object.values(v).some((x) => x !== undefined), 'Send at least one field.');
@@ -57,3 +60,15 @@ export const setProductPriceSchema = z.strictObject({
   unitPrice: z.number().int('Use whole won.').min(0).max(100_000_000),
 });
 export type SetProductPriceInput = z.infer<typeof setProductPriceSchema>;
+
+/** Decided 2026-11-30: a product type such as Meal or Bakery, created by an admin. */
+export const productTypeSchema = z.strictObject({
+  name: z.string().trim().min(1, 'Enter a name.').max(60, 'Use at most 60 characters.'),
+});
+export type ProductTypeInput = z.infer<typeof productTypeSchema>;
+
+/** Decided 2026-11-30: the admin's custom order, as the whole list of product ids, first first. */
+export const productOrderSchema = z.strictObject({
+  productIds: z.array(z.uuid()).min(1).max(2000),
+});
+export type ProductOrderInput = z.infer<typeof productOrderSchema>;

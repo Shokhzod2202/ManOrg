@@ -52,6 +52,8 @@ describe("Today's Dashboard (DSH-1)", () => {
       {
         productId: w.a.productId,
         productName: 'Alpha Bread',
+        sortOrder: expect.any(Number),
+        typeName: null,
         quantity: 30,
         madeQuantity: 0,
         done: false,

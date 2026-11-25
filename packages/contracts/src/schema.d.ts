@@ -421,6 +421,64 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/product-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Product types (decided 2026-11-30) */
+        get: operations["listProductTypes"];
+        put?: never;
+        /**
+         * Add a product type, e.g. Meal or Bakery
+         * @description The same name again (any letter case) returns the existing type. Audited.
+         */
+        post: operations["createProductType"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/product-types/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Rename a product type */
+        patch: operations["renameProductType"];
+        trace?: never;
+    };
+    "/products/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Save the custom product order
+         * @description The product ids in the wanted order, first first (drag and drop on Products). Products left out keep their order after them. Audited (decided 2026-11-30).
+         */
+        put: operations["setProductOrder"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/products/{id}/price": {
         parameters: {
             query?: never;
@@ -2657,6 +2715,10 @@ export interface components {
             /** Format: uuid */
             id: string;
             name: string;
+            /** @description The product's type, e.g. Meal or Bakery (decided 2026-11-30). */
+            type: components["schemas"]["ProductType"] | null;
+            /** @description Place in the admin's custom order. */
+            sortOrder: number;
             imageKey: string;
             /** @description Short-lived link to the picture. */
             imageUrl: string;
@@ -2684,6 +2746,11 @@ export interface components {
             ingredients: components["schemas"]["ProductIngredientInput"][];
             /** @description Whole won per unit (F-001). Needs prices.manage. */
             unitPrice?: number;
+            /**
+             * Format: uuid
+             * @description The product's type (from /product-types); null for none.
+             */
+            typeId?: string | null;
             /** @default true */
             available: boolean;
         };
@@ -2692,6 +2759,11 @@ export interface components {
             imageKey?: string;
             minutesPer10?: number;
             ingredients?: components["schemas"]["ProductIngredientInput"][];
+            /**
+             * Format: uuid
+             * @description The product's type (from /product-types); null for none.
+             */
+            typeId?: string | null;
             available?: boolean;
         };
         /** @enum {string} */
@@ -3193,6 +3265,10 @@ export interface components {
             id: string;
             name: string;
             imageUrl: string;
+            /** @description The product's type, e.g. Meal or Bakery (decided 2026-11-30). */
+            type: components["schemas"]["ProductType"] | null;
+            /** @description Place in the admin's custom order. */
+            sortOrder: number;
             /** @description F-001: price per unit delivered, in won. */
             unitPrice: number | null;
         };
@@ -3395,6 +3471,8 @@ export interface components {
                 /** Format: uuid */
                 productId: string;
                 productName: string;
+                sortOrder: number;
+                typeName: string | null;
                 quantity: number;
             }[];
         };
@@ -3402,6 +3480,10 @@ export interface components {
             /** Format: uuid */
             productId: string;
             productName: string;
+            /** @description Place in the admin's custom order (decided 2026-11-30). */
+            sortOrder: number;
+            /** @description The product's type. */
+            typeName: string | null;
             quantity: number;
             madeQuantity: number;
             done: boolean;
@@ -3462,7 +3544,17 @@ export interface components {
             contractorId?: string;
             made: boolean;
         };
+        ProductType: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+        };
         Preferences: {
+            /**
+             * @description How product lists are sorted: the admin's custom order (default), A to Z, or by type (decided 2026-11-30).
+             * @enum {string}
+             */
+            productSort?: "custom" | "name" | "type";
             /**
              * @description How the person sees orders; stays until they change it. Default products.
              * @enum {string}
@@ -4322,6 +4414,139 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    listProductTypes: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A to Z. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["ProductType"][];
+                        nextCursor: components["schemas"]["NextCursor"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createProductType: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The type. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductType"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    renameProductType: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The type. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductType"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    setProductOrder: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    productIds: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description The whole order now. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        productIds: string[];
+                    };
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     setProductPrice: {

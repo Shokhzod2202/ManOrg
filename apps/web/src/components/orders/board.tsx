@@ -1,5 +1,6 @@
 'use client';
 
+import { sortProducts, useProductSort } from '../../lib/product-sort';
 import { useEffect, useState } from 'react';
 import { type ApiError, formatDate, post, type Schemas } from '../../lib/api';
 import { useSession } from '../../lib/session';
@@ -57,6 +58,7 @@ export function OrdersBoard({
   const path =
     wall || target === 'all' ? '/orders/due-next' : `/employees/${target}/orders/due-next`;
   const { data, error, loading, reload } = useApi<DueNext>(path, refreshMs);
+  const [productSort] = useProductSort();
   const [busy, setBusy] = useState<string | null>(null);
   const [markError, setMarkError] = useState<ApiError | null>(null);
   const view: View = wall ? 'products' : (s.me?.preferences?.ordersView ?? 'products');
@@ -95,6 +97,8 @@ export function OrdersBoard({
             const tm = m.get(l.productId) ?? {
               productId: l.productId,
               productName: l.productName,
+              sortOrder: l.sortOrder,
+              typeName: l.typeName,
               quantity: 0,
               madeQuantity: 0,
               done: false,
@@ -107,7 +111,12 @@ export function OrdersBoard({
           .values(),
       ]
     : data.totals;
-  const totals = [...baseTotals].sort((a, b) => a.productName.localeCompare(b.productName));
+  // Decided 2026-11-30: the person's product sort (custom, A to Z or by type).
+  const totals = sortProducts(baseTotals, productSort, (x) => ({
+    name: x.productName,
+    sortOrder: x.sortOrder,
+    typeName: x.typeName,
+  }));
   const orders = [...shownOrders].sort(
     (a, b) =>
       (a.approxTime?.start ?? '99').localeCompare(b.approxTime?.start ?? '99') ||

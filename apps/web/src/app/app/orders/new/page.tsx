@@ -1,7 +1,8 @@
 'use client';
 
+import { SortPicker, sortProducts, useProductSort } from '../../../../lib/product-sort';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Empty, ErrorBox, Loading, PageHead } from '../../../../components/ui';
 import { type ApiError, formatDate, get, post, type Schemas, today } from '../../../../lib/api';
 import { useApi } from '../../../../lib/use-api';
@@ -46,9 +47,16 @@ export default function NewOrderPage() {
       .catch((e: ApiError) => setError(e));
   }, [providerId]);
 
+  const [productSort] = useProductSort();
+  // Decided 2026-11-30: the bakery's custom order, A to Z, or by type (the person's choice).
   const shown = useMemo(
-    () => (catalog ?? []).filter((i) => i.name.toLowerCase().includes(q.toLowerCase())),
-    [catalog, q],
+    () =>
+      sortProducts(
+        (catalog ?? []).filter((i) => i.name.toLowerCase().includes(q.toLowerCase())),
+        productSort,
+        (i) => ({ name: i.name, sortOrder: i.sortOrder, typeName: i.type?.name ?? null }),
+      ),
+    [catalog, q, productSort],
   );
   const count = Object.values(qty).filter((n) => n > 0).length;
   const units = Object.values(qty).reduce((a, b) => a + (b > 0 ? b : 0), 0);
@@ -130,6 +138,7 @@ export default function NewOrderPage() {
           <input type="date" value={date} min={today()} onChange={(e) => setDate(e.target.value)} />
         </label>
       </div>
+      <SortPicker />
       <input
         className="input"
         placeholder={t('Search products')}
@@ -143,31 +152,36 @@ export default function NewOrderPage() {
         <Empty>{t('This bakery has no products to order yet.')}</Empty>
       ) : (
         <div className="card" style={{ padding: 8 }}>
-          {shown.map((i) => (
-            <div
-              key={i.id}
-              className="row between"
-              style={{ padding: '6px 8px', borderBottom: '1px solid #f1f3f8' }}
-            >
-              <span className="row">
-                <img className="thumb" src={i.imageUrl} alt="" />
-                <span>
-                  {i.name}
-                  {i.unitPrice !== null ? (
-                    <span className="muted small"> · ₩{i.unitPrice.toLocaleString('en-US')}</span>
-                  ) : null}
+          {shown.map((i, n) => (
+            <Fragment key={i.id}>
+              {productSort === 'type' && (n === 0 || shown[n - 1]!.type?.name !== i.type?.name) ? (
+                <div className="type-heading">{i.type?.name ?? t('Other')}</div>
+              ) : null}
+              <div
+                key={i.id}
+                className="row between"
+                style={{ padding: '6px 8px', borderBottom: '1px solid #f1f3f8' }}
+              >
+                <span className="row">
+                  <img className="thumb" src={i.imageUrl} alt="" />
+                  <span>
+                    {i.name}
+                    {i.unitPrice !== null ? (
+                      <span className="muted small"> · ₩{i.unitPrice.toLocaleString('en-US')}</span>
+                    ) : null}
+                  </span>
                 </span>
-              </span>
-              <input
-                className="input qty"
-                type="number"
-                min={0}
-                inputMode="numeric"
-                aria-label={t('{name} quantity', { name: i.name })}
-                value={qty[i.id] ?? ''}
-                onChange={(e) => setQty({ ...qty, [i.id]: Math.max(0, Number(e.target.value)) })}
-              />
-            </div>
+                <input
+                  className="input qty"
+                  type="number"
+                  min={0}
+                  inputMode="numeric"
+                  aria-label={t('{name} quantity', { name: i.name })}
+                  value={qty[i.id] ?? ''}
+                  onChange={(e) => setQty({ ...qty, [i.id]: Math.max(0, Number(e.target.value)) })}
+                />
+              </div>
+            </Fragment>
           ))}
         </div>
       )}

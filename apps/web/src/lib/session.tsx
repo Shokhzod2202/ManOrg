@@ -30,6 +30,8 @@ interface SessionValue {
   reload: () => Promise<void>;
   chooseOrg: (id: string) => void;
   setOrdersView: (view: 'list' | 'matrix' | 'products') => Promise<void>;
+  /** Decided 2026-11-30: custom order, A to Z, or by product type; kept on the account. */
+  setProductSort: (sort: 'custom' | 'name' | 'type') => Promise<void>;
   /** Changes the language here and, when signed in, on the account (phase 3). */
   setLanguage: (locale: Locale) => void;
 }
@@ -146,6 +148,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         phoneAppOrg(id);
         session.setOrg(id);
         setOrgId(id);
+      },
+      setProductSort: async (sort) => {
+        if (me) setMe({ ...me, preferences: { ...me.preferences, productSort: sort } });
+        const updated = await patch<Me>(
+          '/me',
+          { preferences: { productSort: sort } },
+          { org: null },
+        );
+        setMe(updated);
       },
       setOrdersView: async (view) => {
         const updated = await patch<Me>(

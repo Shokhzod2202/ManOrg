@@ -73,8 +73,15 @@ export async function createTenantWithEveryTable(label: string): Promise<TenantF
     await tx.punchChangeRequest.create({
       data: { ...org, employeeId: employee!.id, shiftDate: new Date('2026-11-02') },
     });
+    const type = await tx.productType.create({ data: { ...org, name: 'Bakery' } });
     const product = await tx.product.create({
-      data: { ...org, name: 'Bread', imageUrl: 'products/bread.jpg', minutesPer10: 12 },
+      data: {
+        ...org,
+        name: 'Bread',
+        imageUrl: 'products/bread.jpg',
+        minutesPer10: 12,
+        typeId: type.id,
+      },
     });
     const ingredient = await tx.ingredient.create({
       data: { ...org, name: 'Flour', source: 'Mill', packQuantity: 20, packUnit: 'kg' },

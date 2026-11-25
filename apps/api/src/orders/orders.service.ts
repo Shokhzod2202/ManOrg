@@ -49,11 +49,14 @@ export class OrdersService {
       await this.enterProvider(tx, org, providerId);
       const products = await tx.product.findMany({
         where: { organizationId: providerId, available: true, deletedAt: null },
-        orderBy: [{ name: 'asc' }, { id: 'asc' }],
+        // Decided 2026-11-30: the bakery's custom order; the screen can also sort A to Z or by type.
+        orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }, { id: 'asc' }],
         select: {
           id: true,
           name: true,
           imageUrl: true,
+          sortOrder: true,
+          type: { select: { id: true, name: true } },
           prices: {
             orderBy: [{ effectiveFrom: 'desc' }, { createdAt: 'desc' }],
             take: 1,
@@ -67,6 +70,8 @@ export class OrdersService {
             id: p.id,
             name: p.name,
             imageUrl: await this.storage.signedUrl(p.imageUrl),
+            type: p.type,
+            sortOrder: p.sortOrder,
             // F-001: the price the contractor will pay per unit delivered.
             unitPrice: p.prices[0]?.unitPrice ?? null,
           })),

@@ -1,5 +1,6 @@
 'use client';
 
+import { sortProducts, useProductSort } from '../../../lib/product-sort';
 import { useEffect, useState } from 'react';
 import { Empty, ErrorBox, Flag, Loading, PageHead } from '../../../components/ui';
 import {
@@ -31,6 +32,7 @@ function MyOutput() {
   const { me } = useSession();
   const [date, setDate] = useState(today());
   const products = useApi<{ items: Product[] }>(me ? `/employees/${me.id}/products` : null);
+  const [productSort] = useProductSort();
   const teams = useApi<{ items: Team[] }>('/teams');
   const history = useApi<History>(`/output?from=${date}&to=${date}`);
   const [mode, setMode] = useState<string>('personal');
@@ -75,7 +77,12 @@ function MyOutput() {
   }
 
   const day = history.data?.days.find((d) => d.date === date);
-  const list = [...(products.data?.items ?? [])].sort((a, b) => a.name.localeCompare(b.name));
+  // Decided 2026-11-30: in the person's chosen product sort.
+  const list = sortProducts(products.data?.items ?? [], productSort, (p) => ({
+    name: p.name,
+    sortOrder: p.sortOrder,
+    typeName: p.type?.name ?? null,
+  }));
   const current = qty[mode] ?? {};
 
   return (

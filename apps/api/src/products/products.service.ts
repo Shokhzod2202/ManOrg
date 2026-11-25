@@ -11,6 +11,8 @@ import {
   type CreateProductInput,
   type SetEmployeeProductsInput,
   type UpdateProductInput,
+  type ProductOrderInput,
+  type ProductTypeInput,
 } from './products.schemas';
 
 /** Product pictures: JPEG, PNG or WebP up to 5 MB, detected from the bytes. */
@@ -23,7 +25,15 @@ const include = {
   },
   // F-001 FIN-1: the latest price row is the current price.
   prices: { orderBy: [{ effectiveFrom: 'desc' }, { createdAt: 'desc' }], take: 1 },
+  type: { select: { id: true, name: true } },
 } satisfies Prisma.ProductInclude;
+
+/** Decided 2026-11-30: the custom order first; A to Z for products not placed yet. */
+const ORDER = [
+  { sortOrder: 'asc' },
+  { name: 'asc' },
+  { id: 'asc' },
+] satisfies Prisma.ProductOrderByWithRelationInput[];
 
 type Row = Prisma.ProductGetPayload<{ include: typeof include }>;
 
@@ -62,7 +72,7 @@ export class ProductsService {
     return this.db.run(dbContext(user, org), async (tx) => {
       const rows = await tx.product.findMany({
         where: { organizationId: org.organizationId, deletedAt: null },
-        orderBy: [{ name: 'asc' }, { id: 'asc' }],
+        orderBy: ORDER,
         include,
       });
       return { items: await Promise.all(rows.map((r) => this.present(r))), nextCursor: null };
@@ -81,10 +91,18 @@ export class ProductsService {
       if (input.imageKey !== undefined) await this.assertImage(org, input.imageKey);
       await this.assertIngredients(tx, org, input.ingredients);
       const imageKey = input.imageKey ?? (await this.placeholderImage(org));
+      if (input.typeId) await this.assertType(tx, org, input.typeId);
+      // A new product goes to the end of the custom order.
+      const last = await tx.product.aggregate({
+        where: { organizationId: org.organizationId },
+        _max: { sortOrder: true },
+      });
       const product = await tx.product.create({
         data: {
           organizationId: org.organizationId,
           name: input.name,
+          typeId: input.typeId ?? null,
+          sortOrder: (last._max.sortOrder ?? 0) + 1,
           imageUrl: imageKey,
           minutesPer10: input.minutesPer10,
           available: input.available,
@@ -134,10 +152,12 @@ export class ProductsService {
       if (before.version !== version) throw Errors.versionConflict();
       if (input.imageKey !== undefined) await this.assertImage(org, input.imageKey);
       if (input.ingredients) await this.assertIngredients(tx, org, input.ingredients);
+      if (input.typeId) await this.assertType(tx, org, input.typeId);
       const result = await tx.product.updateMany({
         where: { id, version },
         data: {
           ...(input.name !== undefined ? { name: input.name } : {}),
+          ...(input.typeId !== undefined ? { typeId: input.typeId } : {}),
           ...(input.imageKey !== undefined ? { imageUrl: input.imageKey } : {}),
           ...(input.minutesPer10 !== undefined ? { minutesPer10: input.minutesPer10 } : {}),
           ...(input.available !== undefined ? { available: input.available } : {}),
@@ -243,7 +263,7 @@ export class ProductsService {
         deletedAt: null,
         employeeProducts: { some: { employeeId } },
       },
-      orderBy: [{ name: 'asc' }, { id: 'asc' }],
+      orderBy: ORDER,
       include,
     });
     return Promise.all(rows.map((r) => this.present(r, orgCan(org, 'finance.view'))));
@@ -293,6 +313,118 @@ export class ProductsService {
     return row;
   }
 
+  // ---------------------------------------------------- types and custom order (2026-11-30)
+
+  listTypes(user: AuthUser, org: OrgContext) {
+    return this.db.run(dbContext(user, org), async (tx) => ({
+      items: await tx.productType.findMany({
+        where: { organizationId: org.organizationId },
+        orderBy: { name: 'asc' },
+        select: { id: true, name: true },
+      }),
+      nextCursor: null,
+    }));
+  }
+
+  /** Creates a type; the same name again returns the existing one. Audited. */
+  createType(user: AuthUser, org: OrgContext, input: ProductTypeInput) {
+    return this.db.run(dbContext(user, org), async (tx) => {
+      const existing = await tx.productType.findFirst({
+        where: {
+          organizationId: org.organizationId,
+          name: { equals: input.name, mode: 'insensitive' },
+        },
+        select: { id: true, name: true },
+      });
+      if (existing) return existing;
+      const type = await tx.productType.create({
+        data: { organizationId: org.organizationId, name: input.name },
+        select: { id: true, name: true },
+      });
+      await this.audit.record(tx, {
+        organizationId: org.organizationId,
+        actor: actorFor(user),
+        action: 'product_type.create',
+        entity: 'product_type',
+        entityId: type.id,
+        after: type,
+      });
+      return type;
+    });
+  }
+
+  renameType(user: AuthUser, org: OrgContext, id: string, input: ProductTypeInput) {
+    return this.db.run(dbContext(user, org), async (tx) => {
+      const before = await this.assertType(tx, org, id);
+      const clash = await tx.productType.findFirst({
+        where: {
+          organizationId: org.organizationId,
+          name: { equals: input.name, mode: 'insensitive' },
+          NOT: { id },
+        },
+      });
+      if (clash) throw Errors.conflict('TYPE_EXISTS', 'Another type has this name.');
+      const after = await tx.productType.update({
+        where: { id },
+        data: { name: input.name },
+        select: { id: true, name: true },
+      });
+      await this.audit.record(tx, {
+        organizationId: org.organizationId,
+        actor: actorFor(user),
+        action: 'product_type.rename',
+        entity: 'product_type',
+        entityId: id,
+        before,
+        after,
+      });
+      return after;
+    });
+  }
+
+  /**
+   * Saves the custom order: the given products in this order, first first. Products left out keep
+   * their relative order after them. Audited.
+   */
+  setOrder(user: AuthUser, org: OrgContext, input: ProductOrderInput) {
+    return this.db.run(dbContext(user, org), async (tx) => {
+      const all = await tx.product.findMany({
+        where: { organizationId: org.organizationId, deletedAt: null },
+        orderBy: ORDER,
+        select: { id: true },
+      });
+      const known = new Set(all.map((p) => p.id));
+      const unknown = input.productIds.filter((id) => !known.has(id));
+      if (unknown.length) {
+        throw Errors.validation({ productIds: [`Not products here: ${unknown.join(', ')}.`] });
+      }
+      const listed = [...new Set(input.productIds)];
+      const order = [...listed, ...all.map((p) => p.id).filter((id) => !listed.includes(id))];
+      for (const [i, id] of order.entries()) {
+        await tx.product.update({ where: { id }, data: { sortOrder: i + 1 } });
+      }
+      await this.audit.record(tx, {
+        organizationId: org.organizationId,
+        actor: actorFor(user),
+        action: 'product.reorder',
+        entity: 'organization',
+        entityId: org.organizationId,
+        before: { productIds: all.map((p) => p.id) },
+        after: { productIds: order },
+      });
+      return { productIds: order };
+    });
+  }
+
+  private async assertType(tx: Tx, org: OrgContext, id: string) {
+    const type = await tx.productType.findFirst({
+      where: { id, organizationId: org.organizationId },
+      select: { id: true, name: true },
+    });
+    if (!type) throw Errors.validation({ typeId: ['Not a product type here.'] });
+    return type;
+  }
+
   private async present(row: Row, showPrice = true) {
     return {
       id: row.id,
@@ -301,6 +433,8 @@ export class ProductsService {
       imageUrl: await this.storage.signedUrl(row.imageUrl),
       minutesPer10: row.minutesPer10,
       available: row.available,
+      type: row.type,
+      sortOrder: row.sortOrder,
       ingredients: row.ingredients.map((i) => ({
         id: i.ingredient.id,
         name: i.ingredient.name,

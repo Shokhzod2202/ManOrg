@@ -755,4 +755,19 @@ export const uz: Record<string, string> = {
   "{name}'s products": '{name} mahsulotlari',
   'This reset link has expired or was already used. Ask for a new one.':
     'Bu tiklash havolasi eskirgan yoki ishlatilgan. Yangisini soʻrang.',
+  '+ New type…': '+ Yangi tur…',
+  'A to Z': 'A dan Z gacha',
+  'By type': 'Turi boʻyicha',
+  'Custom order': 'Maxsus tartib',
+  'Drag {name} to a new place': '{name} ni yangi joyga sudrash',
+  'Drag ⠿ (or use the arrows) to set the order. Everyone who chooses Custom order sees products in this order.':
+    'Tartibni belgilash uchun ⠿ ni suring (yoki strelkalardan foydalaning). “Maxsus tartib”ni tanlagan har kim mahsulotlarni shu tartibda koʻradi.',
+  'Move {name} down': '{name} ni pastga',
+  'Move {name} up': '{name} ni yuqoriga',
+  'New type name': 'Yangi tur nomi',
+  'No type': 'Tursiz',
+  'Sort products': 'Mahsulotlarni saralash',
+  'e.g. Meal, Bakery': 'masalan: Taom, Non mahsuloti',
+  'Not a product type here.': 'Bu yerdagi mahsulot turi emas.',
+  'Another type has this name.': 'Bu nomli boshqa tur bor.',
 };
