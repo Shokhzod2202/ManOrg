@@ -2788,8 +2788,10 @@ export interface components {
         ProductIngredientInput: {
             /** Format: uuid */
             ingredientId: string;
-            /** @description Optional amount for 10 units, in the ingredient's pack unit (assumption, spec section 7). */
-            quantityPer10?: number;
+            /** @description How much one batch needs, in `unit` (decided 2026-12-01). Optional; null clears it; left out keeps the amount already saved. */
+            quantity?: number | null;
+            /** @description Defaults to the ingredient's pack unit; must be the same kind (g or kg, mL or L, pc). */
+            unit?: components["schemas"]["PackUnit"];
         };
         Product: {
             /** Format: uuid */
@@ -2811,8 +2813,23 @@ export interface components {
                 /** Format: uuid */
                 id: string;
                 name: string;
-                quantityPer10: number | null;
+                /** @description Per batch (decided 2026-12-01). */
+                quantity: number | null;
+                unit: components["schemas"]["PackUnit"] | null;
+                packUnit: components["schemas"]["PackUnit"];
+                /** @description Admins only. This line's cost at today's ingredient price, whole won; null without an amount or a price. */
+                cost?: number | null;
             }[];
+            /** @description How many pieces one batch makes (decided 2026-12-01). */
+            batchYield?: number | null;
+            /** @description Admins only (prices.manage). What one batch costs at today's ingredient prices. */
+            cost?: {
+                perBatch: number | null;
+                /** @description Needs batchYield. */
+                perPiece: number | null;
+                /** @description Ingredients without an amount or a price */
+                missing: number;
+            };
             version: number;
             /** Format: date-time */
             createdAt: string;
@@ -2831,6 +2848,8 @@ export interface components {
              * @description The product's type (from /product-types); null for none.
              */
             typeId?: string | null;
+            /** @description How many pieces one batch makes. */
+            batchYield?: number | null;
             /** @default true */
             available: boolean;
         };
@@ -2844,6 +2863,7 @@ export interface components {
              * @description The product's type (from /product-types); null for none.
              */
             typeId?: string | null;
+            batchYield?: number | null;
             available?: boolean;
         };
         /** @enum {string} */

@@ -4,7 +4,8 @@ import { Errors } from '../common/errors';
 import { type AuthUser, dbContext, orgCan, type OrgContext } from '../common/request-context';
 import { DatabaseService } from '../database/database.service';
 import { type Tx } from '../database/prisma-client';
-import { type Prisma } from '../generated/prisma/client';
+import { type PackUnit, type Prisma } from '../generated/prisma/client';
+import { batchCost, lineCost, sameKind } from './batch-cost';
 import { CONTENT_TYPES, newKey, parseKey, sniffImage } from '../storage/storage-keys';
 import { StorageService } from '../storage/storage.service';
 import {
@@ -20,8 +21,25 @@ export const MAX_PRODUCT_IMAGE_BYTES = 5 * 1024 * 1024;
 
 const include = {
   ingredients: {
-    include: { ingredient: { select: { id: true, name: true } } },
-    orderBy: { createdAt: 'asc' },
+    include: {
+      ingredient: {
+        select: {
+          id: true,
+          name: true,
+          packQuantity: true,
+          packUnit: true,
+          // The price per pack in force now: prices take effect when saved, so the latest row
+          // (decided 2026-11-12: append-only history).
+          prices: {
+            orderBy: [{ effectiveFrom: 'desc' }, { createdAt: 'desc' }],
+            take: 1,
+            select: { packPrice: true },
+          },
+        },
+      },
+    },
+    // Lines saved together share a time, so they are listed A to Z.
+    orderBy: [{ ingredient: { name: 'asc' } }, { ingredientId: 'asc' }],
   },
   // F-001 FIN-1: the latest price row is the current price.
   prices: { orderBy: [{ effectiveFrom: 'desc' }, { createdAt: 'desc' }], take: 1 },
@@ -75,13 +93,17 @@ export class ProductsService {
         orderBy: ORDER,
         include,
       });
-      return { items: await Promise.all(rows.map((r) => this.present(r))), nextCursor: null };
+      const costs = orgCan(org, 'prices.manage');
+      return {
+        items: await Promise.all(rows.map((r) => this.present(r, true, costs))),
+        nextCursor: null,
+      };
     });
   }
 
   get(user: AuthUser, org: OrgContext, id: string) {
     return this.db.run(dbContext(user, org), async (tx) =>
-      this.present(await this.find(tx, org, id)),
+      this.present(await this.find(tx, org, id), true, orgCan(org, 'prices.manage')),
     );
   }
 
@@ -89,7 +111,7 @@ export class ProductsService {
     return this.db.run(dbContext(user, org), async (tx) => {
       if (input.unitPrice !== undefined && !orgCan(org, 'prices.manage')) throw Errors.forbidden();
       if (input.imageKey !== undefined) await this.assertImage(org, input.imageKey);
-      await this.assertIngredients(tx, org, input.ingredients);
+      const lines = await this.ingredientLines(tx, org, input.ingredients, []);
       const imageKey = input.imageKey ?? (await this.placeholderImage(org));
       if (input.typeId) await this.assertType(tx, org, input.typeId);
       // A new product goes to the end of the custom order.
@@ -105,14 +127,10 @@ export class ProductsService {
           sortOrder: (last._max.sortOrder ?? 0) + 1,
           imageUrl: imageKey,
           minutesPer10: input.minutesPer10,
+          batchYield: input.batchYield ?? null,
           available: input.available,
           // organization_id comes from the product through the composite key.
-          ingredients: {
-            create: input.ingredients.map((i) => ({
-              ingredientId: i.ingredientId,
-              quantityPer10: i.quantityPer10 ?? null,
-            })),
-          },
+          ingredients: { create: lines },
         },
         include,
       });
@@ -124,7 +142,8 @@ export class ProductsService {
         entityId: product.id,
         after: snapshot(product),
       });
-      if (input.unitPrice === undefined) return this.present(product);
+      const costs = orgCan(org, 'prices.manage');
+      if (input.unitPrice === undefined) return this.present(product, true, costs);
       await tx.productPrice.create({
         data: {
           organizationId: org.organizationId,
@@ -142,7 +161,7 @@ export class ProductsService {
         before: { unitPrice: null },
         after: { unitPrice: input.unitPrice },
       });
-      return this.present(await this.find(tx, org, product.id));
+      return this.present(await this.find(tx, org, product.id), true, costs);
     });
   }
 
@@ -151,7 +170,9 @@ export class ProductsService {
       const before = await this.find(tx, org, id);
       if (before.version !== version) throw Errors.versionConflict();
       if (input.imageKey !== undefined) await this.assertImage(org, input.imageKey);
-      if (input.ingredients) await this.assertIngredients(tx, org, input.ingredients);
+      const lines = input.ingredients
+        ? await this.ingredientLines(tx, org, input.ingredients, before.ingredients)
+        : null;
       if (input.typeId) await this.assertType(tx, org, input.typeId);
       const result = await tx.product.updateMany({
         where: { id, version },
@@ -160,20 +181,16 @@ export class ProductsService {
           ...(input.typeId !== undefined ? { typeId: input.typeId } : {}),
           ...(input.imageKey !== undefined ? { imageUrl: input.imageKey } : {}),
           ...(input.minutesPer10 !== undefined ? { minutesPer10: input.minutesPer10 } : {}),
+          ...(input.batchYield !== undefined ? { batchYield: input.batchYield } : {}),
           ...(input.available !== undefined ? { available: input.available } : {}),
           version: { increment: 1 },
         },
       });
       if (result.count !== 1) throw Errors.versionConflict();
-      if (input.ingredients) {
+      if (lines) {
         await tx.productIngredient.deleteMany({ where: { productId: id } });
         await tx.productIngredient.createMany({
-          data: input.ingredients.map((i) => ({
-            organizationId: org.organizationId,
-            productId: id,
-            ingredientId: i.ingredientId,
-            quantityPer10: i.quantityPer10 ?? null,
-          })),
+          data: lines.map((l) => ({ organizationId: org.organizationId, productId: id, ...l })),
         });
       }
       const after = await this.find(tx, org, id);
@@ -189,7 +206,7 @@ export class ProductsService {
         before: snapshot(before),
         after: snapshot(after),
       });
-      return this.present(after);
+      return this.present(after, true, orgCan(org, 'prices.manage'));
     });
   }
 
@@ -290,11 +307,25 @@ export class ProductsService {
     }
   }
 
-  private async assertIngredients(tx: Tx, org: OrgContext, list: { ingredientId: string }[]) {
+  /**
+   * Checks the ingredients belong here and turns the request into rows. Decided 2026-12-01: the
+   * amount is per batch, in the ingredient's pack unit unless another of the same kind is given;
+   * an item without `quantity` keeps the amount already saved for that ingredient.
+   */
+  private async ingredientLines(
+    tx: Tx,
+    org: OrgContext,
+    list: { ingredientId: string; quantity?: number | null; unit?: PackUnit }[],
+    current: {
+      ingredientId: string;
+      batchQuantity: Prisma.Decimal | null;
+      batchUnit: PackUnit | null;
+    }[],
+  ) {
     const ids = list.map((i) => i.ingredientId);
     const found = await tx.ingredient.findMany({
       where: { id: { in: ids }, organizationId: org.organizationId, deletedAt: null },
-      select: { id: true },
+      select: { id: true, name: true, packUnit: true },
     });
     if (found.length !== new Set(ids).size) {
       const known = new Set(found.map((i) => i.id));
@@ -302,6 +333,30 @@ export class ProductsService {
         ingredients: ids.filter((i) => !known.has(i)).map((i) => `${i} is not an ingredient here.`),
       });
     }
+    const byId = new Map(found.map((i) => [i.id, i]));
+    const saved = new Map(current.map((c) => [c.ingredientId, c]));
+    const wrong: string[] = [];
+    const lines = list.map((i) => {
+      const ingredient = byId.get(i.ingredientId)!;
+      if (i.quantity === undefined) {
+        const keep = saved.get(i.ingredientId);
+        return {
+          ingredientId: i.ingredientId,
+          batchQuantity: keep?.batchQuantity ?? null,
+          batchUnit: keep?.batchUnit ?? null,
+        };
+      }
+      if (i.quantity === null) {
+        return { ingredientId: i.ingredientId, batchQuantity: null, batchUnit: null };
+      }
+      const unit = i.unit ?? ingredient.packUnit;
+      if (!sameKind(unit, ingredient.packUnit)) {
+        wrong.push(`${ingredient.name} is counted in ${ingredient.packUnit}; use a matching unit.`);
+      }
+      return { ingredientId: i.ingredientId, batchQuantity: i.quantity, batchUnit: unit };
+    });
+    if (wrong.length) throw Errors.validation({ ingredients: wrong });
+    return lines;
   }
 
   private async find(tx: Tx, org: OrgContext, id: string): Promise<Row> {
@@ -425,7 +480,20 @@ export class ProductsService {
     return type;
   }
 
-  private async present(row: Row, showPrice = true) {
+  /**
+   * `costs` (admins with prices.manage): each ingredient line's cost and the batch's cost at
+   * today's ingredient prices (decided 2026-12-01).
+   */
+  private async present(row: Row, showPrice = true, costs = false) {
+    const lineCosts = row.ingredients.map((i) =>
+      lineCost(
+        i.batchQuantity === null ? null : Number(i.batchQuantity.toString()),
+        i.batchUnit,
+        Number(i.ingredient.packQuantity.toString()),
+        i.ingredient.packUnit,
+        i.ingredient.prices[0]?.packPrice ?? null,
+      ),
+    );
     return {
       id: row.id,
       name: row.name,
@@ -435,11 +503,16 @@ export class ProductsService {
       available: row.available,
       type: row.type,
       sortOrder: row.sortOrder,
-      ingredients: row.ingredients.map((i) => ({
+      batchYield: row.batchYield,
+      ingredients: row.ingredients.map((i, n) => ({
         id: i.ingredient.id,
         name: i.ingredient.name,
-        quantityPer10: i.quantityPer10 === null ? null : Number(i.quantityPer10.toString()),
+        quantity: i.batchQuantity === null ? null : Number(i.batchQuantity.toString()),
+        unit: i.batchUnit,
+        packUnit: i.ingredient.packUnit,
+        ...(costs ? { cost: lineCosts[n] === null ? null : Math.round(lineCosts[n]!) } : {}),
       })),
+      ...(costs ? { cost: batchCost(lineCosts, row.batchYield) } : {}),
       ...(showPrice ? { unitPrice: row.prices[0]?.unitPrice ?? null } : {}),
       version: row.version,
       createdAt: row.createdAt,
@@ -467,7 +540,7 @@ export class ProductsService {
         before: { unitPrice: before.prices[0]?.unitPrice ?? null },
         after: { unitPrice, effectiveFrom: row.effectiveFrom },
       });
-      return this.present(await this.find(tx, org, id));
+      return this.present(await this.find(tx, org, id), true, true);
     });
   }
 
@@ -497,9 +570,11 @@ function snapshot(row: Row) {
     imageKey: row.imageUrl,
     minutesPer10: row.minutesPer10,
     available: row.available,
+    batchYield: row.batchYield,
     ingredients: row.ingredients.map((i) => ({
       ingredientId: i.ingredientId,
-      quantityPer10: i.quantityPer10 === null ? null : i.quantityPer10.toString(),
+      batchQuantity: i.batchQuantity === null ? null : i.batchQuantity.toString(),
+      batchUnit: i.batchUnit,
     })),
   };
 }

@@ -840,4 +840,35 @@ export const uz: Record<string, string> = {
   Confirm: 'Tasdiqlash',
   'No products left: this cancels the order. Continue?':
     'Mahsulot qolmadi: buyurtma bekor qilinadi. Davom etasizmi?',
+  'Drag ⠿ to set the order. Everyone who chooses Custom order sees products in this order.':
+    'Tartibni ⠿ ni sudrab belgilang. «Oʻz tartibi»ni tanlagan hamma mahsulotlarni shu tartibda koʻradi.',
+  'Price per piece (won)': 'Bir dona narxi (von)',
+  'One batch makes (pieces)': 'Bir partiyadan chiqadi (dona)',
+  Optional: 'Ixtiyoriy',
+  'One batch needs (optional, can be added later)':
+    'Bir partiyaga kerak (ixtiyoriy, keyin qoʻshish mumkin)',
+  'Amount of {name} per batch': 'Bir partiyaga {name} miqdori',
+  'Unit of {name}': '{name} birligi',
+  'Take {name} out of the batch': '{name}ni partiyadan olib tashlash',
+  'Add an ingredient': 'Ingredient qoʻshish',
+  '+ Add an ingredient…': '+ Ingredient qoʻshish…',
+  'No price': 'Narx yoʻq',
+  'More about {name}': '{name} haqida batafsil',
+  Cost: 'Tannarx',
+  'Add ingredient amounts and prices to see the cost.':
+    'Tannarxni koʻrish uchun ingredient miqdori va narxlarini kiriting.',
+  '{amount} per batch': 'Partiyasi {amount}',
+  '{amount} each': 'Donasi {amount}',
+  '(price {price}, leaves {left})': '(narx {price}, qoladi {left})',
+  '{n} without amount or price': '{n} ta miqdor yoki narxsiz',
+  '1 batch (makes {n}) needs': '1 partiya ({n} dona) uchun kerak',
+  '1 batch needs': '1 partiyaga kerak',
+  'amount not set': 'miqdor kiritilmagan',
+  'No ingredients yet. Add them with Edit.': 'Hali ingredientlar yoʻq. Tahrirlash orqali qoʻshing.',
+  'Recipe: coming soon. Step-by-step instructions with timers set by admins.':
+    'Retsept: tez orada. Adminlar belgilagan taymerlar bilan bosqichma-bosqich koʻrsatma.',
+  'Hide from orders': 'Buyurtmalardan yashirish',
+  'Show in orders': 'Buyurtmalarda koʻrsatish',
+  'Move up': 'Yuqoriga',
+  'Move down': 'Pastga',
 };

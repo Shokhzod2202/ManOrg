@@ -436,6 +436,8 @@ model Product {
   /// custom order.
   typeId         String?   @map("type_id") @db.Uuid
   sortOrder      Int       @default(0) @map("sort_order")
+  /// Decided 2026-12-01: how many pieces one batch makes (optional), for the cost per piece.
+  batchYield     Int?      @map("batch_yield")
   deletedAt      DateTime? @map("deleted_at") @db.Timestamptz(3)
   version        Int       @default(1)
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -516,12 +518,16 @@ model IngredientPrice {
 
 /// quantity_per_10 is an assumption: the notebook lists ingredients without amounts.
 model ProductIngredient {
-  organizationId String   @map("organization_id") @db.Uuid
-  productId      String   @map("product_id") @db.Uuid
-  ingredientId   String   @map("ingredient_id") @db.Uuid
-  quantityPer10  Decimal? @map("quantity_per_10") @db.Decimal(12, 3)
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  organizationId String    @map("organization_id") @db.Uuid
+  productId      String    @map("product_id") @db.Uuid
+  ingredientId   String    @map("ingredient_id") @db.Uuid
+  /// Decided 2026-12-01: how much of the ingredient one batch of the product needs, in a unit
+  /// of the same kind as the ingredient's pack unit (g or kg, mL or L, pc). Replaces the earlier
+  /// quantity per 10 units.
+  batchQuantity  Decimal?  @map("batch_quantity") @db.Decimal(12, 3)
+  batchUnit      PackUnit? @map("batch_unit")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   product      Product      @relation(fields: [productId, organizationId], references: [id, organizationId], onDelete: Cascade)

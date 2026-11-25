@@ -8,8 +8,13 @@ const ingredients = z
   .array(
     z.strictObject({
       ingredientId: z.uuid(),
-      /** Assumption (spec section 7): amounts are optional. */
-      quantityPer10: z.number().positive().max(1_000_000).optional(),
+      /**
+       * Decided 2026-12-01: how much one batch needs, in `unit` (defaults to the ingredient's pack
+       * unit; must be the same kind: g or kg, mL or L, pc). Optional; null clears it, and leaving
+       * it out keeps the amount already saved.
+       */
+      quantity: z.number().positive().max(1_000_000).nullable().optional(),
+      unit: z.enum(['g', 'kg', 'pc', 'L', 'mL']).optional(),
     }),
   )
   .max(100)
@@ -31,6 +36,8 @@ export const createProductSchema = z.strictObject({
   unitPrice: z.number().int('Use whole won.').min(0).max(100_000_000).optional(),
   /** Decided 2026-11-30: the product type (null for none). */
   typeId: z.uuid().nullable().optional(),
+  /** Decided 2026-12-01: how many pieces one batch makes (null for not set). */
+  batchYield: z.number().int().min(1).max(1_000_000).nullable().optional(),
   available: z.boolean().default(true),
 });
 
@@ -42,6 +49,7 @@ export const updateProductSchema = z
     minutesPer10: minutesPer10.optional(),
     ingredients: ingredients.optional(),
     typeId: z.uuid().nullable().optional(),
+    batchYield: z.number().int().min(1).max(1_000_000).nullable().optional(),
     available: z.boolean().optional(),
   })
   .refine((v) => Object.values(v).some((x) => x !== undefined), 'Send at least one field.');

@@ -7,7 +7,8 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Empty, ErrorBox, Loading, PageHead } from '../../../components/ui';
+import { won } from '../../../components/orders/value';
+import { Empty, ErrorBox, Icon, Loading, PageHead } from '../../../components/ui';
 import { api, type ApiError, get, patch, post, put, type Schemas } from '../../../lib/api';
 import { groupByType, SortPicker, sortProducts, useProductSort } from '../../../lib/product-sort';
 import { refreshApi, useApi } from '../../../lib/use-api';
@@ -36,7 +37,7 @@ export default function ProductsPage() {
   // While dragging or saving, the order on screen comes from here.
   const [draft, setDraft] = useState<string[] | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
-  const rows = useRef(new Map<string, HTMLTableRowElement>());
+  const rows = useRef(new Map<string, HTMLElement>());
   const canDrag = mode === 'custom' && !q.trim();
 
   const sorted = sortProducts(data?.items ?? [], mode, sortKey);
@@ -136,18 +137,7 @@ export default function ProductsPage() {
       <PageHead title={t('Products')} sub={data ? `${data.items.length} products` : undefined}>
         <SortPicker />
       </PageHead>
-      {editing ? (
-        <ProductForm
-          key={editing.id}
-          product={editing}
-          onDone={() => {
-            setEditing(null);
-            reload();
-          }}
-        />
-      ) : (
-        <ProductForm onDone={reload} />
-      )}
+      <ProductForm onDone={reload} />
       <input
         className="input"
         placeholder={t('Search products')}
@@ -158,7 +148,7 @@ export default function ProductsPage() {
       {canDrag && items.length > 1 ? (
         <p className="muted small" style={{ margin: 0 }}>
           {t(
-            'Drag ⠿ (or use the arrows) to set the order. Everyone who chooses Custom order sees products in this order.',
+            'Drag ⠿ to set the order. Everyone who chooses Custom order sees products in this order.',
           )}
         </p>
       ) : null}
@@ -168,103 +158,38 @@ export default function ProductsPage() {
         <Empty>{t('No products yet. Add the first one above.')}</Empty>
       ) : null}
       {items.length ? (
-        <table className="t cards products">
-          <thead>
-            <tr>
-              {canDrag ? <th /> : null}
-              <th />
-              <th>{t('Name')}</th>
-              <th>{t('Type')}</th>
-              <th>{t('Price')}</th>
-              <th>{t('Minutes per 10')}</th>
-              <th>{t('Ingredients')}</th>
-              <th>{t('Status')}</th>
-            </tr>
-          </thead>
+        <div className="plist">
           {groups.map((g) => (
-            <tbody key={g.type ?? 'all'}>
+            <div key={g.type ?? 'all'} className="plist-group">
               {g.type !== undefined ? (
-                <tr className="group">
-                  <th colSpan={8}>{g.type ?? t('No type')}</th>
-                </tr>
+                <h3 className="plist-type">{g.type ?? t('No type')}</h3>
               ) : null}
               {g.items.map((p, i) => (
-                <tr
+                <ProductRow
                   key={p.id}
-                  ref={(el) => {
+                  product={p}
+                  rowRef={(el) => {
                     if (el) rows.current.set(p.id, el);
                     else rows.current.delete(p.id);
                   }}
-                  className={dragId === p.id ? 'dragging' : undefined}
-                >
-                  {canDrag ? (
-                    <td data-label="" className="order-cell">
-                      <span className="row" style={{ gap: 4 }}>
-                        <button
-                          type="button"
-                          className="drag-handle"
-                          aria-label={t('Drag {name} to a new place', { name: p.name })}
-                          onPointerDown={(e) => dragStart(e, p.id)}
-                        >
-                          ⠿
-                        </button>
-                        <button
-                          type="button"
-                          className="btn ghost small-btn"
-                          disabled={i === 0 || draft !== null}
-                          aria-label={t('Move {name} up', { name: p.name })}
-                          onClick={() => move(p.id, -1)}
-                        >
-                          ↑
-                        </button>
-                        <button
-                          type="button"
-                          className="btn ghost small-btn"
-                          disabled={i === g.items.length - 1 || draft !== null}
-                          aria-label={t('Move {name} down', { name: p.name })}
-                          onClick={() => move(p.id, 1)}
-                        >
-                          ↓
-                        </button>
-                      </span>
-                    </td>
-                  ) : null}
-                  <td data-label="">
-                    <img className="thumb" src={p.imageUrl} alt="" />
-                  </td>
-                  <td data-label={t('Name')}>
-                    <button
-                      type="button"
-                      className="btn ghost"
-                      onClick={() => {
-                        setEditing(p);
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                      }}
-                      aria-label={t('Edit {name}', { name: p.name })}
-                    >
-                      {p.name}
-                    </button>
-                  </td>
-                  <td data-label={t('Type')} className="small">
-                    {p.type?.name ?? '—'}
-                  </td>
-                  <td data-label={t('Price')}>
-                    <PriceCell product={p} onSaved={reload} />
-                  </td>
-                  <td data-label={t('Minutes per 10')}>{p.minutesPer10}</td>
-                  <td data-label={t('Ingredients')} className="small">
-                    {p.ingredients.map((x) => x.name).join(', ') || '—'}
-                  </td>
-                  <td data-label={t('Status')}>
-                    <button className={p.available ? 'btn ghost' : 'btn'} onClick={() => toggle(p)}>
-                      {p.available ? t('Available') : t('Hidden')}
-                    </button>
-                  </td>
-                </tr>
+                  dragging={dragId === p.id}
+                  canDrag={canDrag}
+                  onDragStart={(e) => dragStart(e, p.id)}
+                  canMoveUp={canDrag && i > 0 && draft === null}
+                  canMoveDown={canDrag && i < g.items.length - 1 && draft === null}
+                  onMove={(by) => move(p.id, by)}
+                  editing={editing?.id === p.id}
+                  onEdit={() => setEditing(editing?.id === p.id ? null : p)}
+                  onEdited={() => {
+                    setEditing(null);
+                    reload();
+                  }}
+                  onToggle={() => void toggle(p)}
+                />
               ))}
-            </tbody>
+            </div>
           ))}
-        </table>
+        </div>
       ) : null}
       <AssignProducts products={data?.items ?? []} />
     </div>
@@ -344,21 +269,53 @@ function TypePicker({ value, onChange }: { value: string; onChange: (id: string)
   );
 }
 
-/** PRD-1, PRD-2: add a product, or edit one; edits are audited on the server. */
+type PackUnit = Schemas['PackUnit'];
+type IngredientItem = { id: string; name: string; packUnit: PackUnit };
+/** Decided 2026-12-01: an amount may use any unit of the same kind as the pack unit. */
+const KIND: Record<PackUnit, PackUnit[]> = {
+  g: ['g', 'kg'],
+  kg: ['g', 'kg'],
+  mL: ['mL', 'L'],
+  L: ['mL', 'L'],
+  pc: ['pc'],
+};
+type Amount = { quantity: string; unit: PackUnit };
+
+/**
+ * PRD-1, PRD-2: add a product, or edit one; edits are audited on the server. Decided 2026-12-01:
+ * the price, how many pieces one batch makes, and how much of each ingredient one batch needs.
+ */
 function ProductForm({ product, onDone }: { product?: Product; onDone: () => void }) {
   const [open, setOpen] = useState(Boolean(product));
   const [name, setName] = useState(product?.name ?? '');
   const [minutes, setMinutes] = useState(product?.minutesPer10 ?? 30);
   const [file, setFile] = useState<File | null>(null);
-  const [price, setPrice] = useState('');
+  const [price, setPrice] = useState(product?.unitPrice != null ? String(product.unitPrice) : '');
+  const [batchYield, setBatchYield] = useState(
+    product?.batchYield != null ? String(product.batchYield) : '',
+  );
   const [typeId, setTypeId] = useState(product?.type?.id ?? '');
   const [err, setErr] = useState<ApiError | null>(null);
   const [busy, setBusy] = useState(false);
-  const ingredients = useApi<{ items: { id: string; name: string }[] }>(
-    open ? '/ingredients' : null,
-  );
+  const ingredients = useApi<{ items: IngredientItem[] }>(open ? '/ingredients' : null);
   const [uses, setUses] = useState<Set<string>>(
     new Set(product?.ingredients.map((i) => i.id) ?? []),
+  );
+  const [amounts, setAmounts] = useState<Record<string, Amount>>(
+    Object.fromEntries(
+      (product?.ingredients ?? []).map((i) => [
+        i.id,
+        { quantity: i.quantity != null ? String(i.quantity) : '', unit: i.unit ?? i.packUnit },
+      ]),
+    ),
+  );
+  const known = new Map((ingredients.data?.items ?? []).map((i) => [i.id, i]));
+  const chosen = [...uses].map(
+    (id) =>
+      known.get(id) ??
+      ((x) => (x ? { id: x.id, name: x.name, packUnit: x.packUnit } : undefined))(
+        product?.ingredients.find((i) => i.id === id),
+      ),
   );
 
   async function submit(e: FormEvent) {
@@ -375,26 +332,31 @@ function ProductForm({ product, onDone }: { product?: Product; onDone: () => voi
       const body = {
         name: name.trim(),
         minutesPer10: minutes,
+        batchYield: batchYield.trim() ? Math.round(Number(batchYield)) : null,
         ingredients: [...uses].map((ingredientId) => {
-          const kept = product?.ingredients.find((i) => i.id === ingredientId);
-          return kept?.quantityPer10
-            ? { ingredientId, quantityPer10: kept.quantityPer10 }
-            : { ingredientId };
+          const a = amounts[ingredientId];
+          return a?.quantity.trim()
+            ? { ingredientId, quantity: Number(a.quantity), unit: a.unit }
+            : { ingredientId, quantity: null };
         }),
         ...(imageKey ? { imageKey } : {}),
         typeId: typeId || null,
       };
-      if (product) await patch(`/products/${product.id}`, body, { ifMatch: product.version });
-      else
-        await post('/products', {
-          ...body,
-          ...(price.trim() ? { unitPrice: Math.round(Number(price)) } : {}),
-        });
+      const newPrice = price.trim() ? Math.round(Number(price)) : null;
+      if (product) {
+        await patch(`/products/${product.id}`, body, { ifMatch: product.version });
+        // F-001 FIN-1: a new price applies from now on; past deliveries keep theirs.
+        if (newPrice !== null && newPrice !== product.unitPrice)
+          await put(`/products/${product.id}/price`, { unitPrice: newPrice });
+      } else
+        await post('/products', { ...body, ...(newPrice !== null ? { unitPrice: newPrice } : {}) });
       setName('');
       setPrice('');
+      setBatchYield('');
       setTypeId('');
       setFile(null);
       setUses(new Set());
+      setAmounts({});
       setOpen(false);
       onDone();
     } catch (e2) {
@@ -411,13 +373,25 @@ function ProductForm({ product, onDone }: { product?: Product; onDone: () => voi
       </button>
     );
   return (
-    <form className="card" onSubmit={submit}>
-      <h2>{product ? t('Edit {name}', { name: product.name }) : t('New product')}</h2>
+    <form className={product ? 'stack product-form' : 'card product-form'} onSubmit={submit}>
+      {product ? null : <h2>{t('New product')}</h2>}
       <ErrorBox error={err} />
       <div className="grid2">
         <label className="field">
           {t('Name')}
           <input required maxLength={120} value={name} onChange={(e) => setName(e.target.value)} />
+        </label>
+        <label className="field">
+          {t('Price per piece (won)')}
+          <input
+            type="number"
+            min={0}
+            step={1}
+            inputMode="numeric"
+            placeholder={t('Set later')}
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+          />
         </label>
         <label className="field">
           {t('Minutes to make 10')}
@@ -429,40 +403,97 @@ function ProductForm({ product, onDone }: { product?: Product; onDone: () => voi
             onChange={(e) => setMinutes(Number(e.target.value))}
           />
         </label>
-        {product ? null : (
-          <label className="field">
-            {t('Price per piece (won, optional)')}
-            <input
-              type="number"
-              min={0}
-              step={1}
-              inputMode="numeric"
-              placeholder={t('Set later')}
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-            />
-          </label>
-        )}
+        <label className="field">
+          {t('One batch makes (pieces)')}
+          <input
+            type="number"
+            min={1}
+            step={1}
+            inputMode="numeric"
+            placeholder={t('Optional')}
+            value={batchYield}
+            onChange={(e) => setBatchYield(e.target.value)}
+          />
+        </label>
       </div>
       <TypePicker value={typeId} onChange={setTypeId} />
       <div className="field">
-        {t('Ingredients (optional, can be added later)')}
-        <div className="row wrap">
-          {ingredients.data?.items.map((i) => (
-            <label key={i.id} className="chip">
-              <input
-                type="checkbox"
-                checked={uses.has(i.id)}
-                onChange={(e) => {
-                  const n = new Set(uses);
-                  if (e.target.checked) n.add(i.id);
-                  else n.delete(i.id);
-                  setUses(n);
-                }}
-              />
-              {i.name}
-            </label>
-          ))}
+        {t('One batch needs (optional, can be added later)')}
+        <div className="batch-edit">
+          {chosen.map((i) =>
+            i ? (
+              <div key={i.id} className="batch-line">
+                <span>{i.name}</span>
+                <input
+                  className="input"
+                  type="number"
+                  min={0}
+                  step="any"
+                  inputMode="decimal"
+                  placeholder={t('Amount')}
+                  aria-label={t('Amount of {name} per batch', { name: i.name })}
+                  value={amounts[i.id]?.quantity ?? ''}
+                  onChange={(e) =>
+                    setAmounts({
+                      ...amounts,
+                      [i.id]: { quantity: e.target.value, unit: amounts[i.id]?.unit ?? i.packUnit },
+                    })
+                  }
+                />
+                <select
+                  className="input"
+                  aria-label={t('Unit of {name}', { name: i.name })}
+                  value={amounts[i.id]?.unit ?? i.packUnit}
+                  onChange={(e) =>
+                    setAmounts({
+                      ...amounts,
+                      [i.id]: {
+                        quantity: amounts[i.id]?.quantity ?? '',
+                        unit: e.target.value as PackUnit,
+                      },
+                    })
+                  }
+                >
+                  {KIND[i.packUnit].map((u) => (
+                    <option key={u} value={u}>
+                      {u}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className="btn ghost small-btn"
+                  aria-label={t('Take {name} out of the batch', { name: i.name })}
+                  onClick={() => {
+                    const n = new Set(uses);
+                    n.delete(i.id);
+                    setUses(n);
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+            ) : null,
+          )}
+          <select
+            className="input"
+            value=""
+            aria-label={t('Add an ingredient')}
+            onChange={(e) => {
+              if (!e.target.value) return;
+              setUses(new Set([...uses, e.target.value]));
+            }}
+          >
+            <option value="">{t('+ Add an ingredient…')}</option>
+            {(ingredients.data?.items ?? [])
+              .filter((i) => !uses.has(i.id))
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .map((i) => (
+                <option key={i.id} value={i.id}>
+                  {i.name}
+                </option>
+              ))}
+          </select>
           {ingredients.data && !ingredients.data.items.length ? (
             <span className="muted small">{t('Add ingredients first.')}</span>
           ) : null}
@@ -575,59 +606,189 @@ function AssignProducts({ products }: { products: Product[] }) {
   );
 }
 
-/** F-001 FIN-1: price per unit in whole won; a new price applies from now on. */
-function PriceCell({ product, onSaved }: { product: Product; onSaved: () => void }) {
-  const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState(product.unitPrice ?? 0);
-  const [err, setErr] = useState<ApiError | null>(null);
-  async function save() {
-    setErr(null);
-    try {
-      await put(`/products/${product.id}/price`, { unitPrice: Math.round(value) });
-      setEditing(false);
-      onSaved();
-    } catch (e) {
-      setErr(e as ApiError);
-    }
-  }
-  if (!editing) {
-    return (
-      <button
-        type="button"
-        className="btn ghost"
-        onClick={() => setEditing(true)}
-        aria-label={`Price of ${product.name}`}
-        style={
-          product.unitPrice === null
-            ? { color: 'var(--flag)', borderColor: 'var(--flag)' }
-            : undefined
-        }
-      >
-        {product.unitPrice == null
-          ? t('Set price')
-          : `₩${product.unitPrice.toLocaleString('en-US')}`}
-      </button>
-    );
-  }
+/**
+ * Decided 2026-12-01: one quiet row per product (name, price, Edit, more). "More" opens the
+ * details: type, cost from today's ingredient prices, what one batch needs, minutes per 10,
+ * availability and the recipe (to come).
+ */
+function ProductRow({
+  product: p,
+  rowRef,
+  dragging,
+  canDrag,
+  onDragStart,
+  canMoveUp,
+  canMoveDown,
+  onMove,
+  editing,
+  onEdit,
+  onEdited,
+  onToggle,
+}: {
+  product: Product;
+  rowRef: (el: HTMLElement | null) => void;
+  dragging: boolean;
+  canDrag: boolean;
+  onDragStart: (e: ReactPointerEvent) => void;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  onMove: (by: number) => void;
+  editing: boolean;
+  onEdit: () => void;
+  onEdited: () => void;
+  onToggle: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const cost = p.cost;
   return (
-    <span className="row wrap">
-      <input
-        className="input qty"
-        style={{ width: 110 }}
-        type="number"
-        min={0}
-        step={1}
-        value={value}
-        onChange={(e) => setValue(Number(e.target.value))}
-        aria-label={`New price of ${product.name} in won`}
-      />
-      <button type="button" className="btn" onClick={save}>
-        {t('Save')}
-      </button>
-      <button type="button" className="btn ghost" onClick={() => setEditing(false)}>
-        {t('Cancel')}
-      </button>
-      {err ? <span className="err small">{t(err.message)}</span> : null}
-    </span>
+    <div ref={rowRef} className={dragging ? 'prow dragging' : 'prow'}>
+      <div className="prow-main">
+        {canDrag ? (
+          <button
+            type="button"
+            className="drag-handle"
+            aria-label={t('Drag {name} to a new place', { name: p.name })}
+            onPointerDown={onDragStart}
+          >
+            ⠿
+          </button>
+        ) : null}
+        <span className="prow-name">
+          {p.name}
+          {!p.available ? <span className="pill">{t('Hidden')}</span> : null}
+        </span>
+        <span className={p.unitPrice == null ? 'prow-price none' : 'prow-price'}>
+          {p.unitPrice == null ? t('No price') : won(p.unitPrice)}
+        </span>
+        <button
+          type="button"
+          className="btn ghost small-btn"
+          onClick={onEdit}
+          aria-label={t('Edit {name}', { name: p.name })}
+        >
+          {t('Edit')}
+        </button>
+        <button
+          type="button"
+          className="btn ghost small-btn prow-more-btn"
+          aria-expanded={open}
+          aria-label={t('More about {name}', { name: p.name })}
+          onClick={() => setOpen(!open)}
+        >
+          <Icon name="chevron" size={16} />
+        </button>
+      </div>
+      {editing ? (
+        <ProductForm key={p.version} product={p} onDone={onEdited} />
+      ) : open ? (
+        <div className="prow-more">
+          <div className="prow-facts">
+            <img className="thumb" src={p.imageUrl} alt="" />
+            <dl>
+              <dt>{t('Type')}</dt>
+              <dd>{p.type?.name ?? t('No type')}</dd>
+              <dt>{t('Cost')}</dt>
+              <dd>
+                {cost?.perBatch == null ? (
+                  <span className="muted">
+                    {t('Add ingredient amounts and prices to see the cost.')}
+                  </span>
+                ) : (
+                  <>
+                    <b>{t('{amount} per batch', { amount: won(cost.perBatch) })}</b>
+                    {cost.perPiece != null ? (
+                      <>
+                        {' · '}
+                        {t('{amount} each', { amount: won(cost.perPiece) })}
+                        {p.unitPrice != null ? (
+                          <span className="muted small">
+                            {' '}
+                            {t('(price {price}, leaves {left})', {
+                              price: won(p.unitPrice),
+                              left: won(p.unitPrice - cost.perPiece),
+                            })}
+                          </span>
+                        ) : null}
+                      </>
+                    ) : null}
+                    {cost.missing ? (
+                      <span className="pill warn" style={{ marginLeft: 6 }}>
+                        {t('{n} without amount or price', { n: cost.missing })}
+                      </span>
+                    ) : null}
+                  </>
+                )}
+              </dd>
+              <dt>{t('Minutes per 10')}</dt>
+              <dd>{p.minutesPer10}</dd>
+            </dl>
+          </div>
+          <div>
+            <h4 className="prow-h">
+              {p.batchYield
+                ? t('1 batch (makes {n}) needs', { n: p.batchYield })
+                : t('1 batch needs')}
+            </h4>
+            {p.ingredients.length ? (
+              <ul className="batch-list">
+                {p.ingredients.map((x) => (
+                  <li key={x.id}>
+                    <span>{x.name}</span>
+                    <span>
+                      {x.quantity != null ? (
+                        <b>
+                          {formatQty(x.quantity)} {x.unit ?? x.packUnit}
+                        </b>
+                      ) : (
+                        <span className="muted small">{t('amount not set')}</span>
+                      )}
+                      {x.cost != null ? (
+                        <span className="muted small"> · {won(x.cost)}</span>
+                      ) : null}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="muted small" style={{ margin: 0 }}>
+                {t('No ingredients yet. Add them with Edit.')}
+              </p>
+            )}
+          </div>
+          <p className="muted small" style={{ margin: 0 }}>
+            {t('Recipe: coming soon. Step-by-step instructions with timers set by admins.')}
+          </p>
+          <div className="row wrap">
+            <button type="button" className="btn ghost small-btn" onClick={onToggle}>
+              {p.available ? t('Hide from orders') : t('Show in orders')}
+            </button>
+            {canMoveUp || canMoveDown ? (
+              <>
+                <button
+                  type="button"
+                  className="btn ghost small-btn"
+                  disabled={!canMoveUp}
+                  aria-label={t('Move {name} up', { name: p.name })}
+                  onClick={() => onMove(-1)}
+                >
+                  ↑ {t('Move up')}
+                </button>
+                <button
+                  type="button"
+                  className="btn ghost small-btn"
+                  disabled={!canMoveDown}
+                  aria-label={t('Move {name} down', { name: p.name })}
+                  onClick={() => onMove(1)}
+                >
+                  ↓ {t('Move down')}
+                </button>
+              </>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }
+
+const formatQty = (n: number) => String(Number(n.toFixed(3)));

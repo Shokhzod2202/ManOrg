@@ -4521,10 +4521,14 @@ components:
       required: [ingredientId]
       properties:
         ingredientId: { type: string, format: uuid }
-        quantityPer10:
-          type: number
+        quantity:
+          type: [number, 'null']
           exclusiveMinimum: 0
-          description: Optional amount for 10 units, in the ingredient's pack unit (assumption, spec section 7).
+          maximum: 1000000
+          description: How much one batch needs, in `unit` (decided 2026-12-01). Optional; null clears it; left out keeps the amount already saved.
+        unit:
+          $ref: '#/components/schemas/PackUnit'
+          description: Defaults to the ingredient's pack unit; must be the same kind (g or kg, mL or L, pc).
     Product:
       type: object
       required:
@@ -4563,11 +4567,35 @@ components:
           type: array
           items:
             type: object
-            required: [id, name, quantityPer10]
+            required: [id, name, quantity, unit, packUnit]
             properties:
               id: { type: string, format: uuid }
               name: { type: string }
-              quantityPer10: { type: [number, 'null'] }
+              quantity: { type: [number, 'null'], description: Per batch (decided 2026-12-01). }
+              unit:
+                oneOf:
+                  - $ref: '#/components/schemas/PackUnit'
+                  - type: 'null'
+              packUnit: { $ref: '#/components/schemas/PackUnit' }
+              cost:
+                type: [integer, 'null']
+                description: Admins only. This line's cost at today's ingredient price, whole won; null without an amount or a price.
+        batchYield:
+          type: [integer, 'null']
+          description: How many pieces one batch makes (decided 2026-12-01).
+        cost:
+          type: object
+          description: Admins only (prices.manage). What one batch costs at today's ingredient prices.
+          required: [perBatch, perPiece, missing]
+          properties:
+            perBatch: { type: [integer, 'null'] }
+            perPiece: { type: [integer, 'null'], description: Needs batchYield. }
+            missing:
+              {
+                type: integer,
+                description: Ingredients without an amount or a price,
+                left out of the cost.,
+              }
         version: { type: integer }
         createdAt: { type: string, format: date-time }
     CreateProductRequest:
@@ -4594,6 +4622,11 @@ components:
           type: [string, 'null']
           format: uuid
           description: The product's type (from /product-types); null for none.
+        batchYield:
+          type: [integer, 'null']
+          minimum: 1
+          maximum: 1000000
+          description: How many pieces one batch makes.
         available: { type: boolean, default: true }
     UpdateProductRequest:
       type: object
@@ -4611,6 +4644,7 @@ components:
           type: [string, 'null']
           format: uuid
           description: The product's type (from /product-types); null for none.
+        batchYield: { type: [integer, 'null'], minimum: 1, maximum: 1000000 }
         available: { type: boolean }
 
     BotAccessSwitch:

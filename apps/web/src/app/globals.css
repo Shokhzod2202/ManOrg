@@ -1317,3 +1317,127 @@ table.t.valued tr.sum td.amt {
 .hours-figures svg {
   margin-left: auto;
 }
+
+/* Decided 2026-12-01: products as quiet rows; details open on demand. */
+.plist {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.plist-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.plist-type {
+  margin: 8px 0 0;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.prow {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.prow.dragging {
+  border-color: var(--primary);
+  box-shadow: 0 6px 18px rgba(11, 58, 140, 0.18);
+}
+.prow-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+.prow-main .drag-handle {
+  touch-action: none;
+}
+.prow-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.prow-price {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.prow-price.none {
+  color: var(--flag);
+  font-size: 13px;
+}
+.prow-more-btn svg {
+  transition: transform 0.15s;
+}
+.prow-more-btn[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
+.prow-more {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.prow-facts {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.prow-facts dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  min-width: 0;
+}
+.prow-facts dt {
+  color: var(--muted);
+  font-size: 13px;
+}
+.prow-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.prow-h {
+  margin: 0 0 6px;
+  font-size: 14px;
+}
+.batch-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.batch-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid #eef1f6;
+  font-variant-numeric: tabular-nums;
+}
+.batch-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.batch-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 96px 72px 44px;
+  gap: 6px;
+  align-items: center;
+}
+.batch-line .input {
+  min-width: 0;
+  width: 100%;
+}

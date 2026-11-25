@@ -809,15 +809,17 @@ async function rowAction(page, rowText, action) {
   await boss.waitForSelector(`text=${oshName}`);
   await boss.click('[role=tab]:has-text("By type")');
   const heading = await boss
-    .waitForSelector(`tr.group th:has-text("${typeName}")`, { timeout: 8000 })
+    .waitForSelector(`.plist-type:has-text("${typeName}")`, { timeout: 8000 })
     .then(
       () => true,
       () => false,
     );
   await boss.click('[role=tab]:has-text("Custom order")');
-  const rowsLoc = boss.locator('table.products tbody tr:not(.group)');
+  const rowsLoc = boss.locator('.plist .prow');
+  const nameOf = (row) =>
+    row.locator('.prow-name').evaluate((el) => el.firstChild.textContent.trim());
   await rowsLoc.nth(1).waitFor();
-  const secondName = (await rowsLoc.nth(1).locator('td[data-label="Name"]').innerText()).trim();
+  const secondName = await nameOf(rowsLoc.nth(1));
   const handle = rowsLoc.nth(1).locator('.drag-handle');
   await handle.evaluate((el) => el.scrollIntoView({ block: 'center' }));
   const from = await handle.boundingBox();
@@ -829,7 +831,7 @@ async function rowAction(page, rowText, action) {
   await boss.waitForTimeout(1500);
   await boss.reload();
   await rowsLoc.first().waitFor();
-  const firstName = (await rowsLoc.first().locator('td[data-label="Name"]').innerText()).trim();
+  const firstName = await nameOf(rowsLoc.first());
   log(
     '23 type heading shown:',
     heading,
@@ -898,6 +900,35 @@ async function rowAction(page, rowText, action) {
     );
   log('25 avans logged beside the hours:', logged, '| cancelled and kept as cancelled:', cancelled);
   if (!logged || !cancelled) throw new Error('Avans failed');
+
+  // 26. Decided 2026-12-01. Products are quiet rows; Edit sets what one batch needs and how many
+  // it makes, and "more" shows the batch with its cost from today's ingredient prices.
+  await boss.goto(`${W}/app/products`);
+  const oshRow = boss.locator('.prow', { hasText: oshName });
+  await oshRow.waitFor();
+  await oshRow.locator('button:has-text("Edit")').click();
+  await oshRow.locator('label:has-text("One batch makes") input').fill('20');
+  const pick = oshRow.locator('select[aria-label="Add an ingredient"]');
+  const firstIngredient = await pick
+    .locator('option:not([value=""])')
+    .first()
+    .getAttribute('value');
+  await pick.selectOption(firstIngredient);
+  await oshRow.locator('.batch-line input').first().fill('2');
+  await oshRow.locator('button:has-text("Save")').click();
+  await oshRow.locator('form').waitFor({ state: 'detached' });
+  await oshRow.locator('.prow-more-btn').click();
+  const batch = await oshRow
+    .locator('h4:has-text("makes 20")')
+    .waitFor({ timeout: 8000 })
+    .then(
+      () => true,
+      () => false,
+    );
+  const amount = await oshRow.locator('.batch-list li b').first().innerText();
+  const costText = await oshRow.locator('dd').nth(1).innerText();
+  log('26 batch saved:', batch, `| amount: ${amount} | cost: ${costText.replace(/\s+/g, ' ')}`);
+  if (!batch || !amount.startsWith('2 ')) throw new Error('Batch ingredients failed');
 
   await b.close();
 })().catch((e) => {

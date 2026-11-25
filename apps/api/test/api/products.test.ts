@@ -86,7 +86,7 @@ describe('POST /products (PRD-1)', () => {
         name: 'Somsa',
         imageKey: image.body.imageKey,
         minutesPer10: 25,
-        ingredients: [{ ingredientId: w.a.ingredientId, quantityPer10: 1.5 }],
+        ingredients: [{ ingredientId: w.a.ingredientId, quantity: 1.5 }],
       })
       .expect(201);
     expect(res.body).toMatchObject({
@@ -95,7 +95,9 @@ describe('POST /products (PRD-1)', () => {
       imageUrl: expect.stringContaining('/api/v1/files/'),
       minutesPer10: 25,
       available: true,
-      ingredients: [{ id: w.a.ingredientId, name: 'Alpha Flour', quantityPer10: 1.5 }],
+      ingredients: [
+        { id: w.a.ingredientId, name: 'Alpha Flour', quantity: 1.5, unit: 'kg', packUnit: 'kg' },
+      ],
       version: 1,
     });
     const audit = await auditFor(res.body.id, { organizationId: w.a.id, userId: w.a.admin.userId });
@@ -216,7 +218,9 @@ describe('PATCH /products/{id} (PRD-2)', () => {
       imageKey: image.body.imageKey,
       minutesPer10: 15,
       available: true,
-      ingredients: [{ id: second.body.id, name: 'Salt', quantityPer10: null }],
+      ingredients: [
+        { id: second.body.id, name: 'Salt', quantity: null, unit: null, packUnit: 'kg' },
+      ],
       version: 3,
     });
   });
