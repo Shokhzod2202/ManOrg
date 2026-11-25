@@ -861,4 +861,8 @@ export const ko: Record<string, string> = {
   'Move down': '아래로',
   'Hold a product (or drag ⠿) to move it. Everyone who chooses Custom order sees products in this order.':
     "제품을 길게 누르거나 ⠿를 끌어 옮기세요. '지정 순서'를 고른 모든 사람에게 이 순서로 보입니다.",
+  'Add how many one batch makes (Edit) to see the cost per piece.':
+    '한 배치에서 몇 개가 나오는지 입력하면(편집) 개당 원가가 보입니다.',
+  'e.g. 6': '예: 6',
+  'Needed for the cost per piece.': '개당 원가 계산에 필요합니다.',
 };

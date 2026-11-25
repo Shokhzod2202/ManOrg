@@ -360,10 +360,13 @@ function ProductForm({ product, onDone }: { product?: Product; onDone: () => voi
             min={1}
             step={1}
             inputMode="numeric"
-            placeholder={t('Optional')}
+            placeholder={t('e.g. 6')}
             value={batchYield}
             onChange={(e) => setBatchYield(e.target.value)}
           />
+          {!batchYield.trim() ? (
+            <span className="hint-bad">{t('Needed for the cost per piece.')}</span>
+          ) : null}
         </label>
       </div>
       <TypePicker value={typeId} onChange={setTypeId} />
@@ -670,6 +673,12 @@ function ProductRow({
                     ) : null}
                   </>
                 )}
+                {/* Decided 2026-12-01: without the batch size there is no cost per piece. */}
+                {p.batchYield == null ? (
+                  <span className="hint-bad" data-testid="no-batch-yield">
+                    {t('Add how many one batch makes (Edit) to see the cost per piece.')}
+                  </span>
+                ) : null}
               </dd>
               <dt>{t('Minutes per 10')}</dt>
               <dd>{p.minutesPer10}</dd>

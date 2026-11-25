@@ -873,4 +873,8 @@ export const uz: Record<string, string> = {
   'Move down': 'Pastga',
   'Hold a product (or drag ⠿) to move it. Everyone who chooses Custom order sees products in this order.':
     'Mahsulotni bosib turing (yoki ⠿ ni suring) va koʻchiring. «Maxsus tartib»ni tanlagan hamma shu tartibni koʻradi.',
+  'Add how many one batch makes (Edit) to see the cost per piece.':
+    'Donasining tannarxini koʻrish uchun bir partiyadan nechta chiqishini kiriting (Tahrirlash).',
+  'e.g. 6': 'masalan, 6',
+  'Needed for the cost per piece.': 'Donasining tannarxi uchun kerak.',
 };

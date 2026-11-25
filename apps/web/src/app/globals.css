@@ -1452,3 +1452,11 @@ table.t.valued tr.sum td.amt {
   position: relative;
   z-index: 2;
 }
+/* Decided 2026-12-01: a missing batch size is called out in red. */
+.hint-bad {
+  display: block;
+  color: var(--flag);
+  font-size: 13px;
+  font-weight: 500;
+  margin-top: 4px;
+}
