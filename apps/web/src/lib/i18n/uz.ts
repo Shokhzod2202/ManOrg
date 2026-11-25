@@ -841,7 +841,7 @@ export const uz: Record<string, string> = {
   'No products left: this cancels the order. Continue?':
     'Mahsulot qolmadi: buyurtma bekor qilinadi. Davom etasizmi?',
   'Drag ⠿ to set the order. Everyone who chooses Custom order sees products in this order.':
-    'Tartibni ⠿ ni sudrab belgilang. «Oʻz tartibi»ni tanlagan hamma mahsulotlarni shu tartibda koʻradi.',
+    'Tartibni ⠿ ni sudrab belgilang. «Maxsus tartib»ni tanlagan hamma mahsulotlarni shu tartibda koʻradi.',
   'Price per piece (won)': 'Bir dona narxi (von)',
   'One batch makes (pieces)': 'Bir partiyadan chiqadi (dona)',
   Optional: 'Ixtiyoriy',
@@ -871,4 +871,6 @@ export const uz: Record<string, string> = {
   'Show in orders': 'Buyurtmalarda koʻrsatish',
   'Move up': 'Yuqoriga',
   'Move down': 'Pastga',
+  'Hold a product (or drag ⠿) to move it. Everyone who chooses Custom order sees products in this order.':
+    'Mahsulotni bosib turing (yoki ⠿ ni suring) va koʻchiring. «Maxsus tartib»ni tanlagan hamma shu tartibni koʻradi.',
 };

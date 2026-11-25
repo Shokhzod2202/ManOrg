@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 import { ConfirmHost } from '../components/confirm';
 import { InputHelpers } from '../components/input-helpers';
+import { TelegramSetup } from '../components/telegram';
 import { LocaleRoot } from '../lib/i18n';
 import { SessionProvider } from '../lib/session';
 import './globals.css';
@@ -27,6 +28,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       </head>
       <body>
         <InputHelpers />
+        <TelegramSetup />
         <SessionProvider>
           <LocaleRoot>
             {children}

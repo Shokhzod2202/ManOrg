@@ -1,17 +1,12 @@
 'use client';
 
-import {
-  type FormEvent,
-  type PointerEvent as ReactPointerEvent,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { won } from '../../../components/orders/value';
 import { Empty, ErrorBox, Icon, Loading, PageHead } from '../../../components/ui';
 import { api, type ApiError, get, patch, post, put, type Schemas } from '../../../lib/api';
 import { groupByType, SortPicker, sortProducts, useProductSort } from '../../../lib/product-sort';
 import { refreshApi, useApi } from '../../../lib/use-api';
+import { useDragOrder } from '../../../lib/use-drag-order';
 import { t } from '../../../lib/i18n';
 
 type Product = Schemas['Product'];
@@ -34,11 +29,16 @@ export default function ProductsPage() {
   const [err, setErr] = useState<ApiError | null>(null);
   const [editing, setEditing] = useState<Product | null>(null);
   const [mode] = useProductSort();
-  // While dragging or saving, the order on screen comes from here.
-  const [draft, setDraft] = useState<string[] | null>(null);
-  const [dragId, setDragId] = useState<string | null>(null);
   const rows = useRef(new Map<string, HTMLElement>());
   const canDrag = mode === 'custom' && !q.trim();
+  // Decided 2026-12-01: hold a row (or the ⠿ handle) and drag it; works in Telegram too. While
+  // dragging or saving, the order on screen comes from `draft`.
+  const { draft, setDraft, dragId, handleProps, rowProps } = useDragOrder({
+    ids: () => items.map((p) => p.id),
+    enabled: canDrag,
+    rows,
+    onDrop: (order) => saveOrder(order),
+  });
 
   const sorted = sortProducts(data?.items ?? [], mode, sortKey);
   const byId = new Map(sorted.map((p) => [p.id, p]));
@@ -57,15 +57,12 @@ export default function ProductsPage() {
 
   async function saveOrder(ids: string[]) {
     setErr(null);
-    setDraft(ids);
     try {
       await put('/products/order', { productIds: ids });
       await reload();
       refreshApi('/catalog', '/orders', '/employees');
     } catch (e) {
       setErr(e as ApiError);
-    } finally {
-      setDraft(null);
     }
   }
 
@@ -75,57 +72,9 @@ export default function ProductsPage() {
     const j = i + by;
     if (i < 0 || j < 0 || j >= ids.length) return;
     [ids[i], ids[j]] = [ids[j]!, ids[i]!];
-    void saveOrder(ids);
+    setDraft(ids);
+    void saveOrder(ids).finally(() => setDraft(null));
   }
-
-  // Drag with pointer events, so it works with a finger in the phone and Telegram apps too. The
-  // window follows the pointer: the dragged row moves in the page, which would lose a capture.
-  const drag = useRef<{ id: string; order: string[] } | null>(null);
-  function dragStart(e: ReactPointerEvent, id: string) {
-    e.preventDefault();
-    drag.current = { id, order: items.map((p) => p.id) };
-    startOrder.current = drag.current.order;
-    setDragId(id);
-    setDraft(drag.current.order);
-  }
-  useEffect(() => {
-    if (!dragId) return;
-    const onMove = (e: PointerEvent) => {
-      const d = drag.current;
-      if (!d) return;
-      const others = d.order.filter((x) => x !== d.id);
-      let at = 0;
-      for (const id of others) {
-        const r = rows.current.get(id)?.getBoundingClientRect();
-        if (r && e.clientY > r.top + r.height / 2) at += 1;
-      }
-      const next = [...others];
-      next.splice(at, 0, d.id);
-      if (next.join() !== d.order.join()) {
-        d.order = next;
-        setDraft(next);
-      }
-    };
-    const onUp = () => {
-      const d = drag.current;
-      drag.current = null;
-      setDragId(null);
-      if (!d) return;
-      // Only save when the order really changed.
-      if (d.order.join() !== startOrder.current.join()) void saveOrder(d.order);
-      else setDraft(null);
-    };
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-    window.addEventListener('pointercancel', onUp);
-    return () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      window.removeEventListener('pointercancel', onUp);
-    };
-    // The handlers read the drag from refs; they only need re-binding when a drag starts.
-  }, [dragId]);
-  const startOrder = useRef<string[]>([]);
 
   const groups =
     mode === 'type' && !draft
@@ -148,7 +97,7 @@ export default function ProductsPage() {
       {canDrag && items.length > 1 ? (
         <p className="muted small" style={{ margin: 0 }}>
           {t(
-            'Drag ⠿ to set the order. Everyone who chooses Custom order sees products in this order.',
+            'Hold a product (or drag ⠿) to move it. Everyone who chooses Custom order sees products in this order.',
           )}
         </p>
       ) : null}
@@ -158,7 +107,7 @@ export default function ProductsPage() {
         <Empty>{t('No products yet. Add the first one above.')}</Empty>
       ) : null}
       {items.length ? (
-        <div className="plist">
+        <div className={canDrag ? 'plist can-drag' : 'plist'}>
           {groups.map((g) => (
             <div key={g.type ?? 'all'} className="plist-group">
               {g.type !== undefined ? (
@@ -174,7 +123,8 @@ export default function ProductsPage() {
                   }}
                   dragging={dragId === p.id}
                   canDrag={canDrag}
-                  onDragStart={(e) => dragStart(e, p.id)}
+                  handle={handleProps(p.id)}
+                  row={rowProps(p.id)}
                   canMoveUp={canDrag && i > 0 && draft === null}
                   canMoveDown={canDrag && i < g.items.length - 1 && draft === null}
                   onMove={(by) => move(p.id, by)}
@@ -616,7 +566,8 @@ function ProductRow({
   rowRef,
   dragging,
   canDrag,
-  onDragStart,
+  handle,
+  row,
   canMoveUp,
   canMoveDown,
   onMove,
@@ -629,7 +580,8 @@ function ProductRow({
   rowRef: (el: HTMLElement | null) => void;
   dragging: boolean;
   canDrag: boolean;
-  onDragStart: (e: ReactPointerEvent) => void;
+  handle: ReturnType<ReturnType<typeof useDragOrder>['handleProps']>;
+  row: ReturnType<ReturnType<typeof useDragOrder>['rowProps']>;
   canMoveUp: boolean;
   canMoveDown: boolean;
   onMove: (by: number) => void;
@@ -641,14 +593,14 @@ function ProductRow({
   const [open, setOpen] = useState(false);
   const cost = p.cost;
   return (
-    <div ref={rowRef} className={dragging ? 'prow dragging' : 'prow'}>
+    <div ref={rowRef} className={dragging ? 'prow dragging' : 'prow'} {...(canDrag ? row : {})}>
       <div className="prow-main">
         {canDrag ? (
           <button
             type="button"
             className="drag-handle"
             aria-label={t('Drag {name} to a new place', { name: p.name })}
-            onPointerDown={onDragStart}
+            {...handle}
           >
             ⠿
           </button>

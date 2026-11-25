@@ -859,4 +859,6 @@ export const ko: Record<string, string> = {
   'Show in orders': '주문에 보이기',
   'Move up': '위로',
   'Move down': '아래로',
+  'Hold a product (or drag ⠿) to move it. Everyone who chooses Custom order sees products in this order.':
+    "제품을 길게 누르거나 ⠿를 끌어 옮기세요. '지정 순서'를 고른 모든 사람에게 이 순서로 보입니다.",
 };

@@ -1441,3 +1441,14 @@ table.t.valued tr.sum td.amt {
   min-width: 0;
   width: 100%;
 }
+/* Decided 2026-12-01: hold a product row to drag it; no text selection or callout meanwhile. */
+.plist.can-drag .prow-main {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+.prow.dragging {
+  transform: scale(1.02);
+  position: relative;
+  z-index: 2;
+}

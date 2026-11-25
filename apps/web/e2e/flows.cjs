@@ -930,6 +930,46 @@ async function rowAction(page, rowText, action) {
   log('26 batch saved:', batch, `| amount: ${amount} | cost: ${costText.replace(/\s+/g, ' ')}`);
   if (!batch || !amount.startsWith('2 ')) throw new Error('Batch ingredients failed');
 
+  // 27. Decided 2026-12-01. On a phone a finger held still on a product picks it up and drags it
+  // (real touch events, as in the Telegram app); a quick swipe still scrolls.
+  const touchCtx = await b.newContext({
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    isMobile: true,
+  });
+  const tp = await touchCtx.newPage();
+  await signIn(tp, W, 'admin@sunrise.test');
+  await tp.goto(`${W}/app/products`);
+  await tp.waitForSelector('.plist.can-drag .prow');
+  const cdp = await touchCtx.newCDPSession(tp);
+  const touch = (type, x, y) =>
+    cdp.send('Input.dispatchTouchEvent', {
+      type,
+      touchPoints: type === 'touchEnd' ? [] : [{ x, y }],
+    });
+  const phoneNames = () =>
+    tp.$$eval('.plist .prow .prow-name', (els) => els.map((e) => e.firstChild.textContent.trim()));
+  await tp.locator('.prow').nth(2).scrollIntoViewIfNeeded();
+  const beforeTouch = await phoneNames();
+  const held = await tp.locator('.prow-name').nth(2).boundingBox();
+  const firstRow = await tp.locator('.prow').first().boundingBox();
+  await touch('touchStart', held.x + 10, held.y + held.height / 2);
+  await tp.waitForTimeout(500);
+  for (let y = held.y + held.height / 2; y > firstRow.y + 5; y -= 8) {
+    await touch('touchMove', held.x + 10, y);
+  }
+  await touch('touchEnd');
+  await tp.waitForTimeout(1500);
+  await tp.reload();
+  await tp.waitForSelector('.prow');
+  const afterTouch = await phoneNames();
+  await touchCtx.close();
+  log(
+    '27 finger hold-and-drag moved the third product to the top:',
+    afterTouch[0] === beforeTouch[2],
+  );
+  if (afterTouch[0] !== beforeTouch[2]) throw new Error('Touch drag failed');
+
   await b.close();
 })().catch((e) => {
   console.error('FAILED', e.message.slice(0, 400));
