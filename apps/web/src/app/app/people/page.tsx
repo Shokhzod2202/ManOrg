@@ -102,15 +102,16 @@ function RemovedMembers() {
   const employees = (active.data?.items ?? []).filter((m) => m.role === 'employee');
 
   async function act(m: Member, toUserId: string | null) {
-    const target = employees.find((e) => e.user.id === toUserId)?.user.name;
+    const target = employees.find((e) => e.user.id === toUserId);
+    const targetName = target ? target.displayName || target.user.name : '';
     const question = toUserId
       ? t(
           'Give {name}’s weekly shifts, teams, open and repeating tasks, ingredient ordering and products to {to}? Their past work stays as it is.',
-          { name: m.user.name, to: target ?? '' },
+          { name: m.displayName || m.user.name, to: targetName },
         )
       : t(
           'Take {name} out of the weekly shifts, teams, open and repeating tasks, ingredient ordering and products? Their past work stays as it is.',
-          { name: m.user.name },
+          { name: m.displayName || m.user.name },
         );
     if (!window.confirm(question)) return;
     setErr(null);
@@ -153,7 +154,7 @@ function RemovedMembers() {
           <div className="row between wrap">
             <span className="row" style={{ gap: 10 }}>
               <Avatar name={m.user.name} url={m.user.avatarUrl} size={32} />
-              <b>{m.user.name}</b>
+              <b>{m.displayName || m.user.name}</b>
               {m.removedAt ? (
                 <span className="muted small">
                   {t('removed {date}', { date: formatDate(m.removedAt.slice(0, 10)) })}
@@ -172,7 +173,7 @@ function RemovedMembers() {
               <option value="">{t('Hand over to…')}</option>
               {employees.map((e) => (
                 <option key={e.user.id} value={e.user.id}>
-                  {e.user.name}
+                  {e.displayName || e.user.name}
                 </option>
               ))}
             </select>
@@ -195,6 +196,86 @@ function RemovedMembers() {
         </div>
       ))}
     </section>
+  );
+}
+
+/**
+ * Decided 2026-11-29: admins give each member a name used inside this organization (instead of
+ * their account name) and a title. The account name stays visible here for reference.
+ */
+function NameCell({ member: m, onSaved }: { member: Member; onSaved: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState(m.displayName ?? '');
+  const [title, setTitle] = useState(m.title ?? '');
+  const [err, setErr] = useState<ApiError | null>(null);
+  const shown = m.displayName || m.user.name;
+
+  async function save(e: FormEvent) {
+    e.preventDefault();
+    setErr(null);
+    try {
+      await patch(
+        `/members/${m.id}`,
+        { displayName: name.trim() || null, title: title.trim() || null },
+        { ifMatch: m.version },
+      );
+      setOpen(false);
+      onSaved();
+      refreshApi('/shifts', '/teams', '/tasks', '/dashboard', '/output', '/colleagues');
+    } catch (e2) {
+      setErr(e2 as ApiError);
+    }
+  }
+
+  if (open)
+    return (
+      <form className="stack" style={{ gap: 6 }} onSubmit={save}>
+        <ErrorBox error={err} />
+        <label className="field">
+          {t('Name in this organization')}
+          <input
+            value={name}
+            maxLength={100}
+            placeholder={m.user.name}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </label>
+        <label className="field">
+          {t('Title')}
+          <input
+            value={title}
+            maxLength={60}
+            placeholder={t('e.g. Head baker')}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+        </label>
+        <div className="row">
+          <button className="btn">{t('Save')}</button>
+          <button type="button" className="btn ghost" onClick={() => setOpen(false)}>
+            {t('Cancel')}
+          </button>
+        </div>
+      </form>
+    );
+  return (
+    <span className="row" style={{ gap: 10 }}>
+      <Avatar name={shown} url={m.user.avatarUrl} size={32} />
+      <span className="stack" style={{ gap: 0 }}>
+        <b>{shown}</b>
+        {m.title ? <span className="small">{m.title}</span> : null}
+        {m.displayName && m.displayName !== m.user.name ? (
+          <span className="muted small">{t('Account: {name}', { name: m.user.name })}</span>
+        ) : null}
+      </span>
+      <button
+        type="button"
+        className="btn ghost small-btn"
+        aria-label={t('Edit name and title of {name}', { name: shown })}
+        onClick={() => setOpen(true)}
+      >
+        {t('Edit')}
+      </button>
+    </span>
   );
 }
 
@@ -246,10 +327,7 @@ function Members({ provider }: { provider: boolean }) {
           {data?.items.map((m) => (
             <tr key={m.id}>
               <td data-label={t('Name')}>
-                <span className="row" style={{ gap: 10 }}>
-                  <Avatar name={m.user.name} url={m.user.avatarUrl} size={32} />
-                  <b>{m.user.name}</b>
-                </span>
+                <NameCell member={m} onSaved={() => void run(async () => undefined)} />
               </td>
               <td data-label={t('Email')} className="small">
                 {m.user.email}
@@ -269,7 +347,7 @@ function Members({ provider }: { provider: boolean }) {
                         patch(`/members/${m.id}`, { role: e.target.value }, { ifMatch: m.version }),
                       )
                     }
-                    aria-label={t('Role of {name}', { name: m.user.name })}
+                    aria-label={t('Role of {name}', { name: m.displayName || m.user.name })}
                   >
                     <option value="employee">{t('Employee')}</option>
                     <option value="admin">{t('Admin')}</option>
@@ -310,7 +388,7 @@ function Members({ provider }: { provider: boolean }) {
                             window.confirm(
                               t(
                                 'Make {name} an owner too? Owners change who is an admin and the bot permissions. You stay an owner.',
-                                { name: m.user.name },
+                                { name: m.displayName || m.user.name },
                               ),
                             )
                           )
@@ -324,7 +402,11 @@ function Members({ provider }: { provider: boolean }) {
                       <button
                         className="btn ghost"
                         onClick={() => {
-                          if (window.confirm(t('Remove {name}?', { name: m.user.name })))
+                          if (
+                            window.confirm(
+                              t('Remove {name}?', { name: m.displayName || m.user.name }),
+                            )
+                          )
                             void run(() =>
                               patch(
                                 `/members/${m.id}`,
@@ -481,7 +563,7 @@ function Teams() {
                     setChosen(n);
                   }}
                 />
-                {m.user.name}
+                {m.displayName || m.user.name}
               </label>
             ))}
             {/* Removed from the organization: shown so the admin can take them off (2026-11-28). */}

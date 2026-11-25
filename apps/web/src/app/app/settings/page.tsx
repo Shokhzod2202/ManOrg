@@ -279,14 +279,14 @@ function WhoWorksShifts() {
       {admins.map((m) => (
         <label key={m.id} className="row between" style={{ minHeight: 44 }}>
           <span>
-            {m.user.name}
+            {m.displayName || m.user.name}
             {m.user.id === s.me?.id ? <span className="muted small"> · {t('You')}</span> : null}
           </span>
           <input
             type="checkbox"
             role="switch"
             checked={m.worksShifts}
-            aria-label={t('{name} works shifts', { name: m.user.name })}
+            aria-label={t('{name} works shifts', { name: m.displayName || m.user.name })}
             onChange={(e) => void toggle(m, e.target.checked)}
             style={{ width: 22, height: 22 }}
           />

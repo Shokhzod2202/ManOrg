@@ -99,6 +99,59 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '429': { $ref: '#/components/responses/RateLimited' }
 
+  /auth/password-reset:
+    post:
+      operationId: requestPasswordReset
+      summary: 'Forgot password: email a reset link'
+      description: If an account uses the email, a one-time link to the web app's /reset-password page is emailed; it works for 30 minutes and once, and replaces earlier links. The answer is the same whether or not the email is known (decided 2026-11-29). Rate-limited like sign-in.
+      tags: [auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        '202':
+          description: Accepted.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sent]
+                properties:
+                  sent: { type: boolean, const: true }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /auth/password-reset/confirm:
+    post:
+      operationId: confirmPasswordReset
+      summary: Set a new password with the emailed link
+      description: The token from the link and the new password. Every session of the account ends; the person is told by email. Expired, used or unknown links answer 400 RESET_LINK_INVALID.
+      tags: [auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [token, password]
+              properties:
+                token: { type: string, minLength: 20, maxLength: 200 }
+                password: { type: string, minLength: 10, maxLength: 200 }
+      responses:
+        '204': { description: Password changed. }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
   /auth/refresh:
     post:
       operationId: refreshTokens
@@ -3749,7 +3802,7 @@ components:
           description: Newest first; includes pending and rejected applications.
           items:
             type: object
-            required: [id, role, status, owner, worksShifts, organization]
+            required: [id, role, status, owner, worksShifts, displayName, title, organization]
             properties:
               id: { type: string, format: uuid }
               role: { $ref: '#/components/schemas/MembershipRole' }
@@ -3760,6 +3813,10 @@ components:
               worksShifts:
                 type: boolean
                 description: Has a punch card and shows in shift lists (always true for employees).
+              displayName:
+                type: [string, 'null']
+                description: The name this organization's admins gave you.
+              title: { type: [string, 'null'] }
               organization: { $ref: '#/components/schemas/OrganizationSummary' }
     TelegramStatus:
       type: object
@@ -4347,7 +4404,12 @@ components:
       required: [id, name]
       properties:
         id: { type: string, format: uuid }
-        name: { type: string }
+        name:
+          type: string
+          description: Inside an organization, the name its admins gave the person, else their account name (decided 2026-11-29).
+        title:
+          type: [string, 'null']
+          description: The person's title in the organization, where it is shown.
     ShiftPlan:
       type: object
       required: [employee, days]
@@ -5320,7 +5382,20 @@ components:
           description: 'Spec section 9: show "You came to work. Start shift" on arrival. Default on.'
     Member:
       type: object
-      required: [id, role, status, owner, worksShifts, removedAt, version, user, createdAt]
+      required:
+        [
+          id,
+          role,
+          status,
+          owner,
+          worksShifts,
+          removedAt,
+          displayName,
+          title,
+          version,
+          user,
+          createdAt,
+        ]
       properties:
         id:
           type: string
@@ -5338,6 +5413,10 @@ components:
           type: [string, 'null']
           format: date-time
           description: When the person was removed (decided 2026-11-28).
+        displayName:
+          type: [string, 'null']
+          description: The name the organization's admins gave the person; shown instead of the account name (user.name) everywhere inside the organization.
+        title: { type: [string, 'null'], description: "The person's title here, e.g. Head baker." }
         version:
           type: integer
           description: Send as If-Match when editing.
@@ -5361,6 +5440,14 @@ components:
         worksShifts:
           type: boolean
           description: For admins only; any admin may switch it, for themselves or others.
+        displayName:
+          type: [string, 'null']
+          maxLength: 100
+          description: The name shown for the person inside this organization; empty or null clears it. Any admin may set it.
+        title:
+          type: [string, 'null']
+          maxLength: 60
+          description: The person's title here; empty or null clears it. Any admin may set it.
         status:
           type: string
           const: removed

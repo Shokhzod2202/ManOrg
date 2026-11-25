@@ -312,7 +312,7 @@ function IngredientCard({
                       setPeople(n);
                     }}
                   />
-                  {m.user.name}
+                  {m.displayName || m.user.name}
                 </label>
               ))}
           </div>

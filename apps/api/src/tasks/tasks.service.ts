@@ -2,7 +2,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { actorFor, AuditService } from '../audit/audit.service';
 import { Errors } from '../common/errors';
-import { activeMembers } from '../common/memberships';
+import { activeMembers, orgPeople } from '../common/memberships';
 import { type AuthUser, dbContext, orgCan, type OrgContext } from '../common/request-context';
 import { zonedToUtc } from '../common/time';
 import { DatabaseService } from '../database/database.service';
@@ -348,10 +348,11 @@ export class TasksService {
     const ids = [task.assigneeId, task.completedById, task.createdById, ...shared].filter(
       (x): x is string => !!x,
     );
-    const people = await tx.user.findMany({
-      where: { id: { in: ids } },
-      select: { id: true, name: true },
-    });
+    // Decided 2026-11-29: as the organization names them.
+    const people = [...(await orgPeople(tx, task.organizationId, ids)).values()].map((x) => ({
+      id: x.id,
+      name: x.name,
+    }));
     const person = (pid: string | null) =>
       pid ? (people.find((p) => p.id === pid) ?? null) : null;
     return {

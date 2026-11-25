@@ -240,6 +240,9 @@ function AdminOutput() {
                   <tr key={e.employee.id}>
                     <td data-label={t('Name')}>
                       <b>{e.employee.name}</b>
+                      {e.employee.title ? (
+                        <span className="muted small"> · {e.employee.title}</span>
+                      ) : null}
                       {e.removedOn ? (
                         <span className="pill warn" style={{ marginLeft: 6 }}>
                           {t('Removed')}

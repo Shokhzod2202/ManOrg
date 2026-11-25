@@ -25,3 +25,12 @@ export const refreshSchema = z.strictObject({ refreshToken: z.string().min(10).m
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RefreshInput = z.infer<typeof refreshSchema>;
+
+/** Decided 2026-11-29: "Forgot password". */
+export const passwordResetRequestSchema = z.strictObject({ email });
+export const passwordResetConfirmSchema = z.strictObject({
+  token: z.string().min(20).max(200),
+  password,
+});
+export type PasswordResetRequestInput = z.infer<typeof passwordResetRequestSchema>;
+export type PasswordResetConfirmInput = z.infer<typeof passwordResetConfirmSchema>;

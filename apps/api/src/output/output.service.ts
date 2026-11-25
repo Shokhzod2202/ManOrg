@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { actorFor, AuditService } from '../audit/audit.service';
 import { Errors } from '../common/errors';
-import { activeMembers } from '../common/memberships';
+import { activeMembers, orgPeople, PERSON, personOf } from '../common/memberships';
 import { type AuthUser, dbContext, orgCan, type OrgContext } from '../common/request-context';
 import { addDays, localDate } from '../common/time';
 import { DatabaseService } from '../database/database.service';
@@ -62,10 +62,14 @@ export class OutputService {
     return this.db.run(dbContext(user, org), async (tx) => {
       const rows = await tx.membership.findMany({
         where: { organizationId: org.organizationId, status: 'active', role: 'employee' },
-        select: { user: { select: { id: true, name: true } } },
+        select: PERSON,
       });
       return {
-        items: rows.map((r) => r.user).sort((a, b) => a.name.localeCompare(b.name)),
+        // Names only: what employees need to build a team.
+        items: rows
+          .map(personOf)
+          .map((p) => ({ id: p.id, name: p.name }))
+          .sort((a, b) => a.name.localeCompare(b.name)),
         nextCursor: null,
       };
     });
@@ -184,11 +188,10 @@ export class OutputService {
   private async presentTeam(tx: Tx, id: string) {
     const team = await tx.team.findUniqueOrThrow({ where: { id }, include: { members: true } });
     const ids = team.members.map((m) => m.employeeId);
-    const people = await tx.user.findMany({
-      where: { id: { in: ids } },
-      select: { id: true, name: true },
-      orderBy: { name: 'asc' },
-    });
+    // As the organization names them (decided 2026-11-29).
+    const people = [...(await orgPeople(tx, team.organizationId, ids)).values()]
+      .map((x) => ({ id: x.id, name: x.name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
     const active = new Set(
       (
         await tx.membership.findMany({
@@ -379,7 +382,7 @@ export class OutputService {
           role: 'employee',
           ...(all ? {} : { userId: user.userId }),
         },
-        select: { removedAt: true, user: { select: { id: true, name: true } } },
+        select: { removedAt: true, ...PERSON },
         orderBy: { createdAt: 'asc' },
       });
       const clock = await tx.organization.findUniqueOrThrow({
@@ -389,7 +392,7 @@ export class OutputService {
       // Someone removed before this day is left out; removed on or after it, marked removed.
       const members = rows
         .map((r) => ({
-          ...r.user,
+          ...personOf(r),
           removedOn: r.removedAt ? localDate(clock.timezone, r.removedAt) : null,
         }))
         .filter((m) => !m.removedOn || m.removedOn >= date);
@@ -410,7 +413,7 @@ export class OutputService {
       return {
         date,
         employees: members.map((m) => ({
-          employee: { id: m.id, name: m.name },
+          employee: { id: m.id, name: m.name, title: m.title },
           removedOn: m.removedOn,
           workedMinutes: timesheets.get(m.id)?.[0]?.workedMinutes ?? 0,
           flags: timesheets.get(m.id)?.[0]?.flags ?? [],
@@ -439,10 +442,11 @@ export class OutputService {
       where: { id: { in: [...new Set(lines.flatMap((l) => (l.teamId ? [l.teamId] : [])))] } },
       select: { id: true, name: true },
     });
-    const people = await tx.user.findMany({
-      where: { id: { in: [...new Set(lines.flatMap((l) => l.teamMemberIds))] } },
-      select: { id: true, name: true },
-    });
+    const people = [
+      ...(
+        await orgPeople(tx, org.organizationId, [...new Set(lines.flatMap((l) => l.teamMemberIds))])
+      ).values(),
+    ];
     const out = new Map<string, unknown[]>();
     for (const id of employeeIds) {
       const days = [];

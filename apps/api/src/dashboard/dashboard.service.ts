@@ -1,4 +1,4 @@
-import { WORKS_SHIFTS } from '../common/memberships';
+import { PERSON, personOf, WORKS_SHIFTS } from '../common/memberships';
 import { Injectable } from '@nestjs/common';
 import { Errors } from '../common/errors';
 import { type AuthUser, dbContext, type OrgContext } from '../common/request-context';
@@ -36,10 +36,10 @@ export class DashboardService {
       const members = (
         await tx.membership.findMany({
           where: { organizationId: org.organizationId, status: 'active', ...WORKS_SHIFTS },
-          select: { user: { select: { id: true, name: true } } },
+          select: PERSON,
           orderBy: { createdAt: 'asc' },
         })
-      ).map((m) => m.user);
+      ).map(personOf);
       // Yesterday too, so a night shift that started before midnight still shows as on shift.
       const days = await this.timesheet.days(
         tx,

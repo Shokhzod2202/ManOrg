@@ -18,10 +18,14 @@ export const updateMemberSchema = z
     status: z.literal('removed').optional(),
     /** Decided 2026-11-26: an admin who also works shifts (punch card, shift lists, hours). */
     worksShifts: z.boolean().optional(),
+    /** Decided 2026-11-29: the name shown inside this organization; empty or null clears it. */
+    displayName: z.string().trim().max(100).nullable().optional(),
+    /** Decided 2026-11-29: the person's title here, e.g. "Head baker"; empty or null clears it. */
+    title: z.string().trim().max(60).nullable().optional(),
   })
   .refine(
-    (v) => v.role !== undefined || v.status !== undefined || v.worksShifts !== undefined,
-    'Send role, status or worksShifts.',
+    (v) => Object.values(v).some((x) => x !== undefined),
+    'Send role, status, worksShifts, displayName or title.',
   );
 
 /**

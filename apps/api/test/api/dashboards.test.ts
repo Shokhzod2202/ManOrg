@@ -43,7 +43,7 @@ describe("Today's Dashboard (DSH-1)", () => {
     expect(res.body.today).toBe(today());
     expect(res.body.onShift).toEqual([
       expect.objectContaining({
-        employee: { id: w.a.employee.userId, name: w.a.employee.name },
+        employee: { id: w.a.employee.userId, name: w.a.employee.name, title: null },
         status: 'working',
       }),
     ]);

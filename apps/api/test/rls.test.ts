@@ -12,6 +12,8 @@ const GLOBAL_TABLES = [
   '_prisma_migrations',
   'device_tokens',
   'organizations',
+  // Account-level, like refresh tokens (decided 2026-11-29).
+  'password_resets',
   'refresh_tokens',
   'telegram_link_codes',
   'telegram_links',

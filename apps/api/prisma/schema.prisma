@@ -182,11 +182,28 @@ model User {
 
   memberships       Membership[]
   refreshTokens     RefreshToken[]
+  passwordResets    PasswordReset[]
   deviceTokens      DeviceToken[]
   telegramLink      TelegramLink?
   telegramLinkCodes TelegramLinkCode[]
 
   @@map("users")
+}
+
+/// Decided 2026-11-29: "Forgot password". A one-time link sent by email; only its hash is stored.
+/// It works for 30 minutes and once; a new request replaces earlier unused links.
+model PasswordReset {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_resets")
 }
 
 /// Refresh tokens are stored hashed and rotated on every use; a reused token revokes its family.
@@ -284,6 +301,10 @@ model Membership {
   status         MembershipStatus
   decidedById    String?          @map("decided_by") @db.Uuid
   decidedAt      DateTime?        @map("decided_at") @db.Timestamptz(3)
+  /// Decided 2026-11-29: the name the organization's admins give this person, shown instead of
+  /// their account name everywhere inside the organization; and their job title.
+  displayName    String?          @map("display_name")
+  title          String?
   /// Decided 2026-11-28: when the person was removed. Their data before it stays visible, marked
   /// removed; from it on they are out of shifts, team credit and lists.
   removedAt      DateTime?        @map("removed_at") @db.Timestamptz(3)

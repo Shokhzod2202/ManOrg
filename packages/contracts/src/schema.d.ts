@@ -53,6 +53,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/password-reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Forgot password: email a reset link
+         * @description If an account uses the email, a one-time link to the web app's /reset-password page is emailed; it works for 30 minutes and once, and replaces earlier links. The answer is the same whether or not the email is known (decided 2026-11-29). Rate-limited like sign-in.
+         */
+        post: operations["requestPasswordReset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/password-reset/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set a new password with the emailed link
+         * @description The token from the link and the new password. Every session of the account ends; the person is told by email. Expired, used or unknown links answer 400 RESET_LINK_INVALID.
+         */
+        post: operations["confirmPasswordReset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/refresh": {
         parameters: {
             query?: never;
@@ -2253,6 +2293,9 @@ export interface components {
                 owner: boolean;
                 /** @description Has a punch card and shows in shift lists (always true for employees). */
                 worksShifts: boolean;
+                /** @description The name this organization's admins gave you. */
+                displayName: string | null;
+                title: string | null;
                 organization: components["schemas"]["OrganizationSummary"];
             }[];
         };
@@ -2681,7 +2724,10 @@ export interface components {
         PersonRef: {
             /** Format: uuid */
             id: string;
+            /** @description Inside an organization, the name its admins gave the person, else their account name (decided 2026-11-29). */
             name: string;
+            /** @description The person's title in the organization, where it is shown. */
+            title?: string | null;
         };
         ShiftPlan: {
             employee: components["schemas"]["PersonRef"];
@@ -3442,6 +3488,10 @@ export interface components {
              * @description When the person was removed (decided 2026-11-28).
              */
             removedAt: string | null;
+            /** @description The name the organization's admins gave the person; shown instead of the account name (user.name) everywhere inside the organization. */
+            displayName: string | null;
+            /** @description The person's title here, e.g. Head baker. */
+            title: string | null;
             /** @description Send as If-Match when editing. */
             version: number;
             user: components["schemas"]["UserSummary"];
@@ -3458,6 +3508,10 @@ export interface components {
             role?: components["schemas"]["MembershipRole"];
             /** @description For admins only; any admin may switch it, for themselves or others. */
             worksShifts?: boolean;
+            /** @description The name shown for the person inside this organization; empty or null clears it. Any admin may set it. */
+            displayName?: string | null;
+            /** @description The person's title here; empty or null clears it. Any admin may set it. */
+            title?: string | null;
             /** @constant */
             status?: "removed";
         };
@@ -3627,6 +3681,65 @@ export interface operations {
             };
             400: components["responses"]["ValidationFailed"];
             401: components["responses"]["Unauthenticated"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    requestPasswordReset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: email */
+                    email: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Accepted. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        sent: true;
+                    };
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    confirmPasswordReset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    token: string;
+                    password: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Password changed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["ValidationFailed"];
             429: components["responses"]["RateLimited"];
         };
     };

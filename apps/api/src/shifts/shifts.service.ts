@@ -2,7 +2,7 @@ import { translate } from '../common/i18n';
 import { Injectable } from '@nestjs/common';
 import { actorFor, AuditService } from '../audit/audit.service';
 import { Errors } from '../common/errors';
-import { activeMembers, WORKS_SHIFTS } from '../common/memberships';
+import { activeMembers, orgPeople, PERSON, personOf, WORKS_SHIFTS } from '../common/memberships';
 import { type AuthUser, dbContext, orgCan, type OrgContext } from '../common/request-context';
 import { addDays, hhmmToTime, localDate, timeToHhmm } from '../common/time';
 import { DatabaseService } from '../database/database.service';
@@ -243,7 +243,7 @@ export class ShiftsService {
       sent += await this.db.run({ organizationId: o.id, userId: null }, async (tx) => {
         const members = await tx.membership.findMany({
           where: { organizationId: o.id, status: 'active', ...WORKS_SHIFTS },
-          select: { userId: true, user: { select: { name: true } } },
+          select: { userId: true, ...PERSON },
         });
         if (!members.length) return 0;
         const today = localDate(clock.timezone, now);
@@ -267,7 +267,7 @@ export class ShiftsService {
                 type: 'punch.flagged',
                 payload: {
                   employeeId: m.userId,
-                  name: m.user.name,
+                  name: personOf(m).name,
                   date: d.date,
                   code: f.code,
                   message: f.message,
@@ -592,10 +592,8 @@ export class ShiftsService {
     const original = (
       await this.timesheet.days(tx, org.organizationId, clock, [r.employeeId], date, date)
     ).get(r.employeeId)?.[0];
-    const employee = await tx.user.findUnique({
-      where: { id: r.employeeId },
-      select: { id: true, name: true },
-    });
+    const person = (await orgPeople(tx, org.organizationId, [r.employeeId])).get(r.employeeId);
+    const employee = person ? { id: person.id, name: person.name } : null;
     const first = original?.sessions[0];
     const last = original?.sessions.at(-1);
     return {
@@ -646,7 +644,7 @@ export class ShiftsService {
         ],
         ...(ids ? { userId: { in: ids } } : {}),
       },
-      select: { user: { select: { id: true, name: true } } },
+      select: PERSON,
       orderBy: { createdAt: 'asc' },
     });
     // An admin who does not work shifts asks about themselves: nothing to show, not an error.
@@ -655,7 +653,7 @@ export class ShiftsService {
     if (missing.some((id) => !(org.role === 'admin' && id === selfId))) {
       throw Errors.notFound('Employee');
     }
-    return rows.map((r) => r.user);
+    return rows.map(personOf);
   }
 
   /** The local date each removed person in the list was removed on. */

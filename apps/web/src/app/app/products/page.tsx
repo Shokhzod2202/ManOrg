@@ -299,7 +299,7 @@ function AssignProducts({ products }: { products: Product[] }) {
         <option value="">{t('Choose an employee')}</option>
         {employees.map((m) => (
           <option key={m.user.id} value={m.user.id}>
-            {m.user.name}
+            {m.displayName || m.user.name}
           </option>
         ))}
       </select>

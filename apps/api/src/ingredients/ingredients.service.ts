@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { actorFor, AuditService } from '../audit/audit.service';
 import { Errors } from '../common/errors';
-import { activeMembers } from '../common/memberships';
+import { activeMembers, orgPeople } from '../common/memberships';
 import { type AuthUser, dbContext, orgCan, type OrgContext } from '../common/request-context';
 import { hhmmToTime, timeToHhmm, weekdayIn } from '../common/time';
 import { DatabaseService } from '../database/database.service';
@@ -292,7 +292,7 @@ export class IngredientsService {
     const ids = [...new Set(rows.flatMap((r) => r.responsibilities.map((a) => a.employeeId)))];
     const [users, organization] = await Promise.all([
       ids.length > 0
-        ? tx.user.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } })
+        ? orgPeople(tx, org.organizationId, ids).then((m) => [...m.values()])
         : Promise.resolve([]),
       tx.organization.findUniqueOrThrow({
         where: { id: org.organizationId },

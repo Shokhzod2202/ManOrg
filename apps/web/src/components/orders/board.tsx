@@ -161,7 +161,7 @@ export function OrdersBoard({
               <option value="all">{t('All products')}</option>
               {employees.map((m) => (
                 <option key={m.user.id} value={m.user.id}>
-                  {m.user.name}'s products
+                  {t("{name}'s products", { name: m.displayName || m.user.name })}
                 </option>
               ))}
             </select>

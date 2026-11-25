@@ -691,6 +691,81 @@ async function as(b, email, vp = { width: 1280, height: 900 }) {
   if (!shownRemoved || teamError !== 0 || !takenOff)
     throw new Error('Editing a team after removing someone failed');
 
+  // 22. Decided 2026-11-29. The admin gives Mina a name and title for this organization; the
+  // shift plan shows them. Then cleared, so other steps find "Mina Park" again.
+  await boss.goto(`${W}/app/people`);
+  const minaRow = boss.locator('section:has(h2:has-text("Members")) tr', { hasText: 'Mina Park' });
+  await minaRow.locator('button:has-text("Edit")').first().click();
+  const nameForm = boss.locator(
+    'section:has(h2:has-text("Members")) form:has(label:has-text("Name in this organization"))',
+  );
+  await nameForm
+    .locator('label:has-text("Name in this organization") input')
+    .fill('Mina the Baker');
+  await nameForm.locator('label:has-text("Title") input').fill('Head baker');
+  await nameForm.locator('button:has-text("Save")').click();
+  await boss.goto(`${W}/app/shifts`);
+  const named = await boss.waitForSelector('text=Mina the Baker', { timeout: 10000 }).then(
+    async () =>
+      (await boss.locator('option', { hasText: 'Mina the Baker · Head baker' }).count()) > 0,
+    () => false,
+  );
+  await boss.goto(`${W}/app/people`);
+  const renamedRow = boss.locator('section:has(h2:has-text("Members")) tr', {
+    hasText: 'Mina the Baker',
+  });
+  await renamedRow.locator('button:has-text("Edit")').first().click();
+  await nameForm.locator('label:has-text("Name in this organization") input').fill('');
+  await nameForm.locator('label:has-text("Title") input').fill('');
+  await nameForm.locator('button:has-text("Save")').click();
+  await boss
+    .locator('section:has(h2:has-text("Members")) tr', { hasText: 'Mina Park' })
+    .first()
+    .waitFor();
+  log('22 name and title given by the admin show in the shift plan:', named);
+  if (!named) throw new Error('Organization name and title not shown');
+
+  // Forgot password: the newcomer asks for a link, opens it, sets a new password and signs in.
+  // Without a mail server the API writes the email to its log (API_LOG names the file).
+  if (process.env.API_LOG) {
+    const fs = require('node:fs');
+    const visitor = await b.newPage({ viewport: { width: 390, height: 844 } });
+    await visitor.goto(`${W}/login`);
+    await visitor.click('a:has-text("Forgot your password?")');
+    await visitor.waitForURL('**/forgot-password');
+    await visitor.waitForSelector('button:has-text("Send reset link")');
+    await visitor.fill('input[type=email]', email);
+    await visitor.click('button:has-text("Send reset link")');
+    await visitor.waitForSelector('text=we sent it a link');
+    let link = null;
+    for (let i = 0; i < 20 && !link; i += 1) {
+      const logText = fs.readFileSync(process.env.API_LOG, 'utf8');
+      const all = [
+        ...logText.matchAll(
+          /Email to ([^:]+): [^\n]*\n[\s\S]*?(http\S*\/reset-password\?token=[\w-]+)/g,
+        ),
+      ];
+      const mine = all.filter((m) => m[1] === email).at(-1);
+      link = mine ? mine[2].replace(/^http:\/\/localhost:3000/, W) : null;
+      if (!link) await visitor.waitForTimeout(500);
+    }
+    if (!link) throw new Error('No reset email in the API log');
+    await visitor.goto(link);
+    const fields = visitor.locator('.password input');
+    await fields.nth(0).fill('Reset-pass-2026!');
+    await fields.nth(1).fill('Reset-pass-2026!');
+    await visitor.click('button:has-text("Save new password")');
+    await visitor.waitForSelector('text=Your password is changed');
+    await visitor.goto(`${W}/login`);
+    await visitor.fill('input[type=email]', email);
+    await visitor.fill('.password input', 'Reset-pass-2026!');
+    await visitor.click('button.btn.big');
+    await visitor.waitForURL('**/app', { timeout: 15000 });
+    log('22 forgot password: link emailed, new password set, signed in with it');
+  } else {
+    log('22 forgot password: skipped (set API_LOG to the API log file to run it)');
+  }
+
   await b.close();
 })().catch((e) => {
   console.error('FAILED', e.message.slice(0, 400));

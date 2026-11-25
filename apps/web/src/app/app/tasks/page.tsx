@@ -373,7 +373,7 @@ function WhoPicker({
                 )
               }
             />
-            {m.user.name}
+            {m.displayName || m.user.name}
           </label>
         ))}
       </div>

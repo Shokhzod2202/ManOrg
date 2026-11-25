@@ -94,6 +94,9 @@ export function AdminToday() {
                   <tr key={p.employee?.id}>
                     <td data-label={t('Name')}>
                       <b>{p.employee?.name}</b>
+                      {p.employee?.title ? (
+                        <span className="muted small"> · {p.employee.title}</span>
+                      ) : null}
                     </td>
                     <td data-label={t('Status')}>
                       <span className={p.status === 'working' ? 'pill ok' : 'pill warn'}>

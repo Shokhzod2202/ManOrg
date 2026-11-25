@@ -1,3 +1,4 @@
+import { orgPeople } from '../common/memberships';
 import { Injectable } from '@nestjs/common';
 import { actorFor, AuditService } from '../audit/audit.service';
 import { Errors } from '../common/errors';
@@ -27,10 +28,9 @@ export class IngredientOrdersService {
         where: { id: input.ingredientId, organizationId: org.organizationId, deletedAt: null },
       });
       if (!ingredient) throw Errors.validation({ ingredientId: ['Not an ingredient here.'] });
-      const requester = await tx.user.findUniqueOrThrow({
-        where: { id: user.userId },
-        select: { name: true },
-      });
+      const requester = (await orgPeople(tx, org.organizationId, [user.userId])).get(
+        user.userId,
+      ) ?? { name: '' };
       const task = await tx.task.create({
         data: {
           organizationId: org.organizationId,
@@ -216,10 +216,11 @@ export class IngredientOrdersService {
       },
     });
     const ids = [o.requestedById, o.fulfilledById, o.checkedById].filter((x): x is string => !!x);
-    const people = await tx.user.findMany({
-      where: { id: { in: ids } },
-      select: { id: true, name: true },
-    });
+    // Decided 2026-11-29: as the organization names them.
+    const people = [...(await orgPeople(tx, o.organizationId, ids)).values()].map((x) => ({
+      id: x.id,
+      name: x.name,
+    }));
     const person = (pid: string | null) =>
       pid ? (people.find((p) => p.id === pid) ?? null) : null;
     return {

@@ -1,3 +1,4 @@
+import { PERSON, personOf } from '../common/memberships';
 import { Injectable } from '@nestjs/common';
 import { actorFor, AuditService } from '../audit/audit.service';
 import { Errors } from '../common/errors';
@@ -45,7 +46,7 @@ export class DueNextService {
     return this.db.run(dbContext(user, org), async (tx) => {
       const member = await tx.membership.findFirst({
         where: { organizationId: org.organizationId, userId: employeeId, status: 'active' },
-        select: { user: { select: { id: true, name: true } } },
+        select: PERSON,
       });
       if (!member) throw Errors.notFound('Employee');
       const assigned = new Set(
@@ -59,7 +60,7 @@ export class DueNextService {
       const orders = (await this.select(tx, org.organizationId))
         .map((o) => ({ ...o, lines: o.lines.filter((l) => assigned.has(l.productId)) }))
         .filter((o) => o.lines.length > 0);
-      return { employee: member.user, orders, totals: totals(orders.flatMap((o) => o.lines)) };
+      return { employee: personOf(member), orders, totals: totals(orders.flatMap((o) => o.lines)) };
     });
   }
 

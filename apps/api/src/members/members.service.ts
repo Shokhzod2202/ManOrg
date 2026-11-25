@@ -28,6 +28,8 @@ type MemberRow = {
   owner: boolean;
   worksShifts: boolean;
   removedAt: Date | null;
+  displayName: string | null;
+  title: string | null;
   createdAt: Date;
   user: { id: string; name: string; email: string | null; avatarKey: string | null };
   avatarUrl?: string | null;
@@ -41,6 +43,10 @@ function present(m: MemberRow) {
     owner: m.owner,
     worksShifts: m.role === 'employee' || m.worksShifts,
     removedAt: m.removedAt,
+    // Decided 2026-11-29: the organization's name for the person (user.name stays their account
+    // name) and their title.
+    displayName: m.displayName,
+    title: m.title,
     version: m.version,
     user: { id: m.user.id, name: m.user.name, email: m.user.email, avatarUrl: m.avatarUrl ?? null },
     createdAt: m.createdAt,
@@ -158,6 +164,8 @@ export class MembersService {
           ...(input.role !== undefined ? { role: input.role } : {}),
           ...(input.status !== undefined ? { status: input.status, removedAt: new Date() } : {}),
           ...(input.worksShifts !== undefined ? { worksShifts: input.worksShifts } : {}),
+          ...(input.displayName !== undefined ? { displayName: input.displayName || null } : {}),
+          ...(input.title !== undefined ? { title: input.title || null } : {}),
           version: { increment: 1 },
         },
       });
@@ -174,7 +182,9 @@ export class MembersService {
             ? 'membership.remove'
             : changesRole
               ? 'membership.role_change'
-              : 'membership.works_shifts',
+              : input.worksShifts !== undefined
+                ? 'membership.works_shifts'
+                : 'membership.profile',
         entity: 'membership',
         entityId: id,
         before,

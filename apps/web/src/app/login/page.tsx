@@ -58,6 +58,9 @@ export default function LoginPage() {
         <button className="btn big" disabled={busy}>
           {busy ? t('Signing in…') : t('Sign in')}
         </button>
+        <p className="center" style={{ margin: 0 }}>
+          <Link href="/forgot-password">{t('Forgot your password?')}</Link>
+        </p>
         <p className="muted center">
           {t('New here?')} <Link href="/register">{t('Create an account')}</Link>
         </p>

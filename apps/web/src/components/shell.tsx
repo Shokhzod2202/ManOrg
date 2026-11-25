@@ -132,7 +132,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         <span className="grow" />
         <Link href="/app/settings" className={path === '/app/settings' ? 'on' : ''}>
           <Avatar name={s.me.name} url={s.me.avatarUrl} size={28} />
-          {s.me.name}
+          {/* The name this organization gave you, else your account name (2026-11-29). */}
+          {s.membership.displayName || s.me.name}
         </Link>
         <Link href="/app/notifications">
           <Icon name="bell" />

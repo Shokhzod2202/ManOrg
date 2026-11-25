@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { actorFor, AuditService } from '../audit/audit.service';
 import { Errors } from '../common/errors';
-import { activeMembers } from '../common/memberships';
+import { activeMembers, orgPeople } from '../common/memberships';
 import { type AuthUser, dbContext, type OrgContext } from '../common/request-context';
 import { isoDate, localDate, weekdayOfDate } from '../common/time';
 import { DatabaseService } from '../database/database.service';
@@ -315,10 +315,11 @@ export class RecurringTasksService {
 
   private async present(tx: Tx, r: Awaited<ReturnType<Tx['recurringTask']['findFirstOrThrow']>>) {
     const ids = r.assigneeId ? [r.assigneeId] : r.assigneeIds;
-    const people = await tx.user.findMany({
-      where: { id: { in: ids } },
-      select: { id: true, name: true },
-    });
+    // Decided 2026-11-29: as the organization names them.
+    const people = [...(await orgPeople(tx, r.organizationId, ids)).values()].map((x) => ({
+      id: x.id,
+      name: x.name,
+    }));
     const assignees = ids
       .map((id) => people.find((p) => p.id === id))
       .filter((p): p is { id: string; name: string } => !!p);

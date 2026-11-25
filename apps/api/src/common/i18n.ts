@@ -44,6 +44,12 @@ const KO: Record<string, string> = {
   'Your delivery change was not approved.': '배송 변경이 승인되지 않았습니다.',
   'New delivery time: about <b>{start}–{end}</b>': '새 배송 시간: 약 <b>{start}–{end}</b>',
   'You came to work. Start shift': '출근했어요. 근무를 시작하세요',
+  'Reset your Haydar Systems password': 'Haydar Systems 비밀번호 재설정',
+  'Hello {name},\n\nSomeone asked to reset the password of your Haydar Systems account. To choose a new password, open this link within {minutes} minutes:\n\n{link}\n\nIf it was not you, ignore this email: your password stays the same.':
+    '{name}님, 안녕하세요.\n\nHaydar Systems 계정의 비밀번호 재설정 요청이 있었습니다. 새 비밀번호를 정하려면 {minutes}분 안에 이 링크를 여세요:\n\n{link}\n\n본인이 요청하지 않았다면 이 이메일을 무시하세요. 비밀번호는 바뀌지 않습니다.',
+  'Your Haydar Systems password was changed': 'Haydar Systems 비밀번호가 변경되었습니다',
+  'Hello {name},\n\nThe password of your Haydar Systems account was just changed with a reset link, and you were signed out everywhere. If it was not you, reset your password again and tell your admin.':
+    '{name}님, 안녕하세요.\n\n재설정 링크로 Haydar Systems 계정의 비밀번호가 방금 변경되었고 모든 기기에서 로그아웃되었습니다. 본인이 아니라면 비밀번호를 다시 재설정하고 관리자에게 알려 주세요.',
 };
 
 const UZ: Record<string, string> = {
@@ -88,6 +94,12 @@ const UZ: Record<string, string> = {
   'New delivery time: about <b>{start}–{end}</b>':
     'Yangi yetkazish vaqti: taxminan <b>{start}–{end}</b>',
   'You came to work. Start shift': 'Ishga keldingiz. Smenani boshlang',
+  'Reset your Haydar Systems password': 'Haydar Systems parolini tiklash',
+  'Hello {name},\n\nSomeone asked to reset the password of your Haydar Systems account. To choose a new password, open this link within {minutes} minutes:\n\n{link}\n\nIf it was not you, ignore this email: your password stays the same.':
+    'Salom, {name}.\n\nHaydar Systems hisobingiz parolini tiklash soʻraldi. Yangi parol tanlash uchun ushbu havolani {minutes} daqiqa ichida oching:\n\n{link}\n\nAgar bu siz boʻlmasangiz, bu xatni eʼtiborsiz qoldiring: parolingiz oʻzgarmaydi.',
+  'Your Haydar Systems password was changed': 'Haydar Systems parolingiz oʻzgartirildi',
+  'Hello {name},\n\nThe password of your Haydar Systems account was just changed with a reset link, and you were signed out everywhere. If it was not you, reset your password again and tell your admin.':
+    'Salom, {name}.\n\nHaydar Systems hisobingiz paroli hozirgina tiklash havolasi orqali oʻzgartirildi va siz barcha qurilmalardan chiqarildingiz. Agar bu siz boʻlmasangiz, parolni yana tiklang va adminingizga xabar bering.',
 };
 
 export const SERVER_TEXT: Record<Exclude<Locale, 'en'>, Record<string, string>> = {

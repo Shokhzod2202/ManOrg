@@ -5,12 +5,17 @@ import { ZodBody } from '../common/zod';
 import {
   type LoginInput,
   loginSchema,
+  type PasswordResetConfirmInput,
+  passwordResetConfirmSchema,
+  type PasswordResetRequestInput,
+  passwordResetRequestSchema,
   type RefreshInput,
   refreshSchema,
   type RegisterInput,
   registerSchema,
 } from './auth.schemas';
 import { AuthService } from './auth.service';
+import { PasswordResetService } from './password-reset.service';
 
 /**
  * Sign-in and registration are rate-limited per client (spec section 12). Refresh and sign-out get
@@ -22,7 +27,32 @@ const SESSION_LIMIT = 300;
 @UseGuards(ThrottlerGuard)
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly resets: PasswordResetService,
+  ) {}
+
+  /**
+   * Decided 2026-11-29: "Forgot password". Always 202 with the same answer, so it never tells
+   * whether an account uses the email. Rate-limited like sign-in.
+   */
+  @Post('password-reset')
+  @HttpCode(202)
+  async requestReset(
+    @ZodBody(passwordResetRequestSchema) body: PasswordResetRequestInput,
+  ): Promise<{ sent: true }> {
+    await this.resets.request(body.email);
+    return { sent: true };
+  }
+
+  /** Sets the new password with the emailed one-time link; every session then ends. */
+  @Post('password-reset/confirm')
+  @HttpCode(204)
+  async confirmReset(
+    @ZodBody(passwordResetConfirmSchema) body: PasswordResetConfirmInput,
+  ): Promise<void> {
+    await this.resets.confirm(body.token, body.password);
+  }
 
   @Post('register')
   register(@ZodBody(registerSchema) body: RegisterInput) {

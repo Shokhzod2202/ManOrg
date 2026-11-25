@@ -61,6 +61,12 @@ const schema = z.object({
   TELEGRAM_POLLING: z.enum(['true', 'false']).default('false'),
   /** The web app, for links in bot messages. */
   WEB_APP_URL: z.string().default('http://localhost:3000'),
+  /**
+   * Decided 2026-11-29: email (password reset links). An SMTP URL such as
+   * smtps://user:password@smtp.example.com:465. Not set: emails are written to the API log.
+   */
+  SMTP_URL: z.string().optional(),
+  MAIL_FROM: z.string().default('Haydar Systems <no-reply@haydar.local>'),
 });
 
 export type Env = z.infer<typeof schema>;

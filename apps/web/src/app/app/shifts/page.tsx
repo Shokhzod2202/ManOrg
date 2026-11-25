@@ -402,7 +402,7 @@ function PlanEditor() {
         <option value="">{t('Choose an employee')}</option>
         {data?.items.map((p) => (
           <option key={p.employee.id} value={p.employee.id}>
-            {p.employee.name}
+            {p.employee.title ? `${p.employee.name} · ${p.employee.title}` : p.employee.name}
           </option>
         ))}
       </select>

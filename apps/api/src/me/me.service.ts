@@ -183,6 +183,8 @@ export class MeService {
         status: m.status,
         owner: m.owner,
         worksShifts: m.role === 'employee' || m.worksShifts,
+        displayName: m.displayName,
+        title: m.title,
         organization: m.organization,
       })),
     };

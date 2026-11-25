@@ -723,4 +723,27 @@ export const ko: Record<string, string> = {
   '{name} (removed {date})': '{name} ({date} 삭제됨)',
   '{name} (removed)': '{name} (삭제됨)',
   'Choose another person.': '다른 사람을 선택하세요.',
+  'Account: {name}': '계정: {name}',
+  'Ask for a new link': '새 링크 요청',
+  'Back to sign in': '로그인으로 돌아가기',
+  'Choose a new password': '새 비밀번호 정하기',
+  'Edit name and title of {name}': '{name}의 이름과 직함 수정',
+  'Enter the email you sign in with. We will email you a link to choose a new password.':
+    '로그인할 때 쓰는 이메일을 입력하세요. 새 비밀번호를 정할 링크를 이메일로 보내 드립니다.',
+  'Forgot your password?': '비밀번호를 잊으셨나요?',
+  'If an account uses {email}, we sent it a link to choose a new password. The link works for 30 minutes. Check your spam folder too.':
+    '{email}을(를) 쓰는 계정이 있다면 새 비밀번호를 정할 링크를 보냈습니다. 링크는 30분 동안 유효합니다. 스팸함도 확인하세요.',
+  'Name in this organization': '이 조직에서 쓰는 이름',
+  'Save new password': '새 비밀번호 저장',
+  'Saving…': '저장 중…',
+  'Send it again': '다시 보내기',
+  'Send reset link': '재설정 링크 보내기',
+  'This link is not complete. Open the link from the email again, or ask for a new one.':
+    '링크가 완전하지 않습니다. 이메일의 링크를 다시 열거나 새 링크를 요청하세요.',
+  'Your password is changed, and you were signed out on every device. Sign in with the new password.':
+    '비밀번호가 변경되었고 모든 기기에서 로그아웃되었습니다. 새 비밀번호로 로그인하세요.',
+  'e.g. Head baker': '예: 수석 제빵사',
+  "{name}'s products": '{name}의 제품',
+  'This reset link has expired or was already used. Ask for a new one.':
+    '재설정 링크가 만료되었거나 이미 사용되었습니다. 새 링크를 요청하세요.',
 };

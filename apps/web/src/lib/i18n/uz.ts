@@ -732,4 +732,27 @@ export const uz: Record<string, string> = {
   '{name} (removed {date})': '{name} ({date} da chiqarilgan)',
   '{name} (removed)': '{name} (chiqarilgan)',
   'Choose another person.': 'Boshqa odamni tanlang.',
+  'Account: {name}': 'Hisob: {name}',
+  'Ask for a new link': 'Yangi havola soʻrash',
+  'Back to sign in': 'Kirishga qaytish',
+  'Choose a new password': 'Yangi parol tanlash',
+  'Edit name and title of {name}': '{name} ning ismi va lavozimini tahrirlash',
+  'Enter the email you sign in with. We will email you a link to choose a new password.':
+    'Kirishda foydalanadigan emailingizni kiriting. Yangi parol tanlash uchun havolani emailga yuboramiz.',
+  'Forgot your password?': 'Parolni unutdingizmi?',
+  'If an account uses {email}, we sent it a link to choose a new password. The link works for 30 minutes. Check your spam folder too.':
+    'Agar {email} bilan hisob boʻlsa, unga yangi parol tanlash havolasini yubordik. Havola 30 daqiqa ishlaydi. Spam papkasini ham tekshiring.',
+  'Name in this organization': 'Shu tashkilotdagi ismi',
+  'Save new password': 'Yangi parolni saqlash',
+  'Saving…': 'Saqlanmoqda…',
+  'Send it again': 'Yana yuborish',
+  'Send reset link': 'Tiklash havolasini yuborish',
+  'This link is not complete. Open the link from the email again, or ask for a new one.':
+    'Havola toʻliq emas. Emaildagi havolani qayta oching yoki yangisini soʻrang.',
+  'Your password is changed, and you were signed out on every device. Sign in with the new password.':
+    'Parolingiz oʻzgardi va barcha qurilmalardan chiqarildingiz. Yangi parol bilan kiring.',
+  'e.g. Head baker': 'masalan: Bosh novvoy',
+  "{name}'s products": '{name} mahsulotlari',
+  'This reset link has expired or was already used. Ask for a new one.':
+    'Bu tiklash havolasi eskirgan yoki ishlatilgan. Yangisini soʻrang.',
 };

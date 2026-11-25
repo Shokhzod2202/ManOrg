@@ -20,6 +20,7 @@ import { BotController } from './bot/bot.controller';
 import { BotService } from './bot/bot.service';
 import { BotTools } from './bot/tools';
 import { MoreBotTools } from './bot/tools-more';
+import { MailModule } from './mail/mail.module';
 import { createLlmProvider } from './bot/llm/factory';
 import { LLM_PROVIDER } from './bot/llm/types';
 import { DashboardModule } from './dashboard/dashboard.module';
@@ -43,6 +44,7 @@ import { OrgContextGuard } from './permissions/org-context.guard';
 
 @Module({
   imports: [
+    MailModule,
     // Read at app start (not import), so tests can build apps with different limits.
     ThrottlerModule.forRootAsync({
       useFactory: () => [{ ttl: 60_000, limit: env().AUTH_RATE_LIMIT_PER_MINUTE }],
