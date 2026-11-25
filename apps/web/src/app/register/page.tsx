@@ -38,7 +38,7 @@ export default function RegisterPage() {
   return (
     <AuthFrame title={t('Create an account')}>
       <form className="stack" onSubmit={submit}>
-        <ErrorBox error={error} />
+        <ErrorBox error={error} inlineFields />
         <Field label={t('Your name')} error={error?.fields?.name}>
           <input
             autoComplete="name"

@@ -37,7 +37,7 @@ export default function LoginPage() {
   return (
     <AuthFrame title={t('Sign in')}>
       <form className="stack" onSubmit={submit}>
-        <ErrorBox error={error} />
+        <ErrorBox error={error} inlineFields />
         <Field label={t('Email')} error={error?.fields?.email}>
           <input
             type="email"

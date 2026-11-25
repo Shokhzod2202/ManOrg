@@ -2,14 +2,15 @@ import { randomUUID } from 'node:crypto';
 
 /**
  * Storage keys are one flat segment, `<organization id>.<kind>.<uuid>.<ext>`, so they can never
- * contain a path, and the organization a file belongs to is part of its name.
+ * contain a path, and the organization a file belongs to is part of its name. A profile picture
+ * belongs to a person, so its first part is the person's id instead.
  */
-export type FileKind = 'product' | 'task' | 'payment';
+export type FileKind = 'product' | 'task' | 'payment' | 'avatar';
 export type ImageExt = 'jpg' | 'png' | 'webp';
 /** Payment proofs (F-001 PAY-1) may also be PDF. */
 export type FileExt = ImageExt | 'pdf';
 
-const KEY = /^([0-9a-f-]{36})\.(product|task|payment)\.([0-9a-f-]{36})\.(jpg|png|webp|pdf)$/;
+const KEY = /^([0-9a-f-]{36})\.(product|task|payment|avatar)\.([0-9a-f-]{36})\.(jpg|png|webp|pdf)$/;
 
 export function newKey(organizationId: string, kind: FileKind, ext: FileExt): string {
   return `${organizationId}.${kind}.${randomUUID()}.${ext}`;

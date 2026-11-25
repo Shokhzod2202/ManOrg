@@ -1,10 +1,10 @@
 'use client';
 
 import { type FormEvent, useState } from 'react';
-import { Empty, ErrorBox, Loading, PageHead } from '../../../components/ui';
+import { Avatar, Empty, ErrorBox, Loading, PageHead } from '../../../components/ui';
 import { type ApiError, del, formatDate, patch, post, type Schemas } from '../../../lib/api';
 import { useSession } from '../../../lib/session';
-import { useApi } from '../../../lib/use-api';
+import { refreshApi, useApi } from '../../../lib/use-api';
 import { t } from '../../../lib/i18n';
 
 type Member = Schemas['Member'];
@@ -29,12 +29,14 @@ function Applications() {
   const { data, error, reload } = useApi<{ items: Application[] }>('/applications', 60_000);
   const [err, setErr] = useState<ApiError | null>(null);
   async function decide(id: string, ok: boolean) {
-    if (!ok && !window.confirm('Reject this application? They can apply again after 7 days.'))
+    if (!ok && !window.confirm(t('Reject this application? They can apply again after 7 days.')))
       return;
     setErr(null);
     try {
       await post(`/applications/${id}/${ok ? 'approve' : 'reject'}`);
       reload();
+      // The new member shows at once in Members, team pickers and contractor lists.
+      refreshApi('/members', '/teams', '/contractors', '/dashboard');
     } catch (e) {
       setErr(e as ApiError);
     }
@@ -83,6 +85,7 @@ function Members({ provider }: { provider: boolean }) {
     try {
       await fn();
       reload();
+      refreshApi('/members', '/teams');
     } catch (e) {
       setErr(e as ApiError);
     }
@@ -111,7 +114,10 @@ function Members({ provider }: { provider: boolean }) {
           {data?.items.map((m) => (
             <tr key={m.id}>
               <td data-label={t('Name')}>
-                <b>{m.user.name}</b>
+                <span className="row" style={{ gap: 10 }}>
+                  <Avatar name={m.user.name} url={m.user.avatarUrl} size={32} />
+                  <b>{m.user.name}</b>
+                </span>
               </td>
               <td data-label={t('Email')} className="small">
                 {m.user.email}
@@ -126,7 +132,7 @@ function Members({ provider }: { provider: boolean }) {
                         patch(`/members/${m.id}`, { role: e.target.value }, { ifMatch: m.version }),
                       )
                     }
-                    aria-label={`Role of ${m.user.name}`}
+                    aria-label={t('Role of {name}', { name: m.user.name })}
                   >
                     <option value="employee">{t('Employee')}</option>
                     <option value="admin">{t('Admin')}</option>
@@ -140,7 +146,7 @@ function Members({ provider }: { provider: boolean }) {
                   <button
                     className="btn ghost"
                     onClick={() => {
-                      if (window.confirm(`Remove ${m.user.name}?`))
+                      if (window.confirm(t('Remove {name}?', { name: m.user.name })))
                         void run(() =>
                           patch(`/members/${m.id}`, { status: 'removed' }, { ifMatch: m.version }),
                         );

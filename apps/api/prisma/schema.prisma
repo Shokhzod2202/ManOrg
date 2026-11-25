@@ -167,8 +167,12 @@ enum DevicePlatform {
 model User {
   id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name         String
-  email        String    @unique
-  passwordHash String    @map("password_hash")
+  /// Empty only for an account made through Telegram that has not added one yet (decided 2026-11-25).
+  email        String?   @unique
+  /// Empty until such an account sets a password; it then signs in with email and password too.
+  passwordHash String?   @map("password_hash")
+  /// Profile picture, a storage key (decided 2026-11-25).
+  avatarKey    String?   @map("avatar_key")
   locale       String    @default("en")
   /// Personal display choices that stay until changed, e.g. the orders view (decided 2026-11-13).
   preferences  Json      @default("{}")

@@ -490,6 +490,67 @@ async function as(b, email, vp = { width: 1280, height: 900 }) {
   if (!blocked || shown !== 'text' || orgs < 1)
     throw new Error('Sign-up or second organization failed');
 
+  // 19. Fixes of 2026-11-25. The new owner applies to Sunrise as an employee; the admin approves
+  // on People and the person shows in Members at once, without reloading the page. Then the owner
+  // manages their account: a picture, and a new password that keeps this device signed in.
+  await newcomer.goto(`${W}/app/settings`);
+  await newcomer.click('button:has-text("Join another organization")');
+  await newcomer.fill('form label:has-text("Organization name") input', 'Sunrise');
+  await newcomer.click('form button:has-text("Search")');
+  await newcomer.click('form button:has-text("Apply")');
+  await newcomer.waitForSelector('text=Waiting for approval');
+  await boss.goto(`${W}/app/people`);
+  const applications = boss.locator('section:has(h2:has-text("Applications"))');
+  await applications
+    .locator(':is(div, tr):has-text("Second Owner")')
+    .last()
+    .locator('button:has-text("Approve")')
+    .click();
+  const appeared = await boss
+    .locator('section:has(h2:has-text("Members"))')
+    .locator('text=Second Owner')
+    .first()
+    .waitFor({ timeout: 5000 })
+    .then(
+      () => true,
+      () => false,
+    );
+  log('19 approved applicant shows in Members without a reload:', appeared);
+  if (!appeared) throw new Error('Approved member did not appear until reload');
+  await newcomer.goto(`${W}/app/settings`);
+  const [pictureChooser] = await Promise.all([
+    newcomer.waitForEvent('filechooser'),
+    newcomer.click('button:has-text("Add a picture")'),
+  ]);
+  await pictureChooser.setFiles(require('node:path').join(__dirname, '../public/logo.png'));
+  await newcomer.waitForSelector('text=Picture saved.');
+  const avatar = await newcomer.locator('section:has(h2:has-text("Account")) img.avatar').count();
+  await newcomer.click('button:has-text("Change password")');
+  const pwf = newcomer.locator('section:has(h2:has-text("Account")) .password input');
+  await pwf.nth(0).fill('Wrong-password-9');
+  await pwf.nth(1).fill('Password456!x');
+  await pwf.nth(2).fill('Password456!x');
+  await newcomer.click('button:has-text("Save password")');
+  const wrongShown = await newcomer
+    .waitForSelector('text=Your current password is incorrect.', { timeout: 5000 })
+    .then(
+      () => true,
+      () => false,
+    );
+  await pwf.nth(0).fill('Password123!');
+  await newcomer.click('button:has-text("Save password")');
+  await newcomer.waitForSelector('text=Password saved.');
+  await newcomer.reload();
+  await newcomer.waitForSelector('h2:has-text("Account")', { timeout: 10000 });
+  log(
+    '19 account: picture shown =',
+    avatar === 1,
+    '| wrong current password explained =',
+    wrongShown,
+    '| still signed in after the change',
+  );
+  if (avatar !== 1 || !wrongShown) throw new Error('Account settings failed');
+
   await b.close();
 })().catch((e) => {
   console.error('FAILED', e.message.slice(0, 400));

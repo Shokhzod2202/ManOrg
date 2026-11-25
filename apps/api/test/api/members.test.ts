@@ -36,7 +36,12 @@ describe('GET /members', () => {
       role: 'admin',
       status: 'active',
       version: 1,
-      user: { id: w.a.admin.userId, name: w.a.admin.name, email: w.a.admin.email },
+      user: {
+        id: w.a.admin.userId,
+        name: w.a.admin.name,
+        email: w.a.admin.email,
+        avatarUrl: null,
+      },
       createdAt: expect.any(String),
     });
   });

@@ -134,6 +134,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set your profile picture
+         * @description JPEG, PNG or WebP up to 5 MB, checked by its content. Audited.
+         */
+        post: operations["setAvatar"];
+        /** Remove your profile picture */
+        delete: operations["removeAvatar"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/sign-out-everywhere": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign out on every device
+         * @description Ends every session of this account, this one too, and stops phone notifications. Audited.
+         */
+        post: operations["signOutEverywhere"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me/devices": {
         parameters: {
             query?: never;
@@ -2130,8 +2171,13 @@ export interface components {
             /** Format: uuid */
             id: string;
             name: string;
-            /** Format: email */
-            email: string;
+            /**
+             * Format: email
+             * @description Empty for an account made through Telegram that has not added one yet.
+             */
+            email: string | null;
+            /** @description Short-lived link to the profile picture. */
+            avatarUrl?: string | null;
         };
         AuthResult: {
             user: components["schemas"]["UserSummary"];
@@ -2141,8 +2187,15 @@ export interface components {
             /** Format: uuid */
             id: string;
             name: string;
-            /** Format: email */
-            email: string;
+            /**
+             * Format: email
+             * @description Empty for an account made through Telegram that has not added one yet.
+             */
+            email: string | null;
+            /** @description False until an account made through Telegram sets a password. */
+            hasPassword: boolean;
+            /** @description Short-lived link to the profile picture. */
+            avatarUrl: string | null;
             /** @enum {string} */
             locale: "en" | "ko" | "uz";
             preferences?: components["schemas"]["Preferences"];
@@ -2362,7 +2415,7 @@ export interface components {
             /** Format: email */
             email?: string;
             password?: string;
-            /** @description Required when changing email or password. */
+            /** @description Required to change the email or password of an account that has a password. A changed password ends every session. */
             currentPassword?: string;
             /** @enum {string} */
             locale?: "en" | "ko" | "uz";
@@ -3626,6 +3679,84 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             429: components["responses"]["RateLimited"];
+        };
+    };
+    setAvatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Me"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            /** @description The picture is larger than 5 MB. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    removeAvatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Me"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+        };
+    };
+    signOutEverywhere: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Signed out everywhere. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
         };
     };
     registerDevice: {

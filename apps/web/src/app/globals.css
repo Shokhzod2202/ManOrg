@@ -1053,3 +1053,15 @@ fieldset.who legend {
   margin: 0 0 10px;
   width: 100%;
 }
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--primary);
+  color: #fff;
+  font-weight: 700;
+}

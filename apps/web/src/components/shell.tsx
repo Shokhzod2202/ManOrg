@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { type ReactNode, useEffect } from 'react';
 import { type Actor, useSession } from '../lib/session';
-import { Icon, Loading } from './ui';
+import { Avatar, Icon, Loading } from './ui';
 import { t } from '../lib/i18n';
 
 interface Item {
@@ -117,6 +117,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Link>
         ))}
         <span className="grow" />
+        <Link href="/app/settings" className={path === '/app/settings' ? 'on' : ''}>
+          <Avatar name={s.me.name} url={s.me.avatarUrl} size={28} />
+          {s.me.name}
+        </Link>
         <Link href="/app/notifications">
           <Icon name="bell" />
           {t('Notifications')}

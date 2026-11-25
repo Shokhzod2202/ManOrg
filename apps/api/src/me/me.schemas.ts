@@ -18,13 +18,8 @@ export const updateMeSchema = z
       })
       .optional(),
   })
-  .refine((v) => Object.values(v).some((x) => x !== undefined), 'Send at least one field.')
-  .refine(
-    (v) => (v.email === undefined && v.password === undefined) || v.currentPassword !== undefined,
-    {
-      message: 'Enter your current password to change your email or password.',
-      path: ['currentPassword'],
-    },
-  );
+  .refine((v) => Object.values(v).some((x) => x !== undefined), 'Send at least one field.');
+// Changing the email or password needs the current password when the account has one; an account
+// made through Telegram adds its first email and password without one (checked in MeService).
 
 export type UpdateMeInput = z.infer<typeof updateMeSchema>;

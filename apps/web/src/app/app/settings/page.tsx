@@ -1,9 +1,9 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { type FormEvent, useState } from 'react';
-import { Empty, ErrorBox, Loading, PageHead } from '../../../components/ui';
-import { type ApiError, del, get, patch, post, put, type Schemas } from '../../../lib/api';
+import { type FormEvent, useRef, useState } from 'react';
+import { Avatar, Empty, ErrorBox, Loading, PageHead, PasswordInput } from '../../../components/ui';
+import { api, type ApiError, del, get, patch, post, put, type Schemas } from '../../../lib/api';
 import { useSession } from '../../../lib/session';
 import { useApi } from '../../../lib/use-api';
 import { LanguagePicker, t } from '../../../lib/i18n';
@@ -248,36 +248,248 @@ function Language() {
   );
 }
 
+/**
+ * Decided 2026-11-25: each person manages their own account here: picture, name, email, password,
+ * and signing out on every device. An account made through Telegram adds its first email and
+ * password here.
+ */
 function Account() {
   const s = useSession();
-  const [name, setName] = useState(s.me?.name ?? '');
+  const router = useRouter();
+  const me = s.me;
+  const [name, setName] = useState(me?.name ?? '');
+  const [section, setSection] = useState<'none' | 'email' | 'password'>('none');
+  const [email, setEmail] = useState('');
+  const [current, setCurrent] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<ApiError | null>(null);
-  async function save(e: FormEvent) {
-    e.preventDefault();
+  const [busy, setBusy] = useState(false);
+  const picture = useRef<HTMLInputElement>(null);
+  if (!me) return null;
+  const hasPassword = me.hasPassword;
+
+  async function run(fn: () => Promise<unknown>, done: string) {
+    setBusy(true);
     setErr(null);
+    setMsg(null);
     try {
-      await patch('/me', { name: name.trim() }, { org: null });
+      await fn();
       await s.reload();
-      setMsg(t('Saved.'));
-    } catch (e2) {
-      setErr(e2 as ApiError);
+      setMsg(done);
+      setSection('none');
+      setCurrent('');
+      setPassword('');
+      setConfirm('');
+      setEmail('');
+    } catch (e) {
+      setErr(e as ApiError);
+    } finally {
+      setBusy(false);
     }
   }
+
+  async function saveName(e: FormEvent) {
+    e.preventDefault();
+    await run(() => patch('/me', { name: name.trim() }, { org: null }), t('Saved.'));
+  }
+  async function saveEmail(e: FormEvent) {
+    e.preventDefault();
+    await run(
+      () =>
+        patch(
+          '/me',
+          { email: email.trim(), ...(hasPassword ? { currentPassword: current } : {}) },
+          { org: null },
+        ),
+      t('Email saved. Use it to sign in from now on.'),
+    );
+  }
+  async function savePassword(e: FormEvent) {
+    e.preventDefault();
+    if (password !== confirm) return;
+    await run(async () => {
+      await patch(
+        '/me',
+        { password, ...(hasPassword ? { currentPassword: current } : {}) },
+        { org: null },
+      );
+      // A changed password ends every session; this device signs in again with the new one.
+      if (hasPassword && me?.email) await s.signIn(me.email, password);
+    }, t('Password saved. Other devices are signed out.'));
+  }
+  async function upload(file: File) {
+    const form = new FormData();
+    form.append('file', file);
+    await run(() => api('POST', '/me/avatar', { form, org: null }), t('Picture saved.'));
+  }
+  async function signOutEverywhere() {
+    if (!window.confirm(t('Sign out on every device, this one too?'))) return;
+    try {
+      await post('/me/sign-out-everywhere', undefined, { org: null });
+    } finally {
+      s.signOut();
+      router.replace('/');
+    }
+  }
+
+  const mismatch = confirm.length > 0 && confirm !== password;
   return (
-    <form className="card" onSubmit={save}>
+    <section className="card">
       <h2>{t('Account')}</h2>
-      <span className="muted small">{s.me?.email}</span>
       <ErrorBox error={err} />
-      <label className="field">
-        {t('Name')}
-        <input value={name} required maxLength={100} onChange={(e) => setName(e.target.value)} />
-      </label>
-      <div className="row">
-        <button className="btn">{t('Save')}</button>
-        {msg ? <span className="pill ok">{msg}</span> : null}
+      {msg ? <span className="pill ok">{msg}</span> : null}
+      <div className="row wrap" style={{ gap: 14 }}>
+        <Avatar name={me.name} url={me.avatarUrl} size={72} />
+        <div className="row wrap">
+          <input
+            ref={picture}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            hidden
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void upload(f);
+              e.target.value = '';
+            }}
+          />
+          <button className="btn ghost" disabled={busy} onClick={() => picture.current?.click()}>
+            {me.avatarUrl ? t('Change picture') : t('Add a picture')}
+          </button>
+          {me.avatarUrl ? (
+            <button
+              className="btn ghost"
+              disabled={busy}
+              onClick={() =>
+                void run(() => del('/me/avatar', { org: null }), t('Picture removed.'))
+              }
+            >
+              {t('Remove picture')}
+            </button>
+          ) : null}
+        </div>
       </div>
-    </form>
+      <form className="row wrap" onSubmit={saveName} style={{ alignItems: 'flex-end' }}>
+        <label className="field" style={{ flex: 1, minWidth: 200 }}>
+          {t('Name')}
+          <input value={name} required maxLength={100} onChange={(e) => setName(e.target.value)} />
+        </label>
+        <button className="btn" disabled={busy || !name.trim() || name.trim() === me.name}>
+          {t('Save')}
+        </button>
+      </form>
+
+      <div className="row between wrap">
+        <span>
+          <b>{t('Email')}</b>
+          <br />
+          <span className="muted">{me.email ?? t('No email yet')}</span>
+        </span>
+        <button
+          className="btn ghost"
+          onClick={() => setSection(section === 'email' ? 'none' : 'email')}
+        >
+          {me.email ? t('Change email') : t('Add email')}
+        </button>
+      </div>
+      {section === 'email' ? (
+        <form className="stack" onSubmit={saveEmail}>
+          <label className="field">
+            {t('New email')}
+            <input
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </label>
+          {hasPassword ? (
+            <label className="field">
+              {t('Current password')}
+              <PasswordInput
+                autoComplete="current-password"
+                required
+                value={current}
+                onChange={(e) => setCurrent(e.target.value)}
+              />
+            </label>
+          ) : null}
+          <button className="btn" disabled={busy}>
+            {t('Save email')}
+          </button>
+        </form>
+      ) : null}
+
+      <div className="row between wrap">
+        <span>
+          <b>{t('Password')}</b>
+          <br />
+          <span className="muted">{hasPassword ? '••••••••••' : t('No password yet')}</span>
+        </span>
+        <button
+          className="btn ghost"
+          onClick={() => setSection(section === 'password' ? 'none' : 'password')}
+        >
+          {hasPassword ? t('Change password') : t('Set a password')}
+        </button>
+      </div>
+      {section === 'password' ? (
+        !me.email ? (
+          <span className="muted small">
+            {t('Add an email first: you sign in with it and the password.')}
+          </span>
+        ) : (
+          <form className="stack" onSubmit={savePassword}>
+            {hasPassword ? (
+              <label className="field">
+                {t('Current password')}
+                <PasswordInput
+                  autoComplete="current-password"
+                  required
+                  value={current}
+                  onChange={(e) => setCurrent(e.target.value)}
+                />
+              </label>
+            ) : null}
+            <label className="field">
+              {t('New password (at least 10 characters)')}
+              <PasswordInput
+                autoComplete="new-password"
+                minLength={10}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </label>
+            <label className="field">
+              {t('Type the password again')}
+              <PasswordInput
+                autoComplete="new-password"
+                required
+                value={confirm}
+                aria-invalid={mismatch}
+                onChange={(e) => setConfirm(e.target.value)}
+              />
+              {mismatch ? <span className="err">{t('The passwords do not match.')}</span> : null}
+            </label>
+            <button className="btn" disabled={busy || !password || password !== confirm}>
+              {t('Save password')}
+            </button>
+          </form>
+        )
+      ) : null}
+
+      <div className="row between wrap">
+        <span className="muted small">
+          {t('Lost a phone, or signed in on a shared computer? End every session.')}
+        </span>
+        <button className="btn ghost" onClick={() => void signOutEverywhere()}>
+          {t('Sign out on all devices')}
+        </button>
+      </div>
+    </section>
   );
 }
 

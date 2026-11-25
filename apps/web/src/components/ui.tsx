@@ -157,15 +157,25 @@ export function Loading({ label = 'Loading…' }: { label?: string }) {
 export function ErrorBox({
   error,
   onRetry,
+  inlineFields = false,
 }: {
   error: ApiError | Error | null;
   onRetry?: () => void;
+  /** The form shows field problems next to each field, so they are not repeated here. */
+  inlineFields?: boolean;
 }) {
   if (!error) return null;
+  // Say which field is wrong and why, not only "The request is not valid."
+  const reasons =
+    !inlineFields && 'fields' in error && error.fields
+      ? [...new Set(Object.values(error.fields).flat())]
+      : [];
   return (
     <div className="error" role="alert">
       <Icon name="warn" />
-      <span style={{ flex: 1 }}>{t(error.message)}</span>
+      <span style={{ flex: 1 }}>
+        {reasons.length ? reasons.map((r) => t(r)).join(' ') : t(error.message)}
+      </span>
       {onRetry ? (
         <button type="button" className="btn ghost" onClick={onRetry}>
           {t('Try again')}
@@ -272,6 +282,36 @@ export function PasswordInput(props: Omit<InputHTMLAttributes<HTMLInputElement>,
       >
         <Icon name={shown ? 'eyeOff' : 'eye'} />
       </button>
+    </span>
+  );
+}
+
+/** A person's profile picture, or their initials on the brand colour when they have none. */
+export function Avatar({
+  name,
+  url,
+  size = 40,
+}: {
+  name: string;
+  url?: string | null;
+  size?: number;
+}) {
+  const initials =
+    name
+      .trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((w) => w[0]?.toUpperCase() ?? '')
+      .join('') || '?';
+  return url ? (
+    <img className="avatar" src={url} alt="" style={{ width: size, height: size }} />
+  ) : (
+    <span
+      className="avatar"
+      aria-hidden="true"
+      style={{ width: size, height: size, fontSize: Math.round(size * 0.4) }}
+    >
+      {initials}
     </span>
   );
 }

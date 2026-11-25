@@ -4,6 +4,7 @@ import { Errors } from '../common/errors';
 import { assertNotInOrganization, createMembershipOnce } from '../common/memberships';
 import { pageArgs, toPage } from '../common/pagination';
 import { type AuthUser, type OrgContext, dbContext } from '../common/request-context';
+import { StorageService } from '../storage/storage.service';
 import { DatabaseService } from '../database/database.service';
 import { type Tx } from '../database/prisma-client';
 import {
@@ -12,7 +13,7 @@ import {
   type UpdateMemberInput,
 } from './members.schemas';
 
-const userFields = { id: true, name: true, email: true } as const;
+const userFields = { id: true, name: true, email: true, avatarKey: true } as const;
 
 type MemberRow = {
   id: string;
@@ -20,7 +21,8 @@ type MemberRow = {
   status: 'pending' | 'active' | 'rejected' | 'removed';
   version: number;
   createdAt: Date;
-  user: { id: string; name: string; email: string };
+  user: { id: string; name: string; email: string | null; avatarKey: string | null };
+  avatarUrl?: string | null;
 };
 
 function present(m: MemberRow) {
@@ -29,7 +31,7 @@ function present(m: MemberRow) {
     role: m.role,
     status: m.status,
     version: m.version,
-    user: m.user,
+    user: { id: m.user.id, name: m.user.name, email: m.user.email, avatarUrl: m.avatarUrl ?? null },
     createdAt: m.createdAt,
   };
 }
@@ -40,6 +42,7 @@ export class MembersService {
   constructor(
     private readonly db: DatabaseService,
     private readonly audit: AuditService,
+    private readonly storage: StorageService,
   ) {}
 
   list(user: AuthUser, org: OrgContext, input: ListMembersInput) {
@@ -50,7 +53,13 @@ export class MembersService {
         include: { user: { select: userFields } },
         ...pageArgs(input),
       });
-      return toPage(rows, input, present);
+      const withAvatars = await Promise.all(
+        rows.map(async (r) => ({
+          ...r,
+          avatarUrl: r.user.avatarKey ? await this.storage.signedUrl(r.user.avatarKey) : null,
+        })),
+      );
+      return toPage(withAvatars, input, present);
     });
   }
 

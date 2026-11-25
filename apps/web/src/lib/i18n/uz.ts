@@ -649,4 +649,38 @@ export const uz: Record<string, string> = {
     'Bu odam bu tashkilotga allaqachon aʼzo yoki ariza bergan.',
   'Choose people or "For all", not both.': 'Odamlarni yoki “Hamma”ni tanlang, ikkalasini emas.',
   'Choose who the task is for.': 'Vazifa kim uchunligini tanlang.',
+  'Add a picture': 'Rasm qoʻshish',
+  'Add an email first: you sign in with it and the password.':
+    'Avval email qoʻshing: siz u va parol bilan kirasiz.',
+  'Add email': 'Email qoʻshish',
+  'Change email': 'Emailni oʻzgartirish',
+  'Change password': 'Parolni oʻzgartirish',
+  'Change picture': 'Rasmni oʻzgartirish',
+  'Current password': 'Joriy parol',
+  'Email saved. Use it to sign in from now on.': 'Email saqlandi. Endi u bilan kiring.',
+  'Lost a phone, or signed in on a shared computer? End every session.':
+    'Telefonni yoʻqotdingizmi yoki umumiy kompyuterda kirdingizmi? Barcha seanslarni tugating.',
+  'New email': 'Yangi email',
+  'New password (at least 10 characters)': 'Yangi parol (kamida 10 belgi)',
+  'No email yet': 'Hali email yoʻq',
+  'No password yet': 'Hali parol yoʻq',
+  'Password saved. Other devices are signed out.': 'Parol saqlandi. Boshqa qurilmalardan chiqildi.',
+  'Picture removed.': 'Rasm olib tashlandi.',
+  'Picture saved.': 'Rasm saqlandi.',
+  'Reject this application? They can apply again after 7 days.':
+    'Bu arizani rad etasizmi? 7 kundan keyin yana ariza bera oladi.',
+  'Remove picture': 'Rasmni olib tashlash',
+  'Remove {name}?': '{name} ni olib tashlaysizmi?',
+  'Role of {name}': '{name} roli',
+  'Save email': 'Emailni saqlash',
+  'Save password': 'Parolni saqlash',
+  'Set a password': 'Parol oʻrnatish',
+  'Sign out on all devices': 'Barcha qurilmalardan chiqish',
+  'Sign out on every device, this one too?':
+    'Barcha qurilmalardan, shu jumladan bu qurilmadan chiqasizmi?',
+  'Your current password is incorrect.': 'Joriy parol notoʻgʻri.',
+  'Enter your current password to change your email or password.':
+    'Email yoki parolni oʻzgartirish uchun joriy parolni kiriting.',
+  'Use a JPEG, PNG or WebP picture.': 'JPEG, PNG yoki WebP rasmdan foydalaning.',
+  'Use a picture of at most 5 MB.': 'Koʻpi bilan 5 MB rasmdan foydalaning.',
 };

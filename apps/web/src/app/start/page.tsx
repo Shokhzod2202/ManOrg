@@ -79,7 +79,7 @@ export default function StartPage() {
   return (
     <AuthFrame title={t('Welcome, {name}', { name: s.me.name })}>
       <div className="stack">
-        <ErrorBox error={error} />
+        <ErrorBox error={error} inlineFields />
         {active.length ? (
           <div className="card stack">
             <b>{t('Your organizations')}</b>

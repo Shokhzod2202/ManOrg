@@ -193,6 +193,56 @@ paths:
                   expiresIn: { type: integer, description: Access token lifetime in seconds. }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '429': { $ref: '#/components/responses/RateLimited' }
+  /me/avatar:
+    post:
+      operationId: setAvatar
+      summary: Set your profile picture
+      description: JPEG, PNG or WebP up to 5 MB, checked by its content. Audited.
+      tags: [account]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Me' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '413':
+          description: The picture is larger than 5 MB.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    delete:
+      operationId: removeAvatar
+      summary: Remove your profile picture
+      tags: [account]
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Me' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+
+  /me/sign-out-everywhere:
+    post:
+      operationId: signOutEverywhere
+      summary: Sign out on every device
+      description: Ends every session of this account, this one too, and stops phone notifications. Audited.
+      tags: [account]
+      responses:
+        '204': { description: Signed out everywhere. }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+
   /me/devices:
     post:
       operationId: registerDevice
@@ -3569,7 +3619,13 @@ components:
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
-        email: { type: string, format: email }
+        email:
+          type: [string, 'null']
+          format: email
+          description: Empty for an account made through Telegram that has not added one yet.
+        avatarUrl:
+          type: [string, 'null']
+          description: Short-lived link to the profile picture.
     AuthResult:
       type: object
       required: [user, tokens]
@@ -3579,11 +3635,20 @@ components:
 
     Me:
       type: object
-      required: [id, name, email, locale, memberships]
+      required: [id, name, email, hasPassword, avatarUrl, locale, memberships]
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
-        email: { type: string, format: email }
+        email:
+          type: [string, 'null']
+          format: email
+          description: Empty for an account made through Telegram that has not added one yet.
+        hasPassword:
+          type: boolean
+          description: False until an account made through Telegram sets a password.
+        avatarUrl:
+          type: [string, 'null']
+          description: Short-lived link to the profile picture.
         locale: { type: string, enum: [en, ko, uz] }
         preferences: { $ref: '#/components/schemas/Preferences' }
         memberships:
@@ -3870,7 +3935,7 @@ components:
         password: { type: string, minLength: 10, maxLength: 200 }
         currentPassword:
           type: string
-          description: Required when changing email or password.
+          description: Required to change the email or password of an account that has a password. A changed password ends every session.
         locale: { type: string, enum: [en, ko, uz] }
         preferences: { $ref: '#/components/schemas/Preferences' }
 

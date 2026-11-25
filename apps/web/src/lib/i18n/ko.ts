@@ -641,4 +641,39 @@ export const ko: Record<string, string> = {
     '이 사람은 이미 이 조직에 속해 있거나 신청했습니다.',
   'Choose people or "For all", not both.': '사람을 고르거나 “모두”를 고르세요. 둘 다는 안 됩니다.',
   'Choose who the task is for.': '업무 담당자를 선택하세요.',
+  'Add a picture': '사진 추가',
+  'Add an email first: you sign in with it and the password.':
+    '먼저 이메일을 추가하세요. 이메일과 비밀번호로 로그인합니다.',
+  'Add email': '이메일 추가',
+  'Change email': '이메일 변경',
+  'Change password': '비밀번호 변경',
+  'Change picture': '사진 변경',
+  'Current password': '현재 비밀번호',
+  'Email saved. Use it to sign in from now on.':
+    '이메일을 저장했습니다. 이제 이 이메일로 로그인하세요.',
+  'Lost a phone, or signed in on a shared computer? End every session.':
+    '휴대폰을 잃어버렸거나 공용 컴퓨터에서 로그인했나요? 모든 세션을 끝내세요.',
+  'New email': '새 이메일',
+  'New password (at least 10 characters)': '새 비밀번호(10자 이상)',
+  'No email yet': '이메일 없음',
+  'No password yet': '비밀번호 없음',
+  'Password saved. Other devices are signed out.':
+    '비밀번호를 저장했습니다. 다른 기기는 로그아웃되었습니다.',
+  'Picture removed.': '사진을 삭제했습니다.',
+  'Picture saved.': '사진을 저장했습니다.',
+  'Reject this application? They can apply again after 7 days.':
+    '이 신청을 거절할까요? 7일 후 다시 신청할 수 있습니다.',
+  'Remove picture': '사진 삭제',
+  'Remove {name}?': '{name}님을 삭제할까요?',
+  'Role of {name}': '{name}의 역할',
+  'Save email': '이메일 저장',
+  'Save password': '비밀번호 저장',
+  'Set a password': '비밀번호 설정',
+  'Sign out on all devices': '모든 기기에서 로그아웃',
+  'Sign out on every device, this one too?': '이 기기를 포함한 모든 기기에서 로그아웃할까요?',
+  'Your current password is incorrect.': '현재 비밀번호가 올바르지 않습니다.',
+  'Enter your current password to change your email or password.':
+    '이메일이나 비밀번호를 바꾸려면 현재 비밀번호를 입력하세요.',
+  'Use a JPEG, PNG or WebP picture.': 'JPEG, PNG 또는 WebP 사진을 사용하세요.',
+  'Use a picture of at most 5 MB.': '5MB 이하의 사진을 사용하세요.',
 };

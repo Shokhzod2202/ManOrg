@@ -8,7 +8,7 @@ import { hashPassword, verifyAgainstDummy, verifyPassword } from './password';
 import { type TokenPair, TokensService } from './tokens.service';
 
 export interface AuthResult {
-  user: { id: string; name: string; email: string };
+  user: { id: string; name: string; email: string | null };
   tokens: TokenPair;
 }
 
@@ -51,7 +51,8 @@ export class AuthService {
       tx.user.findUnique({ where: { email: input.email } }),
     );
     const ok =
-      user && !user.deletedAt
+      // An account without a password (made through Telegram) cannot sign in this way yet.
+      user && !user.deletedAt && user.passwordHash
         ? await verifyPassword(user.passwordHash, input.password)
         : await verifyAgainstDummy(input.password);
     if (!user || !ok) throw Errors.unauthenticated('Email or password is incorrect.');
