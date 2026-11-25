@@ -1,8 +1,8 @@
-import { PERSON, personOf } from '../common/memberships';
+import { PERSON, personOf, WORKS_SHIFTS } from '../common/memberships';
 import { Injectable } from '@nestjs/common';
 import { actorFor, AuditService } from '../audit/audit.service';
 import { Errors } from '../common/errors';
-import { type AuthUser, dbContext, type OrgContext } from '../common/request-context';
+import { type AuthUser, dbContext, orgCan, type OrgContext } from '../common/request-context';
 import { addDays, localDate, timeToHhmm } from '../common/time';
 import { DatabaseService } from '../database/database.service';
 import { type Tx } from '../database/prisma-client';
@@ -31,7 +31,8 @@ export class DueNextService {
     if (org.organizationType !== 'provider') throw Errors.forbidden();
     return this.db.run(dbContext(user, org), async (tx) => {
       const orders = await this.select(tx, org.organizationId, contractorId);
-      return { orders, totals: totals(orders.flatMap((o) => o.lines)) };
+      const result = board(orders, seesMoney(org));
+      return { ...result, byEmployee: await this.byEmployee(tx, org, result.totals) };
     });
   }
 
@@ -60,7 +61,7 @@ export class DueNextService {
       const orders = (await this.select(tx, org.organizationId))
         .map((o) => ({ ...o, lines: o.lines.filter((l) => assigned.has(l.productId)) }))
         .filter((o) => o.lines.length > 0);
-      return { employee: personOf(member), orders, totals: totals(orders.flatMap((o) => o.lines)) };
+      return { employee: personOf(member), ...board(orders, seesMoney(org)) };
     });
   }
 
@@ -99,8 +100,37 @@ export class DueNextService {
         },
       });
       const updated = await this.select(tx, org.organizationId);
-      return { orders: updated, totals: totals(updated.flatMap((o) => o.lines)) };
+      return board(updated, seesMoney(org));
     });
+  }
+
+  /**
+   * Decided 2026-11-30: the estimated value of each person's assigned products in the orders due
+   * next. A shared product counts in full for everyone it is assigned to, like their quantities.
+   */
+  private async byEmployee(tx: Tx, org: OrgContext, totals: Total[]) {
+    if (!seesMoney(org)) return [];
+    const due = new Map(totals.map((t) => [t.productId, t]));
+    const [assigned, members] = await Promise.all([
+      tx.employeeProduct.findMany({
+        where: { organizationId: org.organizationId, productId: { in: [...due.keys()] } },
+        select: { employeeId: true, productId: true },
+      }),
+      tx.membership.findMany({
+        // Employees, and admins switched on to work shifts (decided 2026-11-26).
+        where: { organizationId: org.organizationId, status: 'active', ...WORKS_SHIFTS },
+        select: PERSON,
+      }),
+    ]);
+    const people = new Map(members.map((m) => [m.user.id, personOf(m)]));
+    const sums = new Map<string, number>();
+    for (const a of assigned) {
+      if (!people.has(a.employeeId)) continue;
+      sums.set(a.employeeId, (sums.get(a.employeeId) ?? 0) + (due.get(a.productId)?.amount ?? 0));
+    }
+    return [...sums.entries()]
+      .map(([id, amount]) => ({ employee: people.get(id)!, amount }))
+      .sort((a, b) => a.employee.name.localeCompare(b.employee.name));
   }
 
   private async select(tx: Tx, providerId: string, contractorId?: string) {
@@ -153,9 +183,28 @@ export class DueNextService {
       (
         await tx.product.findMany({
           where: { organizationId: providerId },
-          select: { id: true, sortOrder: true, type: { select: { name: true } } },
+          select: {
+            id: true,
+            sortOrder: true,
+            type: { select: { name: true } },
+            // Decided 2026-11-30: orders due next are not delivered yet, so their value is an
+            // estimate at today's price; the delivery records the real amount (F-001 FIN-2, FIN-5).
+            prices: {
+              where: { effectiveFrom: { lte: new Date() } },
+              orderBy: [{ effectiveFrom: 'desc' }, { createdAt: 'desc' }],
+              take: 1,
+              select: { unitPrice: true },
+            },
+          },
         })
-      ).map((p) => [p.id, { sortOrder: p.sortOrder, typeName: p.type?.name ?? null }]),
+      ).map((p) => [
+        p.id,
+        {
+          sortOrder: p.sortOrder,
+          typeName: p.type?.name ?? null,
+          unitPrice: p.prices[0]?.unitPrice ?? null,
+        },
+      ]),
     );
     const isDone = new Set(done.map((d) => `${d.contractorOrgId}:${isoOf(d.deliveryDate)}`));
     const next = new Map<string, (typeof orders)[number]>();
@@ -190,15 +239,20 @@ export class DueNextService {
           deliveryDate: date,
           approxTime,
           deliveryStatus: delivery?.status ?? 'not_started',
-          lines: o.lines.map((l) => ({
-            lineId: l.id,
-            productId: l.productId,
-            productName: l.productName,
-            sortOrder: products.get(l.productId)?.sortOrder ?? 0,
-            typeName: products.get(l.productId)?.typeName ?? null,
-            quantity: l.quantity,
-            madeQuantity: l.madeQuantity,
-          })),
+          lines: o.lines.map((l) => {
+            const unitPrice = products.get(l.productId)?.unitPrice ?? null;
+            return {
+              lineId: l.id,
+              productId: l.productId,
+              productName: l.productName,
+              sortOrder: products.get(l.productId)?.sortOrder ?? 0,
+              typeName: products.get(l.productId)?.typeName ?? null,
+              quantity: l.quantity,
+              madeQuantity: l.madeQuantity,
+              unitPrice: unitPrice as number | null,
+              amount: (unitPrice === null ? null : unitPrice * l.quantity) as number | null,
+            };
+          }),
         };
       })
       .sort(
@@ -210,29 +264,48 @@ export class DueNextService {
   }
 }
 
+type Line = {
+  productId: string;
+  productName: string;
+  sortOrder: number;
+  typeName: string | null;
+  quantity: number;
+  madeQuantity: number;
+  unitPrice: number | null;
+  amount: number | null;
+};
+type Total = Line & { done: boolean };
+
+/** Prices are finance data: only people who may see finance get them (F-001, Employee access). */
+function seesMoney(org: OrgContext) {
+  return org.organizationType === 'provider' && orgCan(org, 'finance.view');
+}
+
+/**
+ * The board: orders with each one's estimated value, product totals and the grand total. Without
+ * finance access every amount is null.
+ */
+function board<O extends { lines: Line[] }>(orders: O[], money: boolean) {
+  const shown = orders.map((o) => {
+    const lines = money ? o.lines : o.lines.map((l) => ({ ...l, unitPrice: null, amount: null }));
+    return {
+      ...o,
+      lines,
+      amount: money ? lines.reduce((n, l) => n + (l.amount ?? 0), 0) : null,
+    };
+  });
+  const t = totals(shown.flatMap((o) => o.lines));
+  return {
+    orders: shown,
+    totals: t,
+    amount: money ? t.reduce((n, x) => n + (x.amount ?? 0), 0) : null,
+    unpriced: money ? t.filter((x) => x.unitPrice === null).length : 0,
+  };
+}
+
 /** TOD-4: totals match the sum of the orders due next; made shows production progress. */
-function totals(
-  lines: {
-    productId: string;
-    productName: string;
-    sortOrder: number;
-    typeName: string | null;
-    quantity: number;
-    madeQuantity: number;
-  }[],
-) {
-  const map = new Map<
-    string,
-    {
-      productId: string;
-      productName: string;
-      sortOrder: number;
-      typeName: string | null;
-      quantity: number;
-      madeQuantity: number;
-      done: boolean;
-    }
-  >();
+function totals(lines: Line[]): Total[] {
+  const map = new Map<string, Total>();
   for (const l of lines) {
     const t = map.get(l.productId) ?? {
       productId: l.productId,
@@ -241,10 +314,13 @@ function totals(
       typeName: l.typeName,
       quantity: 0,
       madeQuantity: 0,
+      unitPrice: l.unitPrice,
+      amount: l.unitPrice === null ? null : 0,
       done: false,
     };
     t.quantity += l.quantity;
     t.madeQuantity += l.madeQuantity;
+    if (t.amount !== null) t.amount += l.amount ?? 0;
     t.done = t.madeQuantity >= t.quantity;
     map.set(l.productId, t);
   }

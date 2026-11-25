@@ -132,6 +132,9 @@ describe("Today's Orders and My Orders (TOD-1 to TOD-7)", () => {
         quantity: 30,
         madeQuantity: 0,
         done: false,
+        // Employees without finance access see no money (decided 2026-11-30).
+        unitPrice: null,
+        amount: null,
       },
     ]);
   });
@@ -170,6 +173,8 @@ describe("Today's Orders and My Orders (TOD-1 to TOD-7)", () => {
         quantity: 12,
         madeQuantity: 0,
         done: false,
+        unitPrice: 1000,
+        amount: 12_000,
       },
     ]);
   });

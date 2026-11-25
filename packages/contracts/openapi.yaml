@@ -5230,6 +5230,34 @@ components:
             - $ref: '#/components/schemas/ApproxTime'
             - type: 'null'
         version: { type: integer }
+        value:
+          description: >-
+            Decided 2026-11-30: what the order is worth. Only in the provider's order list, for
+            people who may see finance; null for a cancelled order.
+          oneOf:
+            - $ref: '#/components/schemas/OrderValue'
+            - type: 'null'
+    OrderValue:
+      type: object
+      description: >-
+        An estimate (ordered quantity at today's price) until the delivery is completed, then the
+        real amount the delivery recorded (delivered quantity at the price copied then, F-001).
+      required: [kind, amount, unpriced, lines]
+      properties:
+        kind: { type: string, enum: [estimate, actual] }
+        amount: { type: integer, description: Whole won; unpriced products count as 0. }
+        unpriced: { type: integer, description: Products in the order without a price. }
+        lines:
+          type: array
+          items:
+            type: object
+            required: [productId, productName, quantity, unitPrice, amount]
+            properties:
+              productId: { type: string, format: uuid }
+              productName: { type: string }
+              quantity: { type: integer, description: Ordered (estimate) or delivered (actual). }
+              unitPrice: { type: [integer, 'null'] }
+              amount: { type: [integer, 'null'] }
     OrderTotals:
       type: object
       required: [deliveryDate, items]
@@ -5420,7 +5448,7 @@ components:
         reason: { type: string, minLength: 1, maxLength: 500 }
     DueNextOrder:
       type: object
-      required: [orderId, contractor, deliveryDate, approxTime, deliveryStatus, lines]
+      required: [orderId, contractor, deliveryDate, approxTime, deliveryStatus, lines, amount]
       properties:
         orderId: { type: string, format: uuid }
         contractor: { $ref: '#/components/schemas/PersonRef' }
@@ -5434,7 +5462,18 @@ components:
           type: array
           items:
             type: object
-            required: [lineId, productId, productName, sortOrder, typeName, quantity, madeQuantity]
+            required:
+              [
+                lineId,
+                productId,
+                productName,
+                sortOrder,
+                typeName,
+                quantity,
+                madeQuantity,
+                unitPrice,
+                amount,
+              ]
             properties:
               lineId: { type: string, format: uuid }
               madeQuantity: { type: integer }
@@ -5443,9 +5482,29 @@ components:
               sortOrder: { type: integer }
               typeName: { type: [string, 'null'] }
               quantity: { type: integer }
+              unitPrice:
+                type: [integer, 'null']
+                description: Today's price; null without finance access or without a price.
+              amount:
+                type: [integer, 'null']
+                description: Estimated value, quantity times today's price (decided 2026-11-30).
+        amount:
+          type: [integer, 'null']
+          description: Estimated value of the order; null without finance access.
     ProductTotal:
       type: object
-      required: [productId, productName, sortOrder, typeName, quantity, madeQuantity, done]
+      required:
+        [
+          productId,
+          productName,
+          sortOrder,
+          typeName,
+          quantity,
+          madeQuantity,
+          done,
+          unitPrice,
+          amount,
+        ]
       properties:
         productId: { type: string, format: uuid }
         productName: { type: string }
@@ -5456,19 +5515,42 @@ components:
         quantity: { type: integer }
         madeQuantity: { type: integer }
         done: { type: boolean }
+        unitPrice: { type: [integer, 'null'], description: Today's price. }
+        amount:
+          type: [integer, 'null']
+          description: Estimated value; null without finance access or without a price.
     DueNextOrders:
       type: object
-      required: [orders, totals]
+      required: [orders, totals, amount, unpriced]
       properties:
         orders: { type: array, items: { $ref: '#/components/schemas/DueNextOrder' } }
         totals: { type: array, items: { $ref: '#/components/schemas/ProductTotal' } }
+        amount:
+          type: [integer, 'null']
+          description: >-
+            Estimated value of all orders due next (decided 2026-11-30); null without finance
+            access. The delivery records the real amount when it is completed.
+        unpriced: { type: integer, description: Products due without a price. }
+        byEmployee:
+          description: >-
+            Only on the full board: the estimated value of each person's assigned products. A
+            shared product counts in full for each person. Empty without finance access.
+          type: array
+          items:
+            type: object
+            required: [employee, amount]
+            properties:
+              employee: { $ref: '#/components/schemas/PersonRef' }
+              amount: { type: integer }
     EmployeeDueNextOrders:
       type: object
-      required: [employee, orders, totals]
+      required: [employee, orders, totals, amount, unpriced]
       properties:
         employee: { $ref: '#/components/schemas/PersonRef' }
         orders: { type: array, items: { $ref: '#/components/schemas/DueNextOrder' } }
         totals: { type: array, items: { $ref: '#/components/schemas/ProductTotal' } }
+        amount: { type: [integer, 'null'], description: Estimated value of these products. }
+        unpriced: { type: integer }
     TodayDashboard:
       type: object
       required:

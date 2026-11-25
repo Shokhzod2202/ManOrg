@@ -239,8 +239,10 @@ export class OrdersService {
         orderBy: [{ deliveryDate: 'asc' }, { placedAt: 'asc' }],
         select: { id: true },
       });
+      const items = await Promise.all(rows.map((r) => this.present(tx, r.id)));
+      const money = !contractorSide && orgCan(org, 'finance.view');
       return {
-        items: await Promise.all(rows.map((r) => this.present(tx, r.id))),
+        items: money ? await this.withValues(tx, org.organizationId, items) : items,
         nextCursor: null,
       };
     });
@@ -257,6 +259,102 @@ export class OrdersService {
       });
       if (!order) throw Errors.notFound('Order');
       return this.present(tx, id);
+    });
+  }
+
+  /**
+   * Decided 2026-11-30: what each order is worth. Until its delivery is completed it is an
+   * estimate (ordered quantity at today's price); after, the real amount the delivery recorded
+   * (delivered quantity at the price copied when it was completed, F-001 FIN-2 and FIN-5).
+   */
+  private async withValues<O extends Awaited<ReturnType<OrdersService['present']>>>(
+    tx: Tx,
+    providerId: string,
+    orders: O[],
+  ) {
+    if (!orders.length) return orders.map((o) => ({ ...o, value: null }));
+    const now = new Date();
+    const productIds = [...new Set(orders.flatMap((o) => o.lines.map((l) => l.productId)))];
+    const [prices, deliveries] = await Promise.all([
+      tx.productPrice.findMany({
+        where: {
+          organizationId: providerId,
+          productId: { in: productIds },
+          effectiveFrom: { lte: now },
+        },
+        orderBy: [{ effectiveFrom: 'desc' }, { createdAt: 'desc' }],
+        select: { productId: true, unitPrice: true },
+      }),
+      tx.delivery.findMany({
+        where: {
+          organizationId: providerId,
+          status: { in: [...DONE_STATES] },
+          totalValue: { not: null },
+          OR: orders.map((o) => ({
+            contractorOrgId: o.contractor.id,
+            deliveryDate: dateOf(o.deliveryDate),
+          })),
+        },
+        include: { lines: { orderBy: { productName: 'asc' } } },
+      }),
+    ]);
+    const current = new Map<string, number>();
+    for (const p of prices) if (!current.has(p.productId)) current.set(p.productId, p.unitPrice);
+    return orders.map((o) => {
+      const d = deliveries.find(
+        (x) => x.contractorOrgId === o.contractor.id && isoOf(x.deliveryDate) === o.deliveryDate,
+      );
+      if (d && o.status === 'placed') {
+        const ordered = new Set(o.lines.map((l) => l.productId));
+        const byProduct = new Map(d.lines.map((l) => [l.productId, l]));
+        const lines = [
+          ...o.lines.map((l) => {
+            const dl = byProduct.get(l.productId);
+            return {
+              productId: l.productId,
+              productName: l.productName,
+              quantity: dl?.deliveredQuantity ?? 0,
+              unitPrice: dl?.unitPrice ?? null,
+              amount: dl?.lineValue ?? 0,
+            };
+          }),
+          ...d.lines
+            .filter((l) => !ordered.has(l.productId) && l.deliveredQuantity > 0)
+            .map((l) => ({
+              productId: l.productId,
+              productName: l.productName,
+              quantity: l.deliveredQuantity,
+              unitPrice: l.unitPrice,
+              amount: l.lineValue ?? 0,
+            })),
+        ];
+        return {
+          ...o,
+          value: { kind: 'actual' as const, amount: d.totalValue ?? 0, unpriced: 0, lines },
+        };
+      }
+      const lines = o.lines.map((l) => {
+        const unitPrice = current.get(l.productId) ?? null;
+        return {
+          productId: l.productId,
+          productName: l.productName,
+          quantity: l.quantity,
+          unitPrice,
+          amount: unitPrice === null ? null : unitPrice * l.quantity,
+        };
+      });
+      return {
+        ...o,
+        value:
+          o.status === 'cancelled'
+            ? null
+            : {
+                kind: 'estimate' as const,
+                amount: lines.reduce((n, l) => n + (l.amount ?? 0), 0),
+                unpriced: lines.filter((l) => l.unitPrice === null).length,
+                lines,
+              },
+      };
     });
   }
 

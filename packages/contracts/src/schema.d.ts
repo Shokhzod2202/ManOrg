@@ -3320,6 +3320,26 @@ export interface components {
             /** @description The standing approximate delivery time for this contractor (DTM-4). */
             approxTime?: components["schemas"]["ApproxTime"] | null;
             version: number;
+            /** @description Decided 2026-11-30: what the order is worth. Only in the provider's order list, for people who may see finance; null for a cancelled order. */
+            value?: components["schemas"]["OrderValue"] | null;
+        };
+        /** @description An estimate (ordered quantity at today's price) until the delivery is completed, then the real amount the delivery recorded (delivered quantity at the price copied then, F-001). */
+        OrderValue: {
+            /** @enum {string} */
+            kind: "estimate" | "actual";
+            /** @description Whole won; unpriced products count as 0. */
+            amount: number;
+            /** @description Products in the order without a price. */
+            unpriced: number;
+            lines: {
+                /** Format: uuid */
+                productId: string;
+                productName: string;
+                /** @description Ordered (estimate) or delivered (actual). */
+                quantity: number;
+                unitPrice: number | null;
+                amount: number | null;
+            }[];
         };
         OrderTotals: {
             /** Format: date */
@@ -3474,7 +3494,13 @@ export interface components {
                 sortOrder: number;
                 typeName: string | null;
                 quantity: number;
+                /** @description Today's price; null without finance access or without a price. */
+                unitPrice: number | null;
+                /** @description Estimated value, quantity times today's price (decided 2026-11-30). */
+                amount: number | null;
             }[];
+            /** @description Estimated value of the order; null without finance access. */
+            amount: number | null;
         };
         ProductTotal: {
             /** Format: uuid */
@@ -3487,15 +3513,31 @@ export interface components {
             quantity: number;
             madeQuantity: number;
             done: boolean;
+            /** @description Today's price. */
+            unitPrice: number | null;
+            /** @description Estimated value; null without finance access or without a price. */
+            amount: number | null;
         };
         DueNextOrders: {
             orders: components["schemas"]["DueNextOrder"][];
             totals: components["schemas"]["ProductTotal"][];
+            /** @description Estimated value of all orders due next (decided 2026-11-30); null without finance access. The delivery records the real amount when it is completed. */
+            amount: number | null;
+            /** @description Products due without a price. */
+            unpriced: number;
+            /** @description Only on the full board: the estimated value of each person's assigned products. A shared product counts in full for each person. Empty without finance access. */
+            byEmployee?: {
+                employee: components["schemas"]["PersonRef"];
+                amount: number;
+            }[];
         };
         EmployeeDueNextOrders: {
             employee: components["schemas"]["PersonRef"];
             orders: components["schemas"]["DueNextOrder"][];
             totals: components["schemas"]["ProductTotal"][];
+            /** @description Estimated value of these products. */
+            amount: number | null;
+            unpriced: number;
         };
         TodayDashboard: {
             /** Format: date */

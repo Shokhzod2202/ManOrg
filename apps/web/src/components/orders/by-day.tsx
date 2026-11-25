@@ -5,6 +5,7 @@ import { type ApiError, formatDate, put, type Schemas, today } from '../../lib/a
 import { useApi } from '../../lib/use-api';
 import { Empty, ErrorBox, Loading } from '../ui';
 import { t } from '../../lib/i18n';
+import { won } from './value';
 
 type Order = Schemas['Order'];
 type Product = Schemas['Product'];
@@ -27,6 +28,10 @@ export function OrdersByDay({ canEdit }: { canEdit: boolean }) {
     totals.reload();
   };
   const placed = (orders.data?.items ?? []).filter((o) => o.status === 'placed');
+  // Decided 2026-11-30: the day's value; delivered orders count their real amount.
+  const valued = placed.filter((o) => o.value);
+  const dayValue = valued.length ? valued.reduce((n, o) => n + (o.value?.amount ?? 0), 0) : null;
+  const estimated = valued.filter((o) => o.value?.kind === 'estimate').length;
 
   return (
     <div className="stack" style={{ gap: 14 }}>
@@ -45,12 +50,13 @@ export function OrdersByDay({ canEdit }: { canEdit: boolean }) {
           })}
         </span>
       </div>
-      {orders.loading && !orders.data ? <Loading /> : null}
+      {orders.loading ? <Loading /> : null}
       <ErrorBox error={orders.error ?? totals.error} onRetry={reload} />
-      {orders.data && !orders.data.items.length ? (
+      {!orders.loading && orders.data && !orders.data.items.length ? (
         <Empty>{t('No orders for {date}.', { date: formatDate(date) })}</Empty>
       ) : null}
-      {orders.data?.items.length ? (
+      {/* While another day loads, never show the previous day's figures under its date. */}
+      {!orders.loading && orders.data?.items.length ? (
         <div className="grid2" style={{ alignItems: 'start' }}>
           <section className="card">
             <h2>{t('Production totals')}</h2>
@@ -68,6 +74,24 @@ export function OrdersByDay({ canEdit }: { canEdit: boolean }) {
                   ))}
               </tbody>
             </table>
+            {dayValue !== null ? (
+              <div className="row between wrap value-foot">
+                <span>
+                  {t('All contractors')}{' '}
+                  <span className="muted small">
+                    {estimated === valued.length
+                      ? t('estimate until delivered')
+                      : estimated
+                        ? t('{n} delivered, {m} estimated', {
+                            n: valued.length - estimated,
+                            m: estimated,
+                          })
+                        : t('delivered')}
+                  </span>
+                </span>
+                <b data-testid="day-value">{won(dayValue)}</b>
+              </div>
+            ) : null}
           </section>
           <div className="stack">
             {orders.data.items.map((o) =>
@@ -99,18 +123,22 @@ export function OrdersByDay({ canEdit }: { canEdit: boolean }) {
                       ) : null}
                     </span>
                   </div>
-                  <table className="t">
-                    <tbody>
-                      {o.lines.map((l) => (
-                        <tr key={l.productId}>
-                          <td>{l.productName}</td>
-                          <td style={{ textAlign: 'right' }}>
-                            <b>{l.quantity}</b>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  {o.value ? (
+                    <ValuedLines order={o} value={o.value} />
+                  ) : (
+                    <table className="t">
+                      <tbody>
+                        {o.lines.map((l) => (
+                          <tr key={l.productId}>
+                            <td>{l.productName}</td>
+                            <td style={{ textAlign: 'right' }}>
+                              <b>{l.quantity}</b>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
                 </section>
               ),
             )}
@@ -118,6 +146,65 @@ export function OrdersByDay({ canEdit }: { canEdit: boolean }) {
         </div>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Decided 2026-11-30: each line's amount and the order total, kept in a quiet column. Before the
+ * delivery is completed it is an estimate at today's price; after, the real delivered amount.
+ */
+function ValuedLines({ order, value }: { order: Order; value: Schemas['OrderValue'] }) {
+  const actual = value.kind === 'actual';
+  const byProduct = new Map(value.lines.map((l) => [l.productId, l]));
+  const ordered = new Set(order.lines.map((l) => l.productId));
+  const extra = value.lines.filter((l) => !ordered.has(l.productId));
+  return (
+    <table className="t valued">
+      <tbody>
+        {order.lines.map((l) => {
+          const v = byProduct.get(l.productId);
+          const changed = actual && v && v.quantity !== l.quantity;
+          return (
+            <tr key={l.productId}>
+              <td>{l.productName}</td>
+              <td style={{ textAlign: 'right' }}>
+                {changed ? (
+                  <span title={t('Ordered {o}, delivered {d}', { o: l.quantity, d: v.quantity })}>
+                    <s className="muted">{l.quantity}</s> <b>{v.quantity}</b>
+                  </span>
+                ) : (
+                  <b>{l.quantity}</b>
+                )}
+              </td>
+              <td className="amt">
+                {v?.amount === null || v?.amount === undefined ? t('no price') : won(v.amount)}
+              </td>
+            </tr>
+          );
+        })}
+        {extra.map((l) => (
+          <tr key={l.productId}>
+            <td>
+              {l.productName} <span className="muted small">({t('not ordered')})</span>
+            </td>
+            <td style={{ textAlign: 'right' }}>
+              <b>{l.quantity}</b>
+            </td>
+            <td className="amt">{l.amount === null ? t('no price') : won(l.amount)}</td>
+          </tr>
+        ))}
+        <tr className="sum">
+          <td colSpan={2}>
+            <span className={actual ? 'pill ok' : 'pill'}>
+              {actual ? t('Delivered') : t('Estimate')}
+            </span>
+          </td>
+          <td className="amt">
+            <b>{won(value.amount)}</b>
+          </td>
+        </tr>
+      </tbody>
+    </table>
   );
 }
 

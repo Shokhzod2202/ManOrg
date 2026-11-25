@@ -813,6 +813,33 @@ async function as(b, email, vp = { width: 1280, height: 900 }) {
   );
   if (!heading || firstName !== secondName) throw new Error('Product types or custom order failed');
 
+  // 24. Decided 2026-11-30. Admins see what the orders due next are worth (folded until opened):
+  // the total equals the contractors' amounts; By day prices each line with an order total.
+  const wonOf = (txt) => Number(txt.replace(/[^0-9]/g, ''));
+  await boss.goto(`${W}/app/orders`);
+  await boss.waitForSelector('.value-panel summary');
+  if (!(await boss.locator('.value-panel').evaluate((el) => el.open)))
+    await boss.click('.value-panel summary');
+  const grand = wonOf(await boss.textContent('[data-testid=orders-value]'));
+  const byContractor = boss.locator('.value-grid > div').first().locator('tbody td:last-child');
+  await byContractor.first().waitFor();
+  const parts = (await byContractor.allInnerTexts()).map(wonOf);
+  const sumOk = grand > 0 && parts.reduce((n, x) => n + x, 0) === grand;
+  await boss.click('[role=tab]:has-text("By day")');
+  const orderTotal = await boss
+    .waitForSelector('table.valued tr.sum td.amt b', { timeout: 10000 })
+    .then(
+      (el) => el.innerText(),
+      () => '',
+    );
+  log(
+    '24 order value adds up:',
+    sumOk,
+    `(₩${grand}) | by day order total:`,
+    orderTotal || 'missing',
+  );
+  if (!sumOk || !orderTotal) throw new Error('Order value failed');
+
   await b.close();
 })().catch((e) => {
   console.error('FAILED', e.message.slice(0, 400));

@@ -57,6 +57,8 @@ describe("Today's Dashboard (DSH-1)", () => {
         quantity: 30,
         madeQuantity: 0,
         done: false,
+        unitPrice: 1000,
+        amount: 30_000,
       },
     ]);
     expect(res.body.waiting.applications).toBe(1);

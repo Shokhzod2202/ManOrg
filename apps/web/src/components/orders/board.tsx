@@ -7,6 +7,7 @@ import { useSession } from '../../lib/session';
 import { useApi } from '../../lib/use-api';
 import { Empty, ErrorBox, Icon, Loading } from '../ui';
 import { t } from '../../lib/i18n';
+import { OrderValuePanel, won } from './value';
 
 type DueNext = Schemas['DueNextOrders'];
 type View = 'list' | 'matrix' | 'products';
@@ -102,9 +103,12 @@ export function OrdersBoard({
               quantity: 0,
               madeQuantity: 0,
               done: false,
+              unitPrice: l.unitPrice,
+              amount: l.unitPrice === null ? null : 0,
             };
             tm.quantity += l.quantity;
             tm.madeQuantity += l.madeQuantity;
+            if (tm.amount !== null) tm.amount += l.amount ?? 0;
             tm.done = tm.madeQuantity >= tm.quantity;
             return m.set(l.productId, tm);
           }, new Map<string, Schemas['ProductTotal']>())
@@ -125,6 +129,20 @@ export function OrdersBoard({
   const dates = [...new Set(orders.map((o) => o.deliveryDate))];
   const units = totals.reduce((n, tm) => n + tm.quantity, 0);
   const doneCount = totals.filter((tm) => tm.done).length;
+  // Decided 2026-11-30: order value for people who may see finance (amounts are null otherwise).
+  const value =
+    !wall && data.amount !== null && data.amount !== undefined
+      ? picked
+        ? shownOrders.reduce((n, o) => n + (o.amount ?? 0), 0)
+        : data.amount
+      : null;
+  const whose =
+    target === 'all'
+      ? null
+      : ((data as { employee?: { name: string } }).employee?.name ??
+        employees.find((m) => m.user.id === target)?.displayName ??
+        employees.find((m) => m.user.id === target)?.user.name ??
+        '');
 
   return (
     <div className="stack" style={{ gap: 14 }}>
@@ -210,6 +228,42 @@ export function OrdersBoard({
             </select>
           ) : null}
         </div>
+      ) : null}
+      {value !== null && orders.length ? (
+        <OrderValuePanel
+          title={
+            whose !== null
+              ? t("Value of {name}'s products", { name: whose })
+              : picked
+                ? t("Value of {name}'s order", {
+                    name: contractors.find((c) => c.id === picked)?.name ?? '',
+                  })
+                : t('Value of all orders due next')
+          }
+          amount={value}
+          unpriced={totals.filter((tm) => tm.unitPrice === null).length}
+          contractors={orders.map((o) => ({
+            key: o.orderId,
+            name: o.contractor.name,
+            detail: dates.length > 1 ? formatDate(o.deliveryDate) : undefined,
+            amount: o.amount,
+          }))}
+          employees={
+            whose === null && !picked
+              ? (data.byEmployee ?? []).map((e) => ({
+                  key: e.employee.id,
+                  name: e.employee.name,
+                  amount: e.amount,
+                }))
+              : []
+          }
+          products={totals.map((tm) => ({
+            key: tm.productId,
+            name: tm.productName,
+            detail: tm.unitPrice === null ? t('no price') : `${tm.quantity} × ${won(tm.unitPrice)}`,
+            amount: tm.amount,
+          }))}
+        />
       ) : null}
       <ErrorBox error={markError} />
       {!orders.length ? (

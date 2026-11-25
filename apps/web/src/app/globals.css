@@ -1120,3 +1120,58 @@ tr.group th {
 .order-cell * {
   touch-action: none;
 }
+
+/* Decided 2026-11-30: order value, quiet until wanted. */
+.value-panel {
+  gap: 10px;
+}
+.value-panel summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  min-height: 32px;
+}
+.value-panel summary b {
+  font-variant-numeric: tabular-nums;
+}
+.value-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+table.t.valued td.amt {
+  text-align: right;
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
+  width: 1%;
+}
+table.t.valued tr.sum td {
+  border-bottom: 0;
+}
+table.t.valued tr.sum td.amt {
+  color: inherit;
+  font-size: 14px;
+}
+.value-foot {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.value-panel summary::-webkit-details-marker {
+  display: none;
+}
+.value-more {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+.value-panel[open] .value-more svg {
+  transform: rotate(180deg);
+}
