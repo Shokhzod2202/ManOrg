@@ -3443,7 +3443,7 @@ paths:
     patch:
       operationId: updateMember
       summary: Change a member's role, remove them, or switch whether an admin works shifts (ACC-7)
-      description: Audited. The organization always keeps one active admin. Only the owner makes, demotes or removes admins (an admin may step down or leave); the owner cannot be demoted or removed. Takes effect on the member's next request.
+      description: Audited. The organization always keeps one active admin. Only owners make, demote or remove admins (an admin may step down or leave); an owner cannot be demoted or removed. Takes effect on the member's next request.
       tags: [members]
       parameters:
         - $ref: '#/components/parameters/IdPath'
@@ -3470,9 +3470,9 @@ paths:
 
   /members/{id}/owner:
     post:
-      operationId: transferOwnership
-      summary: Hand ownership to another admin
-      description: Owner only. The new owner must be an active admin; the old owner stays an admin. Audited.
+      operationId: addOwner
+      summary: Make a member an owner too
+      description: Owners only. Ownership is shared; the caller stays an owner. An employee also becomes an admin. Audited.
       tags: [members]
       parameters:
         - $ref: '#/components/parameters/IdPath'
@@ -3486,7 +3486,24 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
-        '422': { $ref: '#/components/responses/Unprocessable' }
+    delete:
+      operationId: leaveOwnership
+      summary: Stop being an owner
+      description: For your own membership only; owners never take ownership from each other. At least one owner stays (409 LAST_OWNER). You stay an admin. Audited.
+      tags: [members]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Your membership, no longer an owner.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Member' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
 
 components:
   securitySchemes:
@@ -3683,7 +3700,7 @@ components:
               status: { $ref: '#/components/schemas/MembershipStatus' }
               owner:
                 type: boolean
-                description: The organization's owner, who alone changes who is an admin.
+                description: An owner of the organization; owners alone change who is an admin. Ownership can be shared.
               worksShifts:
                 type: boolean
                 description: Has a punch card and shows in shift lists (always true for employees).
@@ -5239,7 +5256,7 @@ components:
         status: { $ref: '#/components/schemas/MembershipStatus' }
         owner:
           type: boolean
-          description: The organization's owner, who alone changes who is an admin.
+          description: An owner of the organization; owners alone change who is an admin. Ownership can be shared.
         worksShifts:
           type: boolean
           description: Has a punch card and shows in shift lists (always true for employees).
@@ -5262,7 +5279,7 @@ components:
       properties:
         role:
           $ref: '#/components/schemas/MembershipRole'
-          description: Only the owner makes, demotes or removes admins; the owner cannot be changed.
+          description: Only owners make, demote or remove admins; an owner cannot be demoted or removed.
         worksShifts:
           type: boolean
           description: For admins only; any admin may switch it, for themselves or others.

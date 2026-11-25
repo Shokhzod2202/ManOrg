@@ -285,7 +285,7 @@ model Membership {
   decidedById    String?          @map("decided_by") @db.Uuid
   decidedAt      DateTime?        @map("decided_at") @db.Timestamptz(3)
   /// Decided 2026-11-26: the organization's owner, an admin with power over the other admins.
-  /// At most one per organization (partial unique index in the migration).
+  /// Several owners may share it (decided 2026-11-27); there is always at least one.
   owner          Boolean          @default(false)
   /// Decided 2026-11-26: an admin who also works shifts gets a punch card and shows in shift
   /// lists; off by default. Employees always work shifts.

@@ -122,13 +122,13 @@ export class MembersService {
         throw Errors.conflict('MEMBER_REMOVED', 'This person is no longer a member.');
       }
       if (before.version !== version) throw Errors.versionConflict();
-      // Decided 2026-11-26: the owner is never demoted or removed (they hand ownership on first),
-      // and only the owner makes, demotes or removes admins; anyone may step down themselves.
+      // Decided 2026-11-26/27: an owner is never demoted or removed (they stop being an owner
+      // first), and only owners make, demote or remove admins; anyone may step down themselves.
       const changesRole = input.role !== undefined && input.role !== before.role;
       if (before.owner && (changesRole || input.status === 'removed')) {
         throw Errors.conflict(
           'OWNER_PROTECTED',
-          'The owner cannot be demoted or removed. The owner can hand ownership to another admin first.',
+          'An owner cannot be demoted or removed. They can stop being an owner themselves first.',
         );
       }
       const self = before.userId === user.userId && !user.viaBot;
@@ -177,35 +177,67 @@ export class MembersService {
     });
   }
 
-  /** Decided 2026-11-26: the owner hands ownership to another active admin and stays an admin. */
-  transferOwnership(user: AuthUser, org: OrgContext, id: string) {
+  /**
+   * Decided 2026-11-27: ownership is shared. An owner makes another active member an owner too
+   * (an employee becomes an admin as well) and stays an owner.
+   */
+  shareOwnership(user: AuthUser, org: OrgContext, id: string) {
     ownerOnly(user, org);
     return this.db.run(dbContext(user, org), async (tx) => {
       const target = await tx.membership.findFirst({
         where: { id, organizationId: org.organizationId, status: 'active' },
       });
       if (!target) throw Errors.notFound('Member');
-      if (target.role !== 'admin') {
-        throw Errors.unprocessable('ADMINS_ONLY', 'Make the person an admin first.');
-      }
       if (target.owner) return this.presentOne(tx, id);
-      // One owner at a time: clear the current owner before setting the new one.
-      await tx.membership.update({
-        where: { id: org.membershipId },
-        data: { owner: false, version: { increment: 1 } },
-      });
       await tx.membership.update({
         where: { id },
-        data: { owner: true, version: { increment: 1 } },
+        data: { owner: true, role: 'admin', version: { increment: 1 } },
       });
       await this.audit.record(tx, {
         organizationId: org.organizationId,
         actor: actorFor(user),
-        action: 'membership.owner_transfer',
+        action: 'membership.owner_add',
         entity: 'membership',
         entityId: id,
-        before: { ownerMembershipId: org.membershipId },
-        after: { ownerMembershipId: id },
+        before: { owner: false, role: target.role },
+        after: { owner: true, role: 'admin' },
+      });
+      return this.presentOne(tx, id);
+    });
+  }
+
+  /**
+   * An owner stops being an owner (staying an admin). Only for oneself: owners never take
+   * ownership from each other. The organization always keeps at least one owner.
+   */
+  leaveOwnership(user: AuthUser, org: OrgContext, id: string) {
+    ownerOnly(user, org);
+    if (id !== org.membershipId) {
+      throw Errors.forbidden('Owners can only stop being an owner themselves.');
+    }
+    return this.db.run(dbContext(user, org), async (tx) => {
+      const owners = await tx.$queryRaw<{ id: string }[]>`
+        SELECT id FROM memberships
+        WHERE organization_id = ${org.organizationId}::uuid AND owner AND status = 'active'
+        FOR UPDATE`;
+      if (!owners.some((o) => o.id !== id)) {
+        throw Errors.conflict(
+          'LAST_OWNER',
+          'Make someone else an owner before you stop being one.',
+        );
+      }
+      await tx.membership.update({
+        where: { id },
+        data: { owner: false, version: { increment: 1 } },
+      });
+      await this.audit.record(tx, {
+        organizationId: org.organizationId,
+        actor: actorFor(user),
+        action: 'membership.owner_leave',
+        entity: 'membership',
+        entityId: id,
+        before: { owner: true },
+        after: { owner: false },
       });
       return this.presentOne(tx, id);
     });
@@ -231,10 +263,10 @@ export class MembersService {
   }
 }
 
-/** Decided 2026-11-26: only the owner changes who is an admin. The bot never does. */
+/** Decided 2026-11-26: only owners change who is an admin. The bot never does. */
 function ownerOnly(user: AuthUser, org: OrgContext): void {
   if (!org.owner || user.viaBot) {
-    throw Errors.forbidden('Only the owner can make, demote or remove admins.');
+    throw Errors.forbidden('Only an owner can do this.');
   }
 }
 

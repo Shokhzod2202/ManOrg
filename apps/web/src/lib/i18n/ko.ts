@@ -691,4 +691,18 @@ export const ko: Record<string, string> = {
   'Only the owner can change the bot permissions.': '봇 권한은 소유자만 바꿀 수 있습니다.',
   'Employees always work shifts.': '직원은 항상 근무합니다.',
   'Make the person an admin first.': '먼저 관리자로 지정하세요.',
+  'Stop being an owner? You stay an admin; the other owners keep it.':
+    '소유자를 그만둘까요? 관리자로 남으며 다른 소유자는 그대로입니다.',
+  'Stop being an owner': '소유자 그만두기',
+  'Make {name} an owner too? Owners change who is an admin and the bot permissions. You stay an owner.':
+    '{name}님도 소유자로 지정할까요? 소유자는 관리자와 봇 권한을 바꿀 수 있습니다. 나는 소유자로 남습니다.',
+  'Only an owner can make, demote or remove admins.':
+    '관리자 지정, 강등, 삭제는 소유자만 할 수 있습니다.',
+  'Only an owner can do this.': '소유자만 할 수 있습니다.',
+  'Only an owner can change the bot permissions.': '봇 권한은 소유자만 바꿀 수 있습니다.',
+  'An owner cannot be demoted or removed. They can stop being an owner themselves first.':
+    '소유자는 강등하거나 삭제할 수 없습니다. 본인이 먼저 소유자를 그만둘 수 있습니다.',
+  'Make someone else an owner before you stop being one.':
+    '소유자를 그만두기 전에 다른 사람을 소유자로 지정하세요.',
+  'Owners can only stop being an owner themselves.': '소유자는 본인만 소유자를 그만둘 수 있습니다.',
 };

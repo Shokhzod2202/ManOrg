@@ -34,7 +34,7 @@ afterAll(async () => {
   await disconnectDatabases();
 });
 
-describe('the owner', () => {
+describe('owners', () => {
   it('is the person who created the organization', async () => {
     const me = await api.as(owner).get('/me').expect(200);
     expect(me.body.memberships[0]).toMatchObject({ role: 'admin', owner: true });
@@ -74,28 +74,59 @@ describe('the owner', () => {
     ).toBe('employee');
   });
 
-  it('can be handed on; the old owner stays an admin without the owner powers', async () => {
+  it('can be shared: an owner makes another member an owner too and stays one', async () => {
+    // A non-owner cannot.
     await api
       .as(second, orgId)
-      .post(`/members/${(await memberOf(owner.userId)).id}/owner`)
+      .post(`/members/${(await memberOf(worker.userId)).id}/owner`)
       .expect(403);
     const res = await api
       .as(owner, orgId)
       .post(`/members/${(await memberOf(second.userId)).id}/owner`)
       .expect(200);
-    expect(res.body).toMatchObject({ owner: true });
-    expect(await memberOf(owner.userId)).toMatchObject({ role: 'admin', owner: false });
-    await patchMember(owner, await memberOf(worker.userId), { role: 'admin' }).expect(403);
+    expect(res.body).toMatchObject({ owner: true, role: 'admin' });
+    expect(await memberOf(owner.userId)).toMatchObject({ owner: true });
+    // The new owner has the owner powers too: here, making an employee an admin.
+    const helper = await api.hireEmployee(orgId, owner, 'Shared Helper');
+    await patchMember(second, await memberOf(helper.userId), { role: 'admin' }).expect(200);
+    // An employee made an owner also becomes an admin.
+    const made = await api
+      .as(second, orgId)
+      .post(`/members/${(await memberOf(worker.userId)).id}/owner`)
+      .expect(200);
+    expect(made.body).toMatchObject({ owner: true, role: 'admin' });
     const audit = await auditFor((await memberOf(second.userId)).id, {
       organizationId: orgId,
       userId: second.userId,
     });
-    expect(audit.map((a) => a.action)).toContain('membership.owner_transfer');
-    // Hand it back for the remaining tests.
+    expect(audit.map((a) => a.action)).toContain('membership.owner_add');
+  });
+
+  it('owners never take ownership from each other; each can stop being one, one stays', async () => {
+    // Another owner cannot demote, remove or un-own an owner.
+    const res = await patchMember(second, await memberOf(worker.userId), { role: 'employee' });
+    expect(res.body.error.code).toBe('OWNER_PROTECTED');
     await api
       .as(second, orgId)
-      .post(`/members/${(await memberOf(owner.userId)).id}/owner`)
+      .delete(`/members/${(await memberOf(worker.userId)).id}/owner`)
+      .expect(403);
+    // Each steps down for themselves while another owner remains.
+    await api
+      .as(worker, orgId)
+      .delete(`/members/${(await memberOf(worker.userId)).id}/owner`)
       .expect(200);
+    await api
+      .as(second, orgId)
+      .delete(`/members/${(await memberOf(second.userId)).id}/owner`)
+      .expect(200);
+    expect(await memberOf(second.userId)).toMatchObject({ owner: false, role: 'admin' });
+    const last = await api
+      .as(owner, orgId)
+      .delete(`/members/${(await memberOf(owner.userId)).id}/owner`)
+      .expect(409);
+    expect(last.body.error.code).toBe('LAST_OWNER');
+    // Back to the start for the remaining tests: worker an employee again.
+    await patchMember(owner, await memberOf(worker.userId), { role: 'employee' }).expect(200);
   });
 
   it('alone changes the bot permissions', async () => {

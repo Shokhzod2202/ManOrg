@@ -1,4 +1,13 @@
-import { Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
+import {
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+} from '@nestjs/common';
 import { IfMatchVersion } from '../common/if-match';
 import {
   type AuthUser,
@@ -52,14 +61,24 @@ export class MembersController {
     return this.members.update(user, org, id, version, body);
   }
 
-  /** Decided 2026-11-26: the owner hands ownership to another admin. */
+  /** Decided 2026-11-27: an owner makes another member an owner too. */
   @Post(':id/owner')
   @HttpCode(200)
-  transferOwnership(
+  shareOwnership(
     @CurrentUser() user: AuthUser,
     @CurrentOrg() org: OrgContext,
     @Param('id', new ParseUUIDPipe()) id: string,
   ) {
-    return this.members.transferOwnership(user, org, id);
+    return this.members.shareOwnership(user, org, id);
+  }
+
+  /** An owner stops being an owner (themselves only; at least one owner stays). */
+  @Delete(':id/owner')
+  leaveOwnership(
+    @CurrentUser() user: AuthUser,
+    @CurrentOrg() org: OrgContext,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.members.leaveOwnership(user, org, id);
   }
 }

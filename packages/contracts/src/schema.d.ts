@@ -2115,7 +2115,7 @@ export interface paths {
         head?: never;
         /**
          * Change a member's role, remove them, or switch whether an admin works shifts (ACC-7)
-         * @description Audited. The organization always keeps one active admin. Only the owner makes, demotes or removes admins (an admin may step down or leave); the owner cannot be demoted or removed. Takes effect on the member's next request.
+         * @description Audited. The organization always keeps one active admin. Only owners make, demote or remove admins (an admin may step down or leave); an owner cannot be demoted or removed. Takes effect on the member's next request.
          */
         patch: operations["updateMember"];
         trace?: never;
@@ -2130,11 +2130,15 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Hand ownership to another admin
-         * @description Owner only. The new owner must be an active admin; the old owner stays an admin. Audited.
+         * Make a member an owner too
+         * @description Owners only. Ownership is shared; the caller stays an owner. An employee also becomes an admin. Audited.
          */
-        post: operations["transferOwnership"];
-        delete?: never;
+        post: operations["addOwner"];
+        /**
+         * Stop being an owner
+         * @description For your own membership only; owners never take ownership from each other. At least one owner stays (409 LAST_OWNER). You stay an admin. Audited.
+         */
+        delete: operations["leaveOwnership"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2225,7 +2229,7 @@ export interface components {
                 id: string;
                 role: components["schemas"]["MembershipRole"];
                 status: components["schemas"]["MembershipStatus"];
-                /** @description The organization's owner, who alone changes who is an admin. */
+                /** @description An owner of the organization; owners alone change who is an admin. Ownership can be shared. */
                 owner: boolean;
                 /** @description Has a punch card and shows in shift lists (always true for employees). */
                 worksShifts: boolean;
@@ -3393,7 +3397,7 @@ export interface components {
             id: string;
             role: components["schemas"]["MembershipRole"];
             status: components["schemas"]["MembershipStatus"];
-            /** @description The organization's owner, who alone changes who is an admin. */
+            /** @description An owner of the organization; owners alone change who is an admin. Ownership can be shared. */
             owner: boolean;
             /** @description Has a punch card and shows in shift lists (always true for employees). */
             worksShifts: boolean;
@@ -3409,7 +3413,7 @@ export interface components {
             role: components["schemas"]["MembershipRole"];
         };
         UpdateMemberRequest: {
-            /** @description Only the owner makes, demotes or removes admins; the owner cannot be changed. */
+            /** @description Only owners make, demote or remove admins; an owner cannot be demoted or removed. */
             role?: components["schemas"]["MembershipRole"];
             /** @description For admins only; any admin may switch it, for themselves or others. */
             worksShifts?: boolean;
@@ -7664,7 +7668,7 @@ export interface operations {
             428: components["responses"]["PreconditionRequired"];
         };
     };
-    transferOwnership: {
+    addOwner: {
         parameters: {
             query?: never;
             header: {
@@ -7690,7 +7694,35 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            422: components["responses"]["Unprocessable"];
+        };
+    };
+    leaveOwnership: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Your membership, no longer an owner. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Member"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
         };
     };
 }

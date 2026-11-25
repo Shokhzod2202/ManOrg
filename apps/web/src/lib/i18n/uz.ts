@@ -699,4 +699,19 @@ export const uz: Record<string, string> = {
     'Bot ruxsatlarini faqat egasi oʻzgartira oladi.',
   'Employees always work shifts.': 'Xodimlar doim smenada ishlaydi.',
   'Make the person an admin first.': 'Avval uni admin qiling.',
+  'Stop being an owner? You stay an admin; the other owners keep it.':
+    'Egalikdan voz kechasizmi? Siz admin boʻlib qolasiz, boshqa egalar qoladi.',
+  'Stop being an owner': 'Egalikdan voz kechish',
+  'Make {name} an owner too? Owners change who is an admin and the bot permissions. You stay an owner.':
+    '{name} ni ham egasi qilasizmi? Egalar adminlarni va bot ruxsatlarini oʻzgartiradi. Siz egasi boʻlib qolasiz.',
+  'Only an owner can make, demote or remove admins.':
+    'Admin qilish, pasaytirish yoki olib tashlashni faqat egasi qila oladi.',
+  'Only an owner can do this.': 'Buni faqat egasi qila oladi.',
+  'Only an owner can change the bot permissions.': 'Bot ruxsatlarini faqat egasi oʻzgartira oladi.',
+  'An owner cannot be demoted or removed. They can stop being an owner themselves first.':
+    'Egasini pasaytirib yoki olib tashlab boʻlmaydi. U avval oʻzi egalikdan voz kechishi mumkin.',
+  'Make someone else an owner before you stop being one.':
+    'Voz kechishdan oldin boshqa birovni egasi qiling.',
+  'Owners can only stop being an owner themselves.':
+    'Egalikdan faqat egasining oʻzi voz kecha oladi.',
 };

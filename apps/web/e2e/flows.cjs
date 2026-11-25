@@ -594,6 +594,27 @@ async function as(b, email, vp = { width: 1280, height: 900 }) {
     demoted,
   );
   if (!demoted || ownerPill !== 1) throw new Error('Demotion or owner label failed');
+  // Decided 2026-11-27: ownership is shared. The owner makes the newcomer an owner too; the
+  // newcomer then stops being one themselves; the owner then makes them an employee again.
+  await boss.goto(`${W}/app/people`);
+  boss.once('dialog', (d) => void d.accept());
+  await boss
+    .locator('section:has(h2:has-text("Members")) tr', { hasText: newcomerName })
+    .locator('button:has-text("Make owner")')
+    .click();
+  await boss.waitForTimeout(1000);
+  const owners = await boss
+    .locator('section:has(h2:has-text("Members")) .pill:has-text("Owner")')
+    .count();
+  await newcomer.goto(`${W}/app/people`);
+  newcomer.once('dialog', (d) => void d.accept());
+  await newcomer.click('button:has-text("Stop being an owner")');
+  await newcomer.waitForSelector('button:has-text("Stop being an owner")', { state: 'detached' });
+  await boss.goto(`${W}/app/people`);
+  await roleSelect().selectOption('employee');
+  await boss.waitForTimeout(800);
+  log('20 ownership shared: owners shown =', owners, '| the new owner stepped down themselves');
+  if (owners !== 2) throw new Error('Shared ownership failed');
   await boss.goto(`${W}/app/settings`);
   const mine = boss.locator('section:has(h2:has-text("Admins who work shifts")) label', {
     hasText: 'You',

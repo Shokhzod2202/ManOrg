@@ -75,7 +75,7 @@ function Applications() {
 /** ACC-7, ACC-8: members, roles and removal. Every change is audited on the server. */
 function Members({ provider }: { provider: boolean }) {
   const { me, membership } = useSession();
-  // Decided 2026-11-26: only the owner makes, demotes or removes admins.
+  // Decided 2026-11-26/27: only owners make, demote or remove admins; ownership is shared.
   const iAmOwner = membership?.owner === true;
   const { data, error, loading, reload } = useApi<{ items: Member[] }>('/members');
   const [email, setEmail] = useState('');
@@ -155,17 +155,36 @@ function Members({ provider }: { provider: boolean }) {
               </td>
               <td data-label="">
                 {m.user.id === me?.id ? (
-                  <span className="muted small">{t('You')}</span>
-                ) : (
                   <span className="row wrap" style={{ justifyContent: 'flex-end' }}>
-                    {iAmOwner && m.role === 'admin' && !m.owner ? (
+                    <span className="muted small">{t('You')}</span>
+                    {m.owner && (data?.items ?? []).filter((x) => x.owner).length > 1 ? (
                       <button
                         className="btn ghost"
                         onClick={() => {
                           if (
                             window.confirm(
                               t(
-                                'Make {name} the owner? You stay an admin, but only the new owner can change admins.',
+                                'Stop being an owner? You stay an admin; the other owners keep it.',
+                              ),
+                            )
+                          )
+                            void run(() => del(`/members/${m.id}/owner`));
+                        }}
+                      >
+                        {t('Stop being an owner')}
+                      </button>
+                    ) : null}
+                  </span>
+                ) : (
+                  <span className="row wrap" style={{ justifyContent: 'flex-end' }}>
+                    {iAmOwner && !m.owner ? (
+                      <button
+                        className="btn ghost"
+                        onClick={() => {
+                          if (
+                            window.confirm(
+                              t(
+                                'Make {name} an owner too? Owners change who is an admin and the bot permissions. You stay an owner.',
                                 { name: m.user.name },
                               ),
                             )
@@ -227,9 +246,7 @@ function Members({ provider }: { provider: boolean }) {
         </form>
       )}
       {!iAmOwner ? (
-        <span className="muted small">
-          {t('Only the owner can make, demote or remove admins.')}
-        </span>
+        <span className="muted small">{t('Only an owner can make, demote or remove admins.')}</span>
       ) : null}
     </section>
   );
