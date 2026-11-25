@@ -333,6 +333,8 @@ export class OutputService {
           where: {
             organizationId: org.organizationId,
             status: 'active',
+            // Decided 2026-11-25: output management shows employees only, never admins.
+            role: 'employee',
             ...(all ? {} : { userId: user.userId }),
           },
           select: { user: { select: { id: true, name: true } } },

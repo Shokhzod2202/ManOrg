@@ -232,6 +232,10 @@ describe('reading output (OUT-2, OUT-3)', () => {
       workedMinutes: expect.any(Number),
       output: { creditedQuantity: 45, cleaningHours: 1.5 },
     });
+    // Output management lists employees only, never admins (decided 2026-11-25).
+    const ids = res.body.employees.map((e: { employee: { id: string } }) => e.employee.id);
+    expect(ids).toContain(w.a.employee.userId);
+    expect(ids).not.toContain(w.a.admin.userId);
     const own = await api
       .as(joon, w.a.id)
       .get(`/dashboard/shift-output?date=${today()}`)
