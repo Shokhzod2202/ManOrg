@@ -37,6 +37,7 @@ describe('GET /members', () => {
       status: 'active',
       owner: true,
       worksShifts: false,
+      removedAt: null,
       version: 1,
       user: {
         id: w.a.admin.userId,

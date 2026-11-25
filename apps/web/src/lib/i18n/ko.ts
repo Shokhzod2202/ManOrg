@@ -705,4 +705,22 @@ export const ko: Record<string, string> = {
   'Make someone else an owner before you stop being one.':
     '소유자를 그만두기 전에 다른 사람을 소유자로 지정하세요.',
   'Owners can only stop being an owner themselves.': '소유자는 본인만 소유자를 그만둘 수 있습니다.',
+  'Done: {shifts} shift days, {teams} teams, {tasks} tasks, {rules} repeating tasks, {ingredients} ingredients, {products} products.':
+    '완료: 근무일 {shifts}일, 팀 {teams}개, 업무 {tasks}개, 반복 업무 {rules}개, 재료 {ingredients}개, 제품 {products}개.',
+  'Give {name}’s weekly shifts, teams, open and repeating tasks, ingredient ordering and products to {to}? Their past work stays as it is.':
+    '{name}님의 주간 근무, 팀, 진행 중·반복 업무, 재료 주문, 제품을 {to}님에게 넘길까요? 지난 기록은 그대로 남습니다.',
+  'Hand over to': '넘겨받을 사람',
+  'Hand over to…': '넘겨받을 사람…',
+  'Hand over': '넘기기',
+  'Remove from shifts and teams': '근무와 팀에서 빼기',
+  'Removed members': '삭제된 구성원',
+  Removed: '삭제됨',
+  'Take {name} out of the weekly shifts, teams, open and repeating tasks, ingredient ordering and products? Their past work stays as it is.':
+    '{name}님을 주간 근무, 팀, 진행 중·반복 업무, 재료 주문, 제품에서 뺄까요? 지난 기록은 그대로 남습니다.',
+  'Their past shifts, punches, output and tasks stay, marked removed. Clear what they still had for the future, or give it to another employee.':
+    '지난 근무, 출퇴근 기록, 생산량, 업무는 삭제됨으로 표시되어 남습니다. 앞으로의 일은 지우거나 다른 직원에게 넘기세요.',
+  'removed {date}': '{date} 삭제됨',
+  '{name} (removed {date})': '{name} ({date} 삭제됨)',
+  '{name} (removed)': '{name} (삭제됨)',
+  'Choose another person.': '다른 사람을 선택하세요.',
 };

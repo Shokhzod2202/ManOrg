@@ -19,6 +19,7 @@ export default function PeoplePage() {
       <PageHead title={provider ? t('People and teams') : t('Admins')} />
       {provider ? <Applications /> : null}
       <Members provider={provider} />
+      {provider ? <RemovedMembers /> : null}
       {provider ? <Teams /> : null}
     </div>
   );
@@ -73,6 +74,130 @@ function Applications() {
 }
 
 /** ACC-7, ACC-8: members, roles and removal. Every change is audited on the server. */
+type HandOver = {
+  toUserId: string | null;
+  shiftDays: number;
+  shiftDaysKept: number;
+  teams: number;
+  tasks: number;
+  repeatingTasks: number;
+  ingredients: number;
+  products: number;
+};
+
+/**
+ * Decided 2026-11-28: someone removed keeps their history (shifts, punches, output, tasks), shown
+ * as removed. Here the admin clears their future work, or hands it to another employee: the weekly
+ * shift plan, teams, open and repeating tasks, ingredient ordering and the products they log.
+ */
+function RemovedMembers() {
+  const removed = useApi<{ items: Member[] }>('/members?status=removed');
+  const active = useApi<{ items: Member[] }>('/members');
+  const [to, setTo] = useState<Record<string, string>>({});
+  const [done, setDone] = useState<Record<string, string>>({});
+  const [err, setErr] = useState<ApiError | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const items = removed.data?.items ?? [];
+  if (!items.length) return null;
+  const employees = (active.data?.items ?? []).filter((m) => m.role === 'employee');
+
+  async function act(m: Member, toUserId: string | null) {
+    const target = employees.find((e) => e.user.id === toUserId)?.user.name;
+    const question = toUserId
+      ? t(
+          'Give {name}’s weekly shifts, teams, open and repeating tasks, ingredient ordering and products to {to}? Their past work stays as it is.',
+          { name: m.user.name, to: target ?? '' },
+        )
+      : t(
+          'Take {name} out of the weekly shifts, teams, open and repeating tasks, ingredient ordering and products? Their past work stays as it is.',
+          { name: m.user.name },
+        );
+    if (!window.confirm(question)) return;
+    setErr(null);
+    setBusy(m.id);
+    try {
+      const r = await post<HandOver>(`/members/${m.id}/hand-over`, { toUserId });
+      setDone({
+        ...done,
+        [m.id]: t(
+          'Done: {shifts} shift days, {teams} teams, {tasks} tasks, {rules} repeating tasks, {ingredients} ingredients, {products} products.',
+          {
+            shifts: r.shiftDays,
+            teams: r.teams,
+            tasks: r.tasks,
+            rules: r.repeatingTasks,
+            ingredients: r.ingredients,
+            products: r.products,
+          },
+        ),
+      });
+      refreshApi('/shifts', '/teams', '/tasks', '/recurring-tasks', '/dashboard', '/ingredients');
+    } catch (e) {
+      setErr(e as ApiError);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <section className="card">
+      <h2>{t('Removed members')}</h2>
+      <p className="muted small" style={{ margin: 0 }}>
+        {t(
+          'Their past shifts, punches, output and tasks stay, marked removed. Clear what they still had for the future, or give it to another employee.',
+        )}
+      </p>
+      <ErrorBox error={removed.error ?? err} />
+      {items.map((m) => (
+        <div key={m.id} className="stack" style={{ gap: 6 }}>
+          <div className="row between wrap">
+            <span className="row" style={{ gap: 10 }}>
+              <Avatar name={m.user.name} url={m.user.avatarUrl} size={32} />
+              <b>{m.user.name}</b>
+              {m.removedAt ? (
+                <span className="muted small">
+                  {t('removed {date}', { date: formatDate(m.removedAt.slice(0, 10)) })}
+                </span>
+              ) : null}
+            </span>
+          </div>
+          <div className="row wrap">
+            <select
+              className="input"
+              style={{ width: 'auto', minWidth: 180 }}
+              value={to[m.id] ?? ''}
+              onChange={(e) => setTo({ ...to, [m.id]: e.target.value })}
+              aria-label={t('Hand over to')}
+            >
+              <option value="">{t('Hand over to…')}</option>
+              {employees.map((e) => (
+                <option key={e.user.id} value={e.user.id}>
+                  {e.user.name}
+                </option>
+              ))}
+            </select>
+            <button
+              className="btn ghost"
+              disabled={!to[m.id] || busy === m.id}
+              onClick={() => void act(m, to[m.id] ?? null)}
+            >
+              {t('Hand over')}
+            </button>
+            <button
+              className="btn ghost"
+              disabled={busy === m.id}
+              onClick={() => void act(m, null)}
+            >
+              {t('Remove from shifts and teams')}
+            </button>
+          </div>
+          {done[m.id] ? <span className="pill ok">{done[m.id]}</span> : null}
+        </div>
+      ))}
+    </section>
+  );
+}
+
 function Members({ provider }: { provider: boolean }) {
   const { me, membership } = useSession();
   // Decided 2026-11-26/27: only owners make, demote or remove admins; ownership is shared.
@@ -87,7 +212,7 @@ function Members({ provider }: { provider: boolean }) {
     try {
       await fn();
       reload();
-      refreshApi('/members', '/teams');
+      refreshApi('/members', '/teams', '/shifts', '/dashboard');
     } catch (e) {
       setErr(e as ApiError);
     }
@@ -321,7 +446,11 @@ function Teams() {
               <span className="pill">{t('Private')}</span>
             )}
             <br />
-            <span className="muted small">{tm.members.map((m) => m.name).join(', ')}</span>
+            <span className="muted small">
+              {tm.members
+                .map((m) => (m.removed ? t('{name} (removed)', { name: m.name }) : m.name))
+                .join(', ')}
+            </span>
           </span>
           <span className="row">
             <button className="btn ghost" onClick={() => start(tm)}>
@@ -353,6 +482,27 @@ function Teams() {
                   }}
                 />
                 {m.user.name}
+              </label>
+            ))}
+            {/* Removed from the organization: shown so the admin can take them off (2026-11-28). */}
+            {(editing && editing !== 'new' && members.data
+              ? editing.members.filter(
+                  (x) => x.removed || !new Set(employees.map((e) => e.user.id)).has(x.id),
+                )
+              : []
+            ).map((x) => (
+              <label key={x.id} className="chip removed">
+                <input
+                  type="checkbox"
+                  checked={chosen.has(x.id)}
+                  onChange={(e) => {
+                    const n = new Set(chosen);
+                    if (e.target.checked) n.add(x.id);
+                    else n.delete(x.id);
+                    setChosen(n);
+                  }}
+                />
+                {t('{name} (removed)', { name: x.name })}
               </label>
             ))}
           </div>

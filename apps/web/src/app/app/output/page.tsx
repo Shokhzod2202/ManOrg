@@ -240,6 +240,11 @@ function AdminOutput() {
                   <tr key={e.employee.id}>
                     <td data-label={t('Name')}>
                       <b>{e.employee.name}</b>
+                      {e.removedOn ? (
+                        <span className="pill warn" style={{ marginLeft: 6 }}>
+                          {t('Removed')}
+                        </span>
+                      ) : null}
                       {e.flags.map((f) => (
                         <div key={f.code}>
                           <Flag>{flagText(f)}</Flag>
@@ -351,7 +356,11 @@ function MyTeams({ onChange }: { onChange: () => void }) {
             <b>{tm.name}</b>{' '}
             {tm.shared ? <span className="pill blue">{t('From admin')}</span> : null}
             <br />
-            <span className="muted small">{tm.members.map((m) => m.name).join(', ')}</span>
+            <span className="muted small">
+              {tm.members
+                .map((m) => (m.removed ? t('{name} (removed)', { name: m.name }) : m.name))
+                .join(', ')}
+            </span>
           </span>
           {!tm.shared ? (
             <span className="row">
@@ -390,6 +399,30 @@ function MyTeams({ onChange }: { onChange: () => void }) {
                 {p.name}
               </label>
             ))}
+            {/* Removed from the organization: shown so the admin can take them off (2026-11-28). */}
+            {(editing && editing !== 'new' && people.data
+              ? editing.members.filter(
+                  (x) =>
+                    x.removed || !new Set((people.data?.items ?? []).map((p) => p.id)).has(x.id),
+                )
+              : []
+            )
+              .filter((x) => x.id !== me?.id)
+              .map((x) => (
+                <label key={x.id} className="chip removed">
+                  <input
+                    type="checkbox"
+                    checked={chosen.has(x.id)}
+                    onChange={(e) => {
+                      const n = new Set(chosen);
+                      if (e.target.checked) n.add(x.id);
+                      else n.delete(x.id);
+                      setChosen(n);
+                    }}
+                  />
+                  {t('{name} (removed)', { name: x.name })}
+                </label>
+              ))}
           </div>
           <div className="row">
             <button className="btn" disabled={!name.trim() || !chosen.size} onClick={save}>

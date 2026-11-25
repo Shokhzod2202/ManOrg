@@ -714,4 +714,22 @@ export const uz: Record<string, string> = {
     'Voz kechishdan oldin boshqa birovni egasi qiling.',
   'Owners can only stop being an owner themselves.':
     'Egalikdan faqat egasining oʻzi voz kecha oladi.',
+  'Done: {shifts} shift days, {teams} teams, {tasks} tasks, {rules} repeating tasks, {ingredients} ingredients, {products} products.':
+    'Bajarildi: {shifts} smena kuni, {teams} jamoa, {tasks} vazifa, {rules} takrorlanadigan vazifa, {ingredients} masalliq, {products} mahsulot.',
+  'Give {name}’s weekly shifts, teams, open and repeating tasks, ingredient ordering and products to {to}? Their past work stays as it is.':
+    '{name} ning haftalik smenalari, jamoalari, ochiq va takrorlanadigan vazifalari, masalliq buyurtmasi va mahsulotlari {to} ga oʻtkazilsinmi? Oʻtgan ishlari oʻzgarmaydi.',
+  'Hand over to': 'Kimga oʻtkazish',
+  'Hand over to…': 'Kimga oʻtkazish…',
+  'Hand over': 'Oʻtkazish',
+  'Remove from shifts and teams': 'Smena va jamoalardan chiqarish',
+  'Removed members': 'Chiqarilgan aʼzolar',
+  Removed: 'Chiqarilgan',
+  'Take {name} out of the weekly shifts, teams, open and repeating tasks, ingredient ordering and products? Their past work stays as it is.':
+    '{name} ni haftalik smenalar, jamoalar, ochiq va takrorlanadigan vazifalar, masalliq buyurtmasi va mahsulotlardan chiqarasizmi? Oʻtgan ishlari oʻzgarmaydi.',
+  'Their past shifts, punches, output and tasks stay, marked removed. Clear what they still had for the future, or give it to another employee.':
+    'Oʻtgan smenalari, belgilari, natijalari va vazifalari “chiqarilgan” belgisi bilan qoladi. Kelgusidagi ishlarini tozalang yoki boshqa xodimga oʻtkazing.',
+  'removed {date}': '{date} da chiqarilgan',
+  '{name} (removed {date})': '{name} ({date} da chiqarilgan)',
+  '{name} (removed)': '{name} (chiqarilgan)',
+  'Choose another person.': 'Boshqa odamni tanlang.',
 };

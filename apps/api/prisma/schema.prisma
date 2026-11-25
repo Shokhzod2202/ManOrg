@@ -284,6 +284,9 @@ model Membership {
   status         MembershipStatus
   decidedById    String?          @map("decided_by") @db.Uuid
   decidedAt      DateTime?        @map("decided_at") @db.Timestamptz(3)
+  /// Decided 2026-11-28: when the person was removed. Their data before it stays visible, marked
+  /// removed; from it on they are out of shifts, team credit and lists.
+  removedAt      DateTime?        @map("removed_at") @db.Timestamptz(3)
   /// Decided 2026-11-26: the organization's owner, an admin with power over the other admins.
   /// Several owners may share it (decided 2026-11-27); there is always at least one.
   owner          Boolean          @default(false)

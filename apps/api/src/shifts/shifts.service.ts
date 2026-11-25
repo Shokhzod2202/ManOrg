@@ -302,7 +302,7 @@ export class ShiftsService {
     const employeeId = input.employee_id ?? user.userId;
     if (employeeId !== user.userId && !orgCan(org, 'punch.edit')) throw Errors.forbidden();
     return this.db.run(dbContext(user, org), async (tx) => {
-      const [member] = await this.members(tx, org, [employeeId], user.userId);
+      const [member] = await this.members(tx, org, [employeeId], user.userId, input.from);
       if (!member) {
         // An admin who does not work shifts has no punches (decided 2026-11-26).
         const me = await tx.user.findUniqueOrThrow({
@@ -331,23 +331,36 @@ export class ShiftsService {
         org,
         onlySelf ? [user.userId] : input.employee_id ? [input.employee_id] : undefined,
         user.userId,
+        input.from,
       );
+      const clock = await this.clock(tx, org);
       const days = await this.timesheet.days(
         tx,
         org.organizationId,
-        await this.clock(tx, org),
+        clock,
         members.map((m) => m.id),
         input.from,
         input.to,
       );
+      const removed = await this.removedOn(
+        tx,
+        org,
+        clock.timezone,
+        members.map((m) => m.id),
+      );
       return {
         from: input.from,
         to: input.to,
-        employees: members.map((m) => ({
-          employee: m,
-          color: employeeColorIndex(m.id),
-          days: days.get(m.id) ?? [],
-        })),
+        employees: members.map((m) => {
+          const on = removed.get(m.id) ?? null;
+          return {
+            employee: m,
+            color: employeeColorIndex(m.id),
+            // Decided 2026-11-28: a removed person shows up to the day they were removed.
+            removedOn: on,
+            days: (days.get(m.id) ?? []).filter((d) => !on || d.date <= on),
+          };
+        }),
       };
     });
   }
@@ -608,12 +621,29 @@ export class ShiftsService {
   }
 
   /** Active members (all, or the given ids), by name. Unknown ids answer 404. */
-  private async members(tx: Tx, org: OrgContext, ids?: string[], selfId?: string) {
+  /**
+   * Active members who work shifts (all, or the given ids). With `since` (a date), people removed
+   * on or after it are included too, so their earlier days stay visible (decided 2026-11-28).
+   */
+  private async members(tx: Tx, org: OrgContext, ids?: string[], selfId?: string, since?: string) {
     const rows = await tx.membership.findMany({
       where: {
         organizationId: org.organizationId,
-        status: 'active',
-        ...WORKS_SHIFTS,
+        AND: [
+          WORKS_SHIFTS,
+          since
+            ? {
+                OR: [
+                  { status: 'active' as const },
+                  // A day early: the removal time is UTC, the dates are the organization's.
+                  {
+                    status: 'removed' as const,
+                    removedAt: { gte: new Date(`${addDays(since, -1)}T00:00:00Z`) },
+                  },
+                ],
+              }
+            : { status: 'active' as const },
+        ],
         ...(ids ? { userId: { in: ids } } : {}),
       },
       select: { user: { select: { id: true, name: true } } },
@@ -626,6 +656,20 @@ export class ShiftsService {
       throw Errors.notFound('Employee');
     }
     return rows.map((r) => r.user);
+  }
+
+  /** The local date each removed person in the list was removed on. */
+  private async removedOn(tx: Tx, org: OrgContext, timezone: string, ids: string[]) {
+    const rows = await tx.membership.findMany({
+      where: { organizationId: org.organizationId, status: 'removed', userId: { in: ids } },
+      select: { userId: true, removedAt: true },
+      orderBy: { removedAt: 'desc' },
+    });
+    const out = new Map<string, string>();
+    for (const r of rows) {
+      if (r.removedAt && !out.has(r.userId)) out.set(r.userId, localDate(timezone, r.removedAt));
+    }
+    return out;
   }
 }
 

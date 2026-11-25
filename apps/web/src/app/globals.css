@@ -1070,3 +1070,9 @@ fieldset.who legend {
   color: #fff;
   font-weight: 700;
 }
+
+/* Someone removed from the organization, still on a team until an admin takes them off. */
+.chip.removed {
+  background: #fff4e5;
+  color: var(--warn-ink, #7a4b00);
+}

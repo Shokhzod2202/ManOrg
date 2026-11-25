@@ -19,6 +19,8 @@ import {
 import { ZodBody, ZodQuery } from '../common/zod';
 import {
   type CreateMemberInput,
+  type HandOverInput,
+  handOverSchema,
   createMemberSchema,
   type ListMembersInput,
   listMembersSchema,
@@ -59,6 +61,21 @@ export class MembersController {
     @ZodBody(updateMemberSchema) body: UpdateMemberInput,
   ) {
     return this.members.update(user, org, id, version, body);
+  }
+
+  /**
+   * Decided 2026-11-28: take a person out of shifts, teams, tasks, ingredient ordering and the
+   * products they log, or hand all of it to another employee (toUserId). History never changes.
+   */
+  @Post(':id/hand-over')
+  @HttpCode(200)
+  handOver(
+    @CurrentUser() user: AuthUser,
+    @CurrentOrg() org: OrgContext,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @ZodBody(handOverSchema) body: HandOverInput,
+  ) {
+    return this.members.handOver(user, org, id, body);
   }
 
   /** Decided 2026-11-27: an owner makes another member an owner too. */

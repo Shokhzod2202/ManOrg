@@ -24,6 +24,16 @@ export const updateMemberSchema = z
     'Send role, status or worksShifts.',
   );
 
+/**
+ * Decided 2026-11-28: take a person out of the weekly shift plan, teams, open and repeating tasks,
+ * ingredient ordering and the products they log, or hand all of that to another employee.
+ * Past punches, output and finished tasks never change.
+ */
+export const handOverSchema = z.strictObject({
+  toUserId: z.uuid().nullable(),
+});
+export type HandOverInput = z.infer<typeof handOverSchema>;
+
 export type ListMembersInput = z.infer<typeof listMembersSchema>;
 export type CreateMemberInput = z.infer<typeof createMemberSchema>;
 export type UpdateMemberInput = z.infer<typeof updateMemberSchema>;

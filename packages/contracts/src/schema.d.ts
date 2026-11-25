@@ -2120,6 +2120,26 @@ export interface paths {
         patch: operations["updateMember"];
         trace?: never;
     };
+    "/members/{id}/hand-over": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Clear a person's future work, or hand it to another employee
+         * @description For admins. Takes the person out of the weekly shift plan, teams, open and repeating tasks, ingredient ordering and the products they log; with toUserId, the other active member takes all of it (shift days the other person already works stay theirs). Punches, output, finished tasks and the audit log never change. Audited.
+         */
+        post: operations["handOverMember"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/members/{id}/owner": {
         parameters: {
             query?: never;
@@ -2765,6 +2785,11 @@ export interface components {
             to: string;
             employees: {
                 employee: components["schemas"]["PersonRef"];
+                /**
+                 * Format: date
+                 * @description Set when the person was removed (decided 2026-11-28); days after it are not shown.
+                 */
+                removedOn: string | null;
                 /** @description Colour slot 0 to 7; red is never used for people. */
                 color: number;
                 days: components["schemas"]["TimesheetDay"][];
@@ -2827,7 +2852,13 @@ export interface components {
             name: string;
             /** @description Made by an admin and seen by every member. */
             shared?: boolean;
-            members: components["schemas"]["PersonRef"][];
+            members: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+                /** @description Removed from the organization (decided 2026-11-28); kept on the team until an admin takes them off, with no share of later output. */
+                removed: boolean;
+            }[];
             version: number;
             /** Format: date-time */
             createdAt: string;
@@ -2897,6 +2928,11 @@ export interface components {
             date: string;
             employees: {
                 employee: components["schemas"]["PersonRef"];
+                /**
+                 * Format: date
+                 * @description Set when the person was removed (decided 2026-11-28); days after it are not shown.
+                 */
+                removedOn: string | null;
                 workedMinutes: number;
                 flags: components["schemas"]["Flag"][];
                 output: components["schemas"]["OutputDay"];
@@ -3401,6 +3437,11 @@ export interface components {
             owner: boolean;
             /** @description Has a punch card and shows in shift lists (always true for employees). */
             worksShifts: boolean;
+            /**
+             * Format: date-time
+             * @description When the person was removed (decided 2026-11-28).
+             */
+            removedAt: string | null;
             /** @description Send as If-Match when editing. */
             version: number;
             user: components["schemas"]["UserSummary"];
@@ -7666,6 +7707,56 @@ export interface operations {
             409: components["responses"]["Conflict"];
             422: components["responses"]["Unprocessable"];
             428: components["responses"]["PreconditionRequired"];
+        };
+    };
+    handOverMember: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: uuid
+                     * @description The person who takes it over; null to just clear it.
+                     */
+                    toUserId: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description What was moved or cleared. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        toUserId: string | null;
+                        shiftDays: number;
+                        /** @description Days the other person already worked; their own shift stays. */
+                        shiftDaysKept: number;
+                        teams: number;
+                        tasks: number;
+                        repeatingTasks: number;
+                        ingredients: number;
+                        products: number;
+                    };
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     addOwner: {

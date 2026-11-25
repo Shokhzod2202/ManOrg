@@ -633,6 +633,64 @@ async function as(b, email, vp = { width: 1280, height: 900 }) {
   log('20 admin switched on to work shifts gets a punch card:', card);
   if (!card) throw new Error('Admin punch card missing');
 
+  // 21. Decided 2026-11-28. A shared team holds Mina and the newcomer; the newcomer is removed
+  // from Sunrise. The team shows them as removed; the admin edits the team and takes them off
+  // without an error, then clears their remaining shifts and teams from Removed members.
+  const pairName = `Pair ${Date.now() % 100000}`;
+  await boss.goto(`${W}/app/people`);
+  const teamsCard = boss.locator('section:has(h2:has-text("Teams"))');
+  await teamsCard.locator('button:has-text("New team")').click();
+  await teamsCard.locator('label:has-text("Team name") input').fill(pairName);
+  await teamsCard.locator('label.chip', { hasText: 'Mina Park' }).locator('input').check();
+  await teamsCard.locator('label.chip', { hasText: newcomerName }).locator('input').check();
+  await teamsCard.locator('button:has-text("Save team")').click();
+  await teamsCard.locator(`text=${pairName}`).waitFor();
+  boss.once('dialog', (d) => void d.accept());
+  await boss
+    .locator('section:has(h2:has-text("Members")) tr', { hasText: newcomerName })
+    .locator('button:has-text("Remove")')
+    .click();
+  await boss.locator('section:has(h2:has-text("Removed members"))').waitFor();
+  const teamRow = teamsCard.locator('div.row', { hasText: pairName }).first();
+  const shownRemoved = await teamRow
+    .filter({ hasText: '(removed)' })
+    .waitFor({ timeout: 8000 })
+    .then(
+      () => true,
+      () => false,
+    );
+  await teamRow.locator('button:has-text("Edit")').click();
+  await teamsCard.locator('label.chip.removed input').uncheck();
+  // Two members are needed for a shared team: add Joon in the removed person's place.
+  await teamsCard.locator('label.chip', { hasText: 'Joon Kim' }).locator('input').check();
+  await teamsCard.locator('button:has-text("Save team")').click();
+  // The list reloads after the save: wait for the row without the removed person.
+  const editedRow = teamsCard.locator('div.row', { hasText: pairName }).first();
+  const takenOff = await editedRow
+    .filter({ hasText: 'Joon Kim' })
+    .waitFor({ timeout: 8000 })
+    .then(
+      async () => !(await editedRow.innerText()).includes(newcomerName),
+      () => false,
+    );
+  const teamError = await boss.locator('section:has(h2:has-text("Teams")) .error').count();
+  const removedCard = boss.locator('section:has(h2:has-text("Removed members"))');
+  boss.once('dialog', (d) => void d.accept());
+  await removedCard
+    .locator('div.stack', { hasText: newcomerName })
+    .locator('button:has-text("Remove from shifts and teams")')
+    .click();
+  await removedCard.locator('.pill.ok:has-text("Done")').first().waitFor();
+  log(
+    '21 removed member shown as removed on the team:',
+    shownRemoved,
+    '| taken off without an error:',
+    teamError === 0 && takenOff,
+    '| cleared from shifts and teams',
+  );
+  if (!shownRemoved || teamError !== 0 || !takenOff)
+    throw new Error('Editing a team after removing someone failed');
+
   await b.close();
 })().catch((e) => {
   console.error('FAILED', e.message.slice(0, 400));

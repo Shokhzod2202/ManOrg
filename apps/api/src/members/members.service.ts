@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { actorFor, AuditService } from '../audit/audit.service';
 import { Errors } from '../common/errors';
-import { assertNotInOrganization, createMembershipOnce } from '../common/memberships';
+import {
+  activeMembers,
+  assertNotInOrganization,
+  createMembershipOnce,
+} from '../common/memberships';
 import { pageArgs, toPage } from '../common/pagination';
 import { type AuthUser, type OrgContext, dbContext } from '../common/request-context';
 import { StorageService } from '../storage/storage.service';
@@ -10,6 +14,7 @@ import { type Tx } from '../database/prisma-client';
 import {
   type CreateMemberInput,
   type ListMembersInput,
+  type HandOverInput,
   type UpdateMemberInput,
 } from './members.schemas';
 
@@ -22,6 +27,7 @@ type MemberRow = {
   version: number;
   owner: boolean;
   worksShifts: boolean;
+  removedAt: Date | null;
   createdAt: Date;
   user: { id: string; name: string; email: string | null; avatarKey: string | null };
   avatarUrl?: string | null;
@@ -34,6 +40,7 @@ function present(m: MemberRow) {
     status: m.status,
     owner: m.owner,
     worksShifts: m.role === 'employee' || m.worksShifts,
+    removedAt: m.removedAt,
     version: m.version,
     user: { id: m.user.id, name: m.user.name, email: m.user.email, avatarUrl: m.avatarUrl ?? null },
     createdAt: m.createdAt,
@@ -149,7 +156,7 @@ export class MembersService {
         where: { id, version },
         data: {
           ...(input.role !== undefined ? { role: input.role } : {}),
-          ...(input.status !== undefined ? { status: input.status } : {}),
+          ...(input.status !== undefined ? { status: input.status, removedAt: new Date() } : {}),
           ...(input.worksShifts !== undefined ? { worksShifts: input.worksShifts } : {}),
           version: { increment: 1 },
         },
@@ -240,6 +247,192 @@ export class MembersService {
         after: { owner: false },
       });
       return this.presentOne(tx, id);
+    });
+  }
+
+  /**
+   * Decided 2026-11-28: clears a person's future work, or hands it to another active member: the
+   * weekly shift plan (days the new person already works stay theirs), teams (their own private
+   * teams too), open tasks, repeating tasks, ingredient ordering and the products they log.
+   * History (punches, output, finished tasks, audit) is never changed.
+   */
+  handOver(user: AuthUser, org: OrgContext, id: string, input: HandOverInput) {
+    return this.db.run(dbContext(user, org), async (tx) => {
+      const member = await tx.membership.findFirst({
+        where: { id, organizationId: org.organizationId, status: { in: ['active', 'removed'] } },
+      });
+      if (!member) throw Errors.notFound('Member');
+      const from = member.userId;
+      const to = input.toUserId;
+      if (to === from) {
+        throw Errors.validation({ toUserId: ['Choose another person.'] });
+      }
+      if (to) await activeMembers(tx, org.organizationId, [to]);
+      const orgId = org.organizationId;
+      const counts = {
+        shiftDays: 0,
+        shiftDaysKept: 0,
+        teams: 0,
+        tasks: 0,
+        repeatingTasks: 0,
+        ingredients: 0,
+        products: 0,
+      };
+
+      // Weekly shift plan.
+      const days = await tx.shift.findMany({ where: { organizationId: orgId, employeeId: from } });
+      const taken = new Set(
+        to
+          ? (await tx.shift.findMany({ where: { organizationId: orgId, employeeId: to } })).map(
+              (d) => d.weekday,
+            )
+          : [],
+      );
+      for (const d of days) {
+        if (to && !taken.has(d.weekday)) {
+          await tx.shift.update({
+            where: { id: d.id },
+            data: { employeeId: to, version: { increment: 1 } },
+          });
+          counts.shiftDays += 1;
+        } else {
+          await tx.shift.delete({ where: { id: d.id } });
+          if (to) counts.shiftDaysKept += 1;
+          else counts.shiftDays += 1;
+        }
+      }
+
+      // Teams: their place goes to the new person; their own private teams too, or are closed.
+      const places = await tx.teamMember.findMany({
+        where: { organizationId: orgId, employeeId: from, team: { deletedAt: null } },
+        select: { teamId: true },
+      });
+      for (const p of places) {
+        await tx.teamMember.delete({
+          where: { teamId_employeeId: { teamId: p.teamId, employeeId: from } },
+        });
+        if (to) {
+          await tx.teamMember.createMany({
+            data: [{ organizationId: orgId, teamId: p.teamId, employeeId: to }],
+            skipDuplicates: true,
+          });
+        }
+        await tx.team.update({ where: { id: p.teamId }, data: { version: { increment: 1 } } });
+        counts.teams += 1;
+      }
+      const ownTeams = await tx.team.findMany({
+        where: { organizationId: orgId, ownerId: from, shared: false, deletedAt: null },
+        select: { id: true },
+      });
+      for (const team of ownTeams) {
+        await tx.team.update({
+          where: { id: team.id },
+          data: to ? { ownerId: to, version: { increment: 1 } } : { deletedAt: new Date() },
+        });
+        if (to) {
+          await tx.teamMember.createMany({
+            data: [{ organizationId: orgId, teamId: team.id, employeeId: to }],
+            skipDuplicates: true,
+          });
+        }
+      }
+
+      // Open tasks: theirs go to the new person, or to the admins.
+      const open = await tx.task.findMany({
+        where: {
+          organizationId: orgId,
+          status: 'open',
+          OR: [{ assigneeId: from }, { assignees: { some: { employeeId: from } } }],
+        },
+        select: { id: true, assigneeId: true },
+      });
+      for (const task of open) {
+        await tx.taskAssignee.deleteMany({ where: { taskId: task.id, employeeId: from } });
+        if (to) {
+          await tx.taskAssignee.createMany({
+            data: [{ organizationId: orgId, taskId: task.id, employeeId: to }],
+            skipDuplicates: true,
+          });
+        }
+        if (task.assigneeId === from) {
+          await tx.task.update({
+            where: { id: task.id },
+            data: { assigneeId: to ?? null, version: { increment: 1 } },
+          });
+        }
+        counts.tasks += 1;
+      }
+
+      // Repeating tasks: the new person takes their place; with nobody left, the rule is paused.
+      const rules = await tx.recurringTask.findMany({
+        where: {
+          organizationId: orgId,
+          OR: [{ assigneeId: from }, { assigneeIds: { has: from } }],
+        },
+      });
+      for (const r of rules) {
+        const others = r.assigneeIds.filter((x) => x !== from);
+        const ids = to && !others.includes(to) ? [...others, to] : others;
+        const single = r.assigneeId === from;
+        await tx.recurringTask.update({
+          where: { id: r.id },
+          data: single
+            ? to
+              ? { assigneeId: to, version: { increment: 1 } }
+              : { active: false, version: { increment: 1 } }
+            : ids.length
+              ? { assigneeIds: ids, version: { increment: 1 } }
+              : { assigneeIds: ids, active: false, version: { increment: 1 } },
+        });
+        counts.repeatingTasks += 1;
+      }
+
+      // Ingredient ordering and the products they log.
+      const ingredients = await tx.ingredientResponsibility.findMany({
+        where: { organizationId: orgId, employeeId: from },
+        select: { ingredientId: true },
+      });
+      await tx.ingredientResponsibility.deleteMany({
+        where: { organizationId: orgId, employeeId: from },
+      });
+      if (to && ingredients.length) {
+        await tx.ingredientResponsibility.createMany({
+          data: ingredients.map((i) => ({
+            organizationId: orgId,
+            ingredientId: i.ingredientId,
+            employeeId: to,
+          })),
+          skipDuplicates: true,
+        });
+      }
+      counts.ingredients = ingredients.length;
+      const products = await tx.employeeProduct.findMany({
+        where: { organizationId: orgId, employeeId: from },
+        select: { productId: true },
+      });
+      await tx.employeeProduct.deleteMany({ where: { organizationId: orgId, employeeId: from } });
+      if (to && products.length) {
+        await tx.employeeProduct.createMany({
+          data: products.map((p) => ({
+            organizationId: orgId,
+            productId: p.productId,
+            employeeId: to,
+          })),
+          skipDuplicates: true,
+        });
+      }
+      counts.products = products.length;
+
+      await this.audit.record(tx, {
+        organizationId: orgId,
+        actor: actorFor(user),
+        action: to ? 'membership.hand_over' : 'membership.clear_assignments',
+        entity: 'membership',
+        entityId: id,
+        before: { userId: from },
+        after: { toUserId: to, ...counts },
+      });
+      return { toUserId: to, ...counts };
     });
   }
 

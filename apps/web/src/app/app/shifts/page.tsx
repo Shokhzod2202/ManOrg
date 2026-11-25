@@ -162,13 +162,21 @@ export default function ShiftsPage() {
             {data.employees.map((e) => (
               <Row
                 key={e.employee.id}
-                name={e.employee.name}
+                name={
+                  e.removedOn
+                    ? t('{name} (removed {date})', {
+                        name: e.employee.name,
+                        date: formatDate(e.removedOn),
+                      })
+                    : e.employee.name
+                }
                 color={COLORS[e.color % COLORS.length] as string}
                 days={e.days}
                 shown={shown}
                 compact={compact}
                 onPick={
-                  admin
+                  // Someone removed keeps their history but gets no new punches.
+                  admin && !e.removedOn
                     ? (date) => {
                         setPick({ employeeId: e.employee.id, date });
                         document
@@ -184,7 +192,13 @@ export default function ShiftsPage() {
       ) : null}
       {admin ? (
         <PunchEditor
-          employees={data?.employees.map((e) => e.employee) ?? []}
+          employees={
+            data?.employees.map((e) =>
+              e.removedOn
+                ? { ...e.employee, name: t('{name} (removed)', { name: e.employee.name }) }
+                : e.employee,
+            ) ?? []
+          }
           pick={pick}
           onChange={reload}
         />

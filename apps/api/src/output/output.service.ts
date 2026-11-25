@@ -115,7 +115,18 @@ export class OutputService {
           ...new Set(team.shared ? input.memberIds : [team.ownerId, ...input.memberIds]),
         ];
         if (ids.length === 0) throw Errors.validation({ memberIds: ['Add at least one member.'] });
-        await activeMembers(tx, org.organizationId, ids);
+        // Decided 2026-11-28: people already on the team may stay even if they were removed from
+        // the organization (shown as removed); only people being added must be active members.
+        const current = new Set(
+          (
+            await tx.teamMember.findMany({ where: { teamId: id }, select: { employeeId: true } })
+          ).map((m) => m.employeeId),
+        );
+        await activeMembers(
+          tx,
+          org.organizationId,
+          ids.filter((m) => !current.has(m)),
+        );
         await tx.teamMember.deleteMany({ where: { teamId: id } });
         await tx.teamMember.createMany({
           data: ids.map((employeeId) => ({
@@ -172,16 +183,26 @@ export class OutputService {
 
   private async presentTeam(tx: Tx, id: string) {
     const team = await tx.team.findUniqueOrThrow({ where: { id }, include: { members: true } });
+    const ids = team.members.map((m) => m.employeeId);
     const people = await tx.user.findMany({
-      where: { id: { in: team.members.map((m) => m.employeeId) } },
+      where: { id: { in: ids } },
       select: { id: true, name: true },
       orderBy: { name: 'asc' },
     });
+    const active = new Set(
+      (
+        await tx.membership.findMany({
+          where: { organizationId: team.organizationId, status: 'active', userId: { in: ids } },
+          select: { userId: true },
+        })
+      ).map((m) => m.userId),
+    );
     return {
       id: team.id,
       name: team.name,
       shared: team.shared,
-      members: people,
+      // Decided 2026-11-28: someone removed from the organization stays listed, marked removed.
+      members: people.map((p) => ({ ...p, removed: !active.has(p.id) })),
       version: team.version,
       createdAt: team.createdAt,
     };
@@ -248,6 +269,18 @@ export class OutputService {
         }
       }
 
+      const active = new Set(
+        (
+          await tx.membership.findMany({
+            where: {
+              organizationId: org.organizationId,
+              status: 'active',
+              userId: { in: teams.flatMap((tm) => tm.members.map((m) => m.employeeId)) },
+            },
+            select: { userId: true },
+          })
+        ).map((m) => m.userId),
+      );
       const before = await this.loggedBy(tx, org, target, date);
       await tx.outputEntry.deleteMany({
         where: { organizationId: org.organizationId, employeeId: target, workDate: dateOf(date) },
@@ -274,7 +307,13 @@ export class OutputService {
             productId: l.productId,
             quantity: l.quantity,
             teamId: l.teamId,
-            teamMemberIds: team ? team.members.map((m) => m.employeeId).sort() : [],
+            // Removed people get no share of output logged after their removal (2026-11-28).
+            teamMemberIds: team
+              ? team.members
+                  .map((m) => m.employeeId)
+                  .filter((m) => active.has(m))
+                  .sort()
+              : [],
           },
         });
       }
@@ -328,24 +367,33 @@ export class OutputService {
   shiftOutput(user: AuthUser, org: OrgContext, date: string) {
     const all = orgCan(org, 'output.readAll');
     return this.db.run(dbContext(user, org), async (tx) => {
-      const members = (
-        await tx.membership.findMany({
-          where: {
-            organizationId: org.organizationId,
-            status: 'active',
-            // Decided 2026-11-25: output management shows employees only, never admins.
-            role: 'employee',
-            ...(all ? {} : { userId: user.userId }),
-          },
-          select: { user: { select: { id: true, name: true } } },
-          orderBy: { createdAt: 'asc' },
-        })
-      ).map((m) => m.user);
-      const ids = members.map((m) => m.id);
+      const rows = await tx.membership.findMany({
+        where: {
+          organizationId: org.organizationId,
+          // Decided 2026-11-28: someone removed later still shows for the days they worked.
+          OR: [
+            { status: 'active' },
+            { status: 'removed', removedAt: { gte: dateOf(addDays(date, -1)) } },
+          ],
+          // Decided 2026-11-25: output management shows employees only, never admins.
+          role: 'employee',
+          ...(all ? {} : { userId: user.userId }),
+        },
+        select: { removedAt: true, user: { select: { id: true, name: true } } },
+        orderBy: { createdAt: 'asc' },
+      });
       const clock = await tx.organization.findUniqueOrThrow({
         where: { id: org.organizationId },
         select: { timezone: true, punchToleranceMin: true },
       });
+      // Someone removed before this day is left out; removed on or after it, marked removed.
+      const members = rows
+        .map((r) => ({
+          ...r.user,
+          removedOn: r.removedAt ? localDate(clock.timezone, r.removedAt) : null,
+        }))
+        .filter((m) => !m.removedOn || m.removedOn >= date);
+      const ids = members.map((m) => m.id);
       const [timesheets, output] = await Promise.all([
         this.timesheet.days(tx, org.organizationId, clock, ids, date, date),
         this.days(tx, org, ids, date, date),
@@ -362,7 +410,8 @@ export class OutputService {
       return {
         date,
         employees: members.map((m) => ({
-          employee: m,
+          employee: { id: m.id, name: m.name },
+          removedOn: m.removedOn,
           workedMinutes: timesheets.get(m.id)?.[0]?.workedMinutes ?? 0,
           flags: timesheets.get(m.id)?.[0]?.flags ?? [],
           output: output.get(m.id)?.[0],

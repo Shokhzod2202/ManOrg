@@ -3468,6 +3468,62 @@ paths:
         '422': { $ref: '#/components/responses/Unprocessable' }
         '428': { $ref: '#/components/responses/PreconditionRequired' }
 
+  /members/{id}/hand-over:
+    post:
+      operationId: handOverMember
+      summary: Clear a person's future work, or hand it to another employee
+      description: For admins. Takes the person out of the weekly shift plan, teams, open and repeating tasks, ingredient ordering and the products they log; with toUserId, the other active member takes all of it (shift days the other person already works stay theirs). Punches, output, finished tasks and the audit log never change. Audited.
+      tags: [members]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [toUserId]
+              properties:
+                toUserId:
+                  type: [string, 'null']
+                  format: uuid
+                  description: The person who takes it over; null to just clear it.
+      responses:
+        '200':
+          description: What was moved or cleared.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  [
+                    toUserId,
+                    shiftDays,
+                    shiftDaysKept,
+                    teams,
+                    tasks,
+                    repeatingTasks,
+                    ingredients,
+                    products,
+                  ]
+                properties:
+                  toUserId: { type: [string, 'null'], format: uuid }
+                  shiftDays: { type: integer }
+                  shiftDaysKept:
+                    type: integer
+                    description: Days the other person already worked; their own shift stays.
+                  teams: { type: integer }
+                  tasks: { type: integer }
+                  repeatingTasks: { type: integer }
+                  ingredients: { type: integer }
+                  products: { type: integer }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /members/{id}/owner:
     post:
       operationId: addOwner
@@ -4413,9 +4469,13 @@ components:
           type: array
           items:
             type: object
-            required: [employee, color, days]
+            required: [employee, color, removedOn, days]
             properties:
               employee: { $ref: '#/components/schemas/PersonRef' }
+              removedOn:
+                type: [string, 'null']
+                format: date
+                description: Set when the person was removed (decided 2026-11-28); days after it are not shown.
               color:
                 { type: integer, description: 'Colour slot 0 to 7; red is never used for people.' }
               days: { type: array, items: { $ref: '#/components/schemas/TimesheetDay' } }
@@ -4476,7 +4536,17 @@ components:
         id: { type: string, format: uuid }
         name: { type: string }
         shared: { type: boolean, description: 'Made by an admin and seen by every member.' }
-        members: { type: array, items: { $ref: '#/components/schemas/PersonRef' } }
+        members:
+          type: array
+          items:
+            type: object
+            required: [id, name, removed]
+            properties:
+              id: { type: string, format: uuid }
+              name: { type: string }
+              removed:
+                type: boolean
+                description: Removed from the organization (decided 2026-11-28); kept on the team until an admin takes them off, with no share of later output.
         version: { type: integer }
         createdAt: { type: string, format: date-time }
     CreateTeamRequest:
@@ -4564,9 +4634,13 @@ components:
           type: array
           items:
             type: object
-            required: [employee, workedMinutes, flags, output]
+            required: [employee, removedOn, workedMinutes, flags, output]
             properties:
               employee: { $ref: '#/components/schemas/PersonRef' }
+              removedOn:
+                type: [string, 'null']
+                format: date
+                description: Set when the person was removed (decided 2026-11-28); days after it are not shown.
               workedMinutes: { type: integer }
               flags: { type: array, items: { $ref: '#/components/schemas/Flag' } }
               output: { $ref: '#/components/schemas/OutputDay' }
@@ -5246,7 +5320,7 @@ components:
           description: 'Spec section 9: show "You came to work. Start shift" on arrival. Default on.'
     Member:
       type: object
-      required: [id, role, status, owner, worksShifts, version, user, createdAt]
+      required: [id, role, status, owner, worksShifts, removedAt, version, user, createdAt]
       properties:
         id:
           type: string
@@ -5260,6 +5334,10 @@ components:
         worksShifts:
           type: boolean
           description: Has a punch card and shows in shift lists (always true for employees).
+        removedAt:
+          type: [string, 'null']
+          format: date-time
+          description: When the person was removed (decided 2026-11-28).
         version:
           type: integer
           description: Send as If-Match when editing.
