@@ -71,7 +71,11 @@ export class MembersService {
     return this.db.run(dbContext(user, org), async (tx) => {
       const rows = await tx.membership.findMany({
         where: { organizationId: org.organizationId, status: input.status },
-        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        // Removed members newest first, so the ones that can still be undone come first.
+        orderBy:
+          input.status === 'removed'
+            ? [{ removedAt: 'desc' }, { id: 'asc' }]
+            : [{ createdAt: 'asc' }, { id: 'asc' }],
         include: { user: { select: userFields } },
         ...pageArgs(input),
       });

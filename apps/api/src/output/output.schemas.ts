@@ -44,6 +44,15 @@ export const outputRangeSchema = z
   });
 export const dayQuerySchema = z.object({ date: isoDate });
 
+/** Decided 2026-11-26: one employee's month of output economics. */
+export const efficiencyQuerySchema = z.strictObject({
+  employee_id: z.uuid(),
+  month: z
+    .string()
+    .regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Use YYYY-MM.')
+    .optional(),
+});
+
 export type CreateTeamInput = z.infer<typeof createTeamSchema>;
 export type UpdateTeamInput = z.infer<typeof updateTeamSchema>;
 export type PutOutputInput = z.infer<typeof putOutputSchema>;

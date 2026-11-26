@@ -5,6 +5,7 @@ import { formatDate, type Schemas } from '../../lib/api';
 import { useApi } from '../../lib/use-api';
 import { OrdersBoard } from '../orders/board';
 import { Empty, ErrorBox, Loading, PageHead } from '../ui';
+import { MyHours } from './my-hours';
 import { PunchCard } from './punch-card';
 import { t } from '../../lib/i18n';
 
@@ -91,6 +92,7 @@ export function EmployeeHome() {
           )}
         </section>
       </div>
+      <MyHours />
     </div>
   );
 }

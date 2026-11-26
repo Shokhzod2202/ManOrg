@@ -907,4 +907,48 @@ export const uz: Record<string, string> = {
     'Tugatilmagan: {date} {time} da boshlangan. Tugagach hisoblanadi.',
   'Fix in Shifts': 'Smenalarda tuzatish',
   'Shift from {date} not ended yet': '{date} dagi smena hali tugatilmagan',
+  'Hourly cost': 'Soatlik xarajat',
+  'Only owners see this.': 'Buni faqat egalar koʻradi.',
+  'Won per hour': 'Soatiga von',
+  'Hourly cost of {name}': '{name}ning soatlik xarajati',
+  'This month: {amount} for {hours}': 'Bu oy: {hours} uchun {amount}',
+  'Saved. It applies from now on.': 'Saqlandi. Hozirdan boshlab qoʻllanadi.',
+  'All employees': 'Barcha xodimlar',
+  Latest: 'Soʻnggi',
+  'Latest output': 'Soʻnggi ishlab chiqarish',
+  'Last output': 'Oxirgi ishlab chiqarish',
+  today: 'bugun',
+  'Nothing in the last 60 days': 'Oxirgi 60 kunda yoʻq',
+  Efficiency: 'Samaradorlik',
+  '{name} brought in': '{name} olib kelgan foyda',
+  'before labor cost': 'ish haqi xarajatidan oldin',
+  '{amount} per hour · {hours} worked': 'soatiga {amount} · {hours} ishlangan',
+  Pieces: 'Dona',
+  'Sales value': 'Sotuv qiymati',
+  Labor: 'Ish haqi',
+  '{amount}/h': '{amount}/soat',
+  'Set {name}’s hourly cost in Work hours to include labor.':
+    'Ish haqini qoʻshish uchun Ish soatlarida {name}ning soatlik xarajatini kiriting.',
+  'Labor cost is shown to owners only.': 'Ish haqi xarajati faqat egalarga koʻrinadi.',
+  '{prices} products without a price and {costs} without a cost count as ₩0.':
+    'Narxsiz {prices} ta va tannarxsiz {costs} ta mahsulot ₩0 deb hisoblanadi.',
+  'No output this month.': 'Bu oyda ishlab chiqarish yoʻq.',
+  Result: 'Natija',
+  'Hours on days without output cost {amount}; they are in the total.':
+    'Ishlab chiqarishsiz kunlardagi soatlar {amount}; ular jamiga kiritilgan.',
+  '{n} pieces': '{n} dona',
+  'At today’s prices and ingredient costs; labor at the hourly cost of each day. Team output is shared equally.':
+    'Bugungi narx va ingredient xarajatlari boʻyicha; ish haqi har kungi soatlik xarajat boʻyicha. Jamoa ishlab chiqarishi teng boʻlinadi.',
+  'My hours': 'Mening ish soatlarim',
+  'By day and month': 'Kun va oy boʻyicha',
+  'This month': 'Bu oy',
+  '{n} shifts not ended yet: they count once ended.':
+    '{n} ta smena hali tugatilmagan: tugagach hisoblanadi.',
+  '{n} days have output but no finished shift, so their labor is not counted. End those shifts in Shifts.':
+    '{n} kunda ishlab chiqarish bor, lekin tugagan smena yoʻq, shuning uchun ish haqi hisoblanmagan. Smenalarda ularni tugating.',
+  '{n} products have no price and count as ₩0.': 'Narxsiz {n} ta mahsulot ₩0 deb hisoblanadi.',
+  '{n} products have no ingredient cost yet (set it in Products).':
+    '{n} ta mahsulotning ingredient xarajati yoʻq (Mahsulotlarda kiriting).',
+  'No output in the last 60 days:': 'Oxirgi 60 kunda ishlab chiqarish yoʻq:',
+  '1 day': '1 kun',
 };

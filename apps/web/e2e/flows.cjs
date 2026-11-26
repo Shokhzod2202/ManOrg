@@ -699,12 +699,20 @@ async function rowAction(page, rowText, action) {
     );
   const teamError = await boss.locator('section:has(h2:has-text("Teams")) .error').count();
   const removedCard = boss.locator('section:has(h2:has-text("Removed members"))');
-  await removedCard
+  // Decided 2026-11-26: someone who still holds work is cleared here; someone who holds nothing
+  // more (taken off the team above) is already listed under Cleared.
+  const clearButton = removedCard
     .locator('div.stack', { hasText: newcomerName })
-    .locator('button:has-text("Remove from shifts and teams")')
-    .click();
-  await confirmInPage(boss);
-  await removedCard.locator('.pill.ok:has-text("Done")').first().waitFor();
+    .locator('button:has-text("Remove from shifts and teams")');
+  if (await clearButton.isVisible().catch(() => false)) {
+    await clearButton.click();
+    await confirmInPage(boss);
+    await removedCard.locator('.pill.ok:has-text("Done")').first().waitFor();
+  }
+  await removedCard.locator('details.cleared').evaluate((el) => {
+    el.open = true;
+  });
+  await removedCard.locator('details.cleared .removed-row', { hasText: newcomerName }).waitFor();
   log(
     '21 removed member shown as removed on the team:',
     shownRemoved,
@@ -873,7 +881,7 @@ async function rowAction(page, rowText, action) {
   await boss.goto(`${W}/app/hours`);
   await minaHours.waitFor();
   if (!(await minaHours.evaluate((el) => el.open))) await minaHours.locator('summary').click();
-  await minaHours.locator('input[type=number]').fill('12345');
+  await minaHours.locator('.avans-form input[type=number]').fill('12345');
   await minaHours.locator('button:has-text("Log avans")').click();
   await confirmInPage(boss);
   const logged = await minaHours
@@ -969,6 +977,46 @@ async function rowAction(page, rowText, action) {
     afterTouch[0] === beforeTouch[2],
   );
   if (afterTouch[0] !== beforeTouch[2]) throw new Error('Touch drag failed');
+
+  // 28. Decided 2026-11-26. The owner sets Mina's hourly cost in Work hours (owners only), then
+  // Output opens on everyone's latest output; choosing Mina shows her month's efficiency with
+  // labor. Mina sees her own hours on her home page.
+  await boss.goto(`${W}/app/hours`);
+  const minaRate = boss.locator('details.hours-person', { hasText: 'Mina Park' });
+  await minaRate.waitFor();
+  if (!(await minaRate.evaluate((el) => el.open))) await minaRate.locator('summary').click();
+  await minaRate.locator('.owner-rate input').fill('11000');
+  await minaRate.locator('.owner-rate button:has-text("Save")').click();
+  await minaRate.locator('.owner-rate .pill.ok').waitFor();
+  await boss.goto(`${W}/app/output`);
+  await boss.locator('text=Latest output').waitFor();
+  await boss.locator('select[aria-label="Employee"]').selectOption({ label: 'Mina Park' });
+  const effTotal = await boss
+    .locator('[data-testid=eff-total]')
+    .waitFor({ timeout: 10000 })
+    .then(
+      () => boss.textContent('[data-testid=eff-total]'),
+      () => '',
+    );
+  const laborShown = await boss.locator('.eff-kpis:has-text("₩11,000/h")').count();
+  const minaHome = await as(b, 'mina@sunrise.test', { width: 390, height: 844 });
+  const myHours = await minaHome
+    .locator('[data-testid=my-month-hours]')
+    .waitFor({ timeout: 10000 })
+    .then(
+      () => true,
+      () => false,
+    );
+  await minaHome.context().close();
+  log(
+    '28 efficiency:',
+    effTotal,
+    '| labor at the hourly cost:',
+    laborShown === 1,
+    '| My hours on home:',
+    myHours,
+  );
+  if (!effTotal || laborShown !== 1 || !myHours) throw new Error('Efficiency or My hours failed');
 
   await b.close();
 })().catch((e) => {

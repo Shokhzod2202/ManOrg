@@ -11,6 +11,7 @@ import {
   formatMinutes,
   formatTime,
   post,
+  put,
   type Schemas,
 } from '../../../lib/api';
 import { getLocale, INTL, t } from '../../../lib/i18n';
@@ -46,8 +47,10 @@ const monthName = (month: string) =>
  * month, never from the shift plan; and the advances ("avans") admins logged that month.
  */
 export default function HoursPage() {
-  const { actor } = useSession();
+  const { actor, membership } = useSession();
   const admin = actor === 'org_admin';
+  // Decided 2026-11-26: hourly cost is for owners only.
+  const owner = admin && membership?.owner === true;
   const [month, setMonth] = useState<string | null>(null);
   const { data, error, loading, reload } = useApi<Month>(
     month ? `/work-hours?month=${month}` : '/work-hours',
@@ -107,6 +110,7 @@ export default function HoursPage() {
               person={p}
               month={data}
               admin={admin}
+              owner={owner}
               open={!admin}
               onChanged={reload}
             />
@@ -120,12 +124,14 @@ function PersonHours({
   person: p,
   month,
   admin,
+  owner,
   open,
   onChanged,
 }: {
   person: Person;
   month: Month;
   admin: boolean;
+  owner: boolean;
   open: boolean;
   onChanged: () => void;
 }) {
@@ -145,7 +151,10 @@ function PersonHours({
         <span className="hours-figures">
           <span>
             <b data-testid="hours-total">{formatMinutes(p.minutes)}</b>
-            <span className="muted small"> · {t('{n} days', { n: p.daysWorked })}</span>
+            <span className="muted small">
+              {' '}
+              · {p.daysWorked === 1 ? t('1 day') : t('{n} days', { n: p.daysWorked })}
+            </span>
           </span>
           <span className={p.advances.total ? 'pill warn' : 'pill'}>
             {t('Avans')} {won(p.advances.total)}
@@ -205,6 +214,7 @@ function PersonHours({
             </div>
           ) : null}
         </div>
+        {owner ? <OwnerRate person={p} onChanged={onChanged} /> : null}
         <Advances person={p} month={month} admin={admin} onChanged={onChanged} />
       </div>
     </details>
@@ -368,5 +378,62 @@ function Advances({
         </form>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Decided 2026-11-26: what one hour of this person's work costs, set and seen by owners only.
+ * It applies from now on; Output uses it for each employee's efficiency.
+ */
+function OwnerRate({ person: p, onChanged }: { person: Person; onChanged: () => void }) {
+  const [value, setValue] = useState(p.hourlyRate != null ? String(p.hourlyRate) : '');
+  const [err, setErr] = useState<ApiError | null>(null);
+  const [saved, setSaved] = useState(false);
+  async function save(e: FormEvent) {
+    e.preventDefault();
+    setErr(null);
+    setSaved(false);
+    try {
+      await put(`/employees/${p.employee.id}/hourly-rate`, {
+        hourlyRate: Math.round(Number(value)),
+      });
+      setSaved(true);
+      onChanged();
+    } catch (x) {
+      setErr(x as ApiError);
+    }
+  }
+  return (
+    <form className="stack owner-rate" style={{ gap: 6 }} onSubmit={save}>
+      <h3 className="hours-h">{t('Hourly cost')}</h3>
+      <span className="muted small">{t('Only owners see this.')}</span>
+      <ErrorBox error={err} />
+      <div className="row" style={{ gap: 6 }}>
+        <input
+          className="input"
+          type="number"
+          min={0}
+          step={1}
+          inputMode="numeric"
+          placeholder={t('Won per hour')}
+          aria-label={t('Hourly cost of {name}', { name: p.employee.name })}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          style={{ minWidth: 0 }}
+        />
+        <button className="btn" disabled={!value.trim() || Number(value) === p.hourlyRate}>
+          {t('Save')}
+        </button>
+      </div>
+      {p.laborCost != null ? (
+        <span className="small">
+          {t('This month: {amount} for {hours}', {
+            amount: won(p.laborCost),
+            hours: formatMinutes(p.minutes),
+          })}
+        </span>
+      ) : null}
+      {saved ? <span className="pill ok">{t('Saved. It applies from now on.')}</span> : null}
+    </form>
   );
 }

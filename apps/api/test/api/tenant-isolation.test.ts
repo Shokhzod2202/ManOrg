@@ -16,7 +16,10 @@ const { operations } = loadOpenApi();
 const listOps = operations.filter((op) => op.method === 'GET' && !op.path.includes('{'));
 
 /** Fills required query parameters from the contract: dates span the last two weeks. */
-function urlFor(op: (typeof operations)[number]): string {
+function urlFor(
+  op: (typeof operations)[number],
+  me: { employee: { userId: string } } = w.a,
+): string {
   const query: string[] = [];
   for (const p of op.parameters as {
     in?: string;
@@ -26,6 +29,8 @@ function urlFor(op: (typeof operations)[number]): string {
   }[]) {
     if (p.in !== 'query' || !p.required || !p.name) continue;
     if (p.name === 'provider_id') query.push(`provider_id=${w.a.id}`);
+    // An employee of the organization asking (decided 2026-11-26: efficiency).
+    if (p.name === 'employee_id') query.push(`employee_id=${me.employee.userId}`);
     if (p.schema?.format === 'date') {
       const d = new Date(Date.now() + (p.name === 'from' ? -14 : 1) * 86_400_000);
       query.push(`${p.name}=${d.toISOString().slice(0, 10)}`);
@@ -124,8 +129,10 @@ describe.each(listOps.map((op) => [op.operationId, op] as const))('GET %s', (_id
   it.runIf(op.actor !== 'contractor')('returns none of the other organization’s ids', async () => {
     for (const { me, other } of pairs()) {
       // Called as the admin; operations only employees use (the punch card) fall back to the employee.
-      let res = await api.as(me.admin, requiresOrgHeader(op) ? me.id : undefined).get(urlFor(op));
-      if (res.status === 403) res = await api.as(me.employee, me.id).get(urlFor(op));
+      let res = await api
+        .as(me.admin, requiresOrgHeader(op) ? me.id : undefined)
+        .get(urlFor(op, me));
+      if (res.status === 403) res = await api.as(me.employee, me.id).get(urlFor(op, me));
       expect({ op: op.operationId, status: res.status }).toEqual({
         op: op.operationId,
         status: 200,

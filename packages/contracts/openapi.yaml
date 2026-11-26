@@ -2180,6 +2180,108 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+  /hourly-rates:
+    get:
+      operationId: listHourlyRates
+      x-tenant-scoped: true
+      summary: Everyone's current hourly cost (owners only)
+      description: Decided 2026-11-26. Owners only; other admins, employees and the bot get 403.
+      tags: [shifts]
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: The current rates.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/HourlyRate' } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /employees/{id}/hourly-rate:
+    put:
+      operationId: setHourlyRate
+      summary: Set what one hour of a person's work costs (owners only)
+      description: Whole won, from now on; past days keep their rate. Audited. Decided 2026-11-26.
+      tags: [shifts]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [hourlyRate]
+              properties:
+                hourlyRate: { type: integer, minimum: 0, maximum: 10000000 }
+      responses:
+        '200':
+          description: The new rate.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HourlyRate' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /dashboard/output-latest:
+    get:
+      operationId: getLatestOutput
+      x-tenant-scoped: true
+      summary: Each employee's latest day with output
+      description: >-
+        Decided 2026-11-26. Within the last 60 days, with that day's worked hours (finished
+        shifts). Employees see only themselves unless Everyone's output is open to them.
+      tags: [output]
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: One row per employee, latest first.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LatestOutput' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /output/efficiency:
+    get:
+      operationId: getEfficiency
+      x-tenant-scoped: true
+      summary: What one employee's month of output brought in
+      description: >-
+        Decided 2026-11-26. Per product (team output in equal shares): price minus ingredient
+        cost minus the employee's labor (worked hours from punch cards times their hourly cost,
+        shared over the day's products by expected minutes). Prices and costs are today's; each
+        day uses the hourly cost in force then. Labor is shown to owners only; for other admins
+        it is null and figures are before labor. Admins only (prices.manage).
+      tags: [output]
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: employee_id
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+        - name: month
+          in: query
+          schema: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
+      responses:
+        '200':
+          description: The month.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Efficiency' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /punch-change-requests:
     post:
       operationId: requestPunchChange
@@ -3656,11 +3758,14 @@ paths:
         - name: status
           in: query
           schema: { type: string, enum: [active, removed], default: active }
-        - $ref: '#/components/parameters/Limit'
+        - name: limit
+          in: query
+          description: Up to 100 at a time; 100 unless asked otherwise (decided 2026-11-26).
+          schema: { type: integer, minimum: 1, maximum: 100, default: 100 }
         - $ref: '#/components/parameters/Cursor'
       responses:
         '200':
-          description: Members, oldest first.
+          description: Members, oldest first; removed members newest first.
           content:
             application/json:
               schema:
@@ -4744,12 +4849,125 @@ components:
                 properties:
                   total: { type: integer, description: Cancelled advances do not count. }
                   items: { type: array, items: { $ref: '#/components/schemas/SalaryAdvance' } }
+              hourlyRate:
+                { type: [integer, 'null'], description: Owners only (decided 2026-11-26). }
+              laborCost:
+                type: [integer, 'null']
+                description: Owners only. The month's worked hours at the hourly cost in force each day.
         totals:
           type: object
           required: [minutes, advances]
           properties:
             minutes: { type: integer }
             advances: { type: integer }
+    HourlyRate:
+      type: object
+      required: [employeeId, hourlyRate, effectiveFrom]
+      properties:
+        employeeId: { type: string, format: uuid }
+        hourlyRate: { type: integer, description: Whole won per hour. }
+        effectiveFrom: { type: string, format: date-time }
+    LatestOutput:
+      type: object
+      required: [today, employees]
+      properties:
+        today: { type: string, format: date }
+        employees:
+          type: array
+          items:
+            type: object
+            required: [employee, date, workedMinutes, output]
+            properties:
+              employee: { $ref: '#/components/schemas/PersonRef' }
+              date:
+                { type: [string, 'null'], format: date, description: Null when nothing in 60 days. }
+              workedMinutes: { type: integer }
+              output:
+                oneOf:
+                  - $ref: '#/components/schemas/OutputDay'
+                  - type: 'null'
+    Efficiency:
+      type: object
+      required:
+        [employee, month, from, to, labor, hourlyRate, minutes, products, days, totals, missing]
+      properties:
+        employee: { $ref: '#/components/schemas/PersonRef' }
+        month: { type: string }
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        labor:
+          {
+            type: boolean,
+            description: Whether labor is included (owner,
+            and an hourly cost is set).,
+          }
+        hourlyRate: { type: [integer, 'null'], description: Owners only. }
+        minutes: { type: integer, description: Worked minutes (finished shifts). }
+        products:
+          type: array
+          items:
+            type: object
+            required:
+              [
+                productId,
+                name,
+                quantity,
+                unitPrice,
+                costPerPiece,
+                revenue,
+                ingredientCost,
+                expectedMinutes,
+                laborCost,
+                contribution,
+              ]
+            properties:
+              productId: { type: string, format: uuid }
+              name: { type: string }
+              quantity: { type: number }
+              unitPrice: { type: [integer, 'null'] }
+              costPerPiece: { type: [integer, 'null'] }
+              revenue: { type: integer }
+              ingredientCost: { type: integer }
+              expectedMinutes: { type: integer }
+              laborCost: { type: [integer, 'null'] }
+              contribution: { type: integer }
+        days:
+          type: array
+          items:
+            type: object
+            required: [date, minutes, quantity, revenue, ingredientCost, laborCost, contribution]
+            properties:
+              date: { type: string, format: date }
+              minutes: { type: integer }
+              quantity: { type: number }
+              revenue: { type: integer }
+              ingredientCost: { type: integer }
+              laborCost: { type: [integer, 'null'] }
+              contribution: { type: integer }
+        totals:
+          type: object
+          required:
+            [quantity, revenue, ingredientCost, laborCost, unassignedLabor, contribution, perHour]
+          properties:
+            quantity: { type: number }
+            revenue: { type: integer }
+            ingredientCost: { type: integer }
+            laborCost: { type: [integer, 'null'] }
+            unassignedLabor:
+              type: [integer, 'null']
+              description: Labor on days with hours but no output logged.
+            contribution: { type: integer }
+            perHour: { type: [integer, 'null'] }
+        missing:
+          type: object
+          required: [prices, costs, hourlyRate, daysWithoutHours]
+          properties:
+            prices: { type: integer, description: Products made without a price. }
+            costs: { type: integer, description: Products made without a cost per piece. }
+            hourlyRate: { type: boolean, description: An owner looks and no hourly cost is set. }
+            daysWithoutHours:
+              type: integer
+              description: Days with output but no finished shift, so no labor is counted for them.
     PersonRef:
       type: object
       required: [id, name]

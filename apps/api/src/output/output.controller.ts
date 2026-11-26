@@ -24,6 +24,7 @@ import {
   type CreateTeamInput,
   createTeamSchema,
   dayQuerySchema,
+  efficiencyQuerySchema,
   outputQuerySchema,
   type OutputRangeInput,
   outputRangeSchema,
@@ -109,6 +110,26 @@ export class OutputController {
   ) {
     providerOnly(org);
     return this.output.getOutput(user, org, query);
+  }
+
+  /** Decided 2026-11-26: each employee's latest day with output. */
+  @Get('dashboard/output-latest')
+  @RequireOrg()
+  latest(@CurrentUser() user: AuthUser, @CurrentOrg() org: OrgContext) {
+    providerOnly(org);
+    return this.output.latest(user, org);
+  }
+
+  /** Decided 2026-11-26: one employee's month: what their output brought in (admins). */
+  @Get('output/efficiency')
+  @RequireOrg('prices.manage')
+  efficiency(
+    @CurrentUser() user: AuthUser,
+    @CurrentOrg() org: OrgContext,
+    @ZodQuery(efficiencyQuerySchema) query: z.infer<typeof efficiencyQuerySchema>,
+  ) {
+    providerOnly(org);
+    return this.output.efficiency(user, org, query.employee_id, query.month);
   }
 
   @Get('dashboard/shift-output')

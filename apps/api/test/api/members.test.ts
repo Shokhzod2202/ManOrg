@@ -1,7 +1,7 @@
 import { type INestApplication } from '@nestjs/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Api, auditFor, createTestApp } from '../helpers/app';
-import { disconnectDatabases, resetDatabase } from '../helpers/db';
+import { asOwner, disconnectDatabases, resetDatabase } from '../helpers/db';
 import { buildWorld, type World } from '../helpers/world';
 
 let app: INestApplication;
@@ -217,5 +217,32 @@ describe('PATCH /members/{id}', () => {
       .set('If-Match', String(m.version))
       .send({ status: 'removed' })
       .expect(403);
+  });
+});
+
+describe('long member lists (decided 2026-11-26)', () => {
+  it('lists everyone at once (not just 20), and removed members newest first', async () => {
+    await asOwner({ organizationId: w.a.id, userId: w.a.admin.userId }, async (tx) => {
+      for (let i = 0; i < 25; i += 1) {
+        const u = await tx.user.create({
+          data: { name: `Baker ${i}`, email: `baker${i}@long.test` },
+        });
+        await tx.membership.create({
+          data: {
+            organizationId: w.a.id,
+            userId: u.id,
+            role: 'employee',
+            status: i < 2 ? 'removed' : 'active',
+            removedAt: i < 2 ? new Date(Date.now() - (i + 1) * 3_600_000) : null,
+          },
+        });
+      }
+    });
+    const active = await api.as(w.a.admin, w.a.id).get('/members').expect(200);
+    expect(active.body.items.length).toBeGreaterThan(20);
+    const removed = await api.as(w.a.admin, w.a.id).get('/members?status=removed').expect(200);
+    expect(
+      removed.body.items.slice(0, 2).map((m: { user: { name: string } }) => m.user.name),
+    ).toEqual(['Baker 0', 'Baker 1']);
   });
 });

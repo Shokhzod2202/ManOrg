@@ -1512,3 +1512,51 @@ button.carried {
     text-align: left;
   }
 }
+
+/* Decided 2026-11-26: an employee's month of output economics. */
+.eff-head {
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+}
+.eff-big {
+  font: 700 34px var(--heading);
+  font-variant-numeric: tabular-nums;
+}
+.eff-big.pos,
+b.pos {
+  color: var(--ok);
+}
+.eff-big.neg,
+b.neg {
+  color: var(--flag);
+}
+.eff-kpis {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 16px;
+  font-variant-numeric: tabular-nums;
+}
+.eff-kpis > span {
+  display: inline-flex;
+  gap: 6px;
+  align-items: baseline;
+  color: var(--muted);
+}
+.eff-kpis b {
+  color: var(--ink);
+}
+.no-output {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+.no-output .chip {
+  cursor: pointer;
+  border: 0;
+  font: inherit;
+}

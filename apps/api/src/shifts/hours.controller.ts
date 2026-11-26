@@ -1,4 +1,4 @@
-import { Controller, Get, HttpCode, Param, ParseUUIDPipe, Post } from '@nestjs/common';
+import { Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Put } from '@nestjs/common';
 import {
   type AuthUser,
   CurrentOrg,
@@ -12,6 +12,8 @@ import {
   cancelAdvanceSchema,
   type CreateAdvanceInput,
   createAdvanceSchema,
+  type HourlyRateInput,
+  hourlyRateSchema,
   type HoursQuery,
   hoursQuerySchema,
 } from './hours.schemas';
@@ -53,5 +55,23 @@ export class HoursController {
     @ZodBody(cancelAdvanceSchema) body: CancelAdvanceInput,
   ) {
     return this.hours.cancelAdvance(user, org, id, body);
+  }
+
+  /** Decided 2026-11-26: everyone's current hourly cost. Owners only (403 for other admins). */
+  @Get('hourly-rates')
+  @RequireOrg('advances.manage')
+  rates(@CurrentUser() user: AuthUser, @CurrentOrg() org: OrgContext) {
+    return this.hours.rates(user, org);
+  }
+
+  @Put('employees/:id/hourly-rate')
+  @RequireOrg('advances.manage')
+  setRate(
+    @CurrentUser() user: AuthUser,
+    @CurrentOrg() org: OrgContext,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @ZodBody(hourlyRateSchema) body: HourlyRateInput,
+  ) {
+    return this.hours.setRate(user, org, id, body.hourlyRate);
   }
 }

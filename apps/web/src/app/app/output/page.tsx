@@ -17,7 +17,9 @@ import {
 } from '../../../lib/api';
 import { useSession } from '../../../lib/session';
 import { useApi } from '../../../lib/use-api';
-import { flagText, t } from '../../../lib/i18n';
+import { flagText, getLocale, INTL, t } from '../../../lib/i18n';
+import { won } from '../../../components/orders/value';
+import Link from 'next/link';
 
 type Product = Schemas['Product'];
 type Team = Schemas['Team'];
@@ -211,12 +213,17 @@ function MyOutput() {
   );
 }
 
-/** DSH-3: who made what today, with hours and flags. */
+/**
+ * Decided 2026-11-26: Output opens on every employee's latest output. Choosing an employee shows
+ * their month: what their output brought the organization ("efficiency"). One day for everyone
+ * is still one tab away.
+ */
 function AdminOutput() {
-  const [date, setDate] = useState(today());
-  const { data, error, loading, reload } = useApi<ShiftOutput>(
-    `/dashboard/shift-output?date=${date}`,
-    60_000,
+  const [who, setWho] = useState('');
+  const [view, setView] = useState<'latest' | 'day'>('latest');
+  const members = useApi<{ items: Schemas['Member'][] }>('/members');
+  const employees = (members.data?.items ?? []).filter(
+    (m) => m.role === 'employee' && m.status === 'active',
   );
   return (
     <div className="page wide">
@@ -224,6 +231,351 @@ function AdminOutput() {
         title={t('Output')}
         sub={t('A shift counts on the day it started, so a night shift shows on the day before.')}
       >
+        <select
+          className="input"
+          value={who}
+          onChange={(e) => setWho(e.target.value)}
+          aria-label={t('Employee')}
+        >
+          <option value="">{t('All employees')}</option>
+          {employees.map((m) => (
+            <option key={m.user.id} value={m.user.id}>
+              {m.displayName || m.user.name}
+            </option>
+          ))}
+        </select>
+        {!who ? (
+          <div className="tabs" role="tablist">
+            <button
+              role="tab"
+              aria-selected={view === 'latest'}
+              className={view === 'latest' ? 'on' : ''}
+              onClick={() => setView('latest')}
+            >
+              {t('Latest')}
+            </button>
+            <button
+              role="tab"
+              aria-selected={view === 'day'}
+              className={view === 'day' ? 'on' : ''}
+              onClick={() => setView('day')}
+            >
+              {t('By day')}
+            </button>
+          </div>
+        ) : null}
+      </PageHead>
+      {who ? (
+        <Efficiency key={who} employeeId={who} onBack={() => setWho('')} />
+      ) : view === 'latest' ? (
+        <LatestOutput onPick={setWho} />
+      ) : (
+        <DayOutput />
+      )}
+    </div>
+  );
+}
+
+/** Decided 2026-11-26: each employee's latest day with output, latest first. */
+function LatestOutput({ onPick }: { onPick: (id: string) => void }) {
+  const { data, error, loading, reload } = useApi<Schemas['LatestOutput']>(
+    '/dashboard/output-latest',
+    60_000,
+  );
+  if (loading && !data) return <Loading />;
+  if (!data) return <ErrorBox error={error} onRetry={reload} />;
+  return (
+    <section className="card">
+      <h2>{t('Latest output')}</h2>
+      {!data.employees.length ? <Empty>{t('No employees yet.')}</Empty> : null}
+      <table className="t cards latest-output">
+        <thead>
+          <tr>
+            <th>{t('Name')}</th>
+            <th>{t('Last output')}</th>
+            <th>{t('Worked')}</th>
+            <th>{t('Items')}</th>
+            <th>{t('Expected')}</th>
+            <th>{t('Cleaning')}</th>
+            <th />
+          </tr>
+        </thead>
+        <tbody>
+          {data.employees
+            .filter((e) => e.date)
+            .map((e) => (
+              <tr key={e.employee.id}>
+                <td data-label={t('Name')}>
+                  <b>{e.employee.name}</b>
+                  {e.employee.title ? (
+                    <span className="muted small"> · {e.employee.title}</span>
+                  ) : null}
+                </td>
+                <td data-label={t('Last output')}>
+                  {e.date ? (
+                    <>
+                      {formatDate(e.date)}
+                      {e.date === data.today ? (
+                        <span className="muted small"> · {t('today')}</span>
+                      ) : null}
+                    </>
+                  ) : (
+                    <span className="muted small">{t('Nothing in the last 60 days')}</span>
+                  )}
+                </td>
+                <td data-label={t('Worked')}>{e.output ? formatMinutes(e.workedMinutes) : '—'}</td>
+                <td data-label={t('Items')}>
+                  {e.output ? Math.round(e.output.creditedQuantity * 10) / 10 : '—'}
+                </td>
+                <td data-label={t('Expected')}>
+                  {e.output ? formatMinutes(Math.round(e.output.expectedMinutes)) : '—'}
+                </td>
+                <td data-label={t('Cleaning')}>
+                  {e.output ? t('{n} h', { n: e.output.cleaningHours }) : '—'}
+                </td>
+                <td data-label="">
+                  <button
+                    type="button"
+                    className="btn ghost small-btn"
+                    onClick={() => onPick(e.employee.id)}
+                  >
+                    {t('Efficiency')}
+                  </button>
+                </td>
+              </tr>
+            ))}
+        </tbody>
+      </table>
+      {/* Decided 2026-11-26: people without recent output on one line, not a card each. */}
+      {data.employees.some((e) => !e.date) ? (
+        <div className="no-output">
+          <span className="muted small">{t('No output in the last 60 days:')}</span>
+          {data.employees
+            .filter((e) => !e.date)
+            .map((e) => (
+              <button
+                key={e.employee.id}
+                type="button"
+                className="chip"
+                onClick={() => onPick(e.employee.id)}
+              >
+                {e.employee.name}
+              </button>
+            ))}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+const shiftMonth = (month: string, by: number) => {
+  const [y, m] = month.split('-').map(Number) as [number, number];
+  return new Date(Date.UTC(y, m - 1 + by, 1)).toISOString().slice(0, 7);
+};
+
+/**
+ * Decided 2026-11-26: one employee's month. For each product they made: price minus ingredient
+ * cost minus their labor (owners only; others see it before labor), by day, and per hour worked.
+ */
+function Efficiency({ employeeId, onBack }: { employeeId: string; onBack: () => void }) {
+  const { membership } = useSession();
+  const owner = membership?.owner === true;
+  const [month, setMonth] = useState<string | null>(null);
+  const { data, error, loading, reload } = useApi<Schemas['Efficiency']>(
+    `/output/efficiency?employee_id=${employeeId}${month ? `&month=${month}` : ''}`,
+  );
+  const shown = month ?? data?.month ?? null;
+  const thisMonth = today().slice(0, 7);
+  const money = (n: number | null | undefined) => (n == null ? '—' : won(n));
+  const tone = (n: number) => (n < 0 ? 'neg' : 'pos');
+  return (
+    <div className="stack" style={{ gap: 14 }}>
+      <div className="viewbar">
+        <button type="button" className="btn ghost small-btn" onClick={onBack}>
+          ← {t('All employees')}
+        </button>
+        <div className="month-switch">
+          <button
+            className="btn ghost"
+            aria-label={t('Previous month')}
+            disabled={!shown}
+            onClick={() => shown && setMonth(shiftMonth(shown, -1))}
+          >
+            ‹
+          </button>
+          <b>{shown ? monthLabel(shown) : '…'}</b>
+          <button
+            className="btn ghost"
+            aria-label={t('Next month')}
+            disabled={!shown || shown >= thisMonth}
+            onClick={() => shown && setMonth(shiftMonth(shown, 1))}
+          >
+            ›
+          </button>
+        </div>
+      </div>
+      {loading ? <Loading /> : null}
+      <ErrorBox error={error} onRetry={reload} />
+      {data && !loading ? (
+        <>
+          <section className="card eff-head">
+            <span className="muted">
+              {t('{name} brought in', { name: data.employee.name })}
+              {!data.labor ? ` (${t('before labor cost')})` : ''}
+            </span>
+            <b className={`eff-big ${tone(data.totals.contribution)}`} data-testid="eff-total">
+              {won(data.totals.contribution)}
+            </b>
+            <span className="muted small">
+              {data.totals.perHour != null
+                ? t('{amount} per hour · {hours} worked', {
+                    amount: won(data.totals.perHour),
+                    hours: formatMinutes(data.minutes),
+                  })
+                : t('No finished shifts this month.')}
+            </span>
+            <div className="eff-kpis">
+              <span>
+                {t('Pieces')} <b>{data.totals.quantity}</b>
+              </span>
+              <span>
+                {t('Sales value')} <b>{won(data.totals.revenue)}</b>
+              </span>
+              <span>
+                {t('Ingredients')} <b>−{won(data.totals.ingredientCost)}</b>
+              </span>
+              {data.labor ? (
+                <span>
+                  {t('Labor')} <b>−{money(data.totals.laborCost)}</b>
+                  {data.hourlyRate != null ? (
+                    <span className="muted small">
+                      {' '}
+                      ({t('{amount}/h', { amount: won(data.hourlyRate) })})
+                    </span>
+                  ) : null}
+                </span>
+              ) : null}
+            </div>
+            {!data.labor ? (
+              owner ? (
+                <Link className="hint-bad" href="/app/hours">
+                  {t('Set {name}’s hourly cost in Work hours to include labor.', {
+                    name: data.employee.name,
+                  })}
+                </Link>
+              ) : (
+                <span className="muted small">{t('Labor cost is shown to owners only.')}</span>
+              )
+            ) : null}
+            {data.missing.daysWithoutHours ? (
+              <span className="hint-bad">
+                {t(
+                  '{n} days have output but no finished shift, so their labor is not counted. End those shifts in Shifts.',
+                  { n: data.missing.daysWithoutHours },
+                )}
+              </span>
+            ) : null}
+            {data.missing.prices ? (
+              <span className="hint-bad">
+                {t('{n} products have no price and count as ₩0.', { n: data.missing.prices })}
+              </span>
+            ) : null}
+            {data.missing.costs ? (
+              <Link className="hint-bad" href="/app/products">
+                {t('{n} products have no ingredient cost yet (set it in Products).', {
+                  n: data.missing.costs,
+                })}
+              </Link>
+            ) : null}
+          </section>
+          <section className="card">
+            <h2>{t('By product')}</h2>
+            {!data.products.length ? <Empty>{t('No output this month.')}</Empty> : null}
+            <table className="t cards">
+              <thead>
+                <tr>
+                  <th>{t('Product')}</th>
+                  <th>{t('Pieces')}</th>
+                  <th>{t('Sales value')}</th>
+                  <th>{t('Ingredients')}</th>
+                  {data.labor ? <th>{t('Labor')}</th> : null}
+                  <th>{t('Result')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.products.map((p) => (
+                  <tr key={p.productId}>
+                    <td data-label={t('Product')}>
+                      <b>{p.name}</b>
+                      {p.unitPrice != null ? (
+                        <span className="muted small"> · {won(p.unitPrice)}</span>
+                      ) : null}
+                    </td>
+                    <td data-label={t('Pieces')}>{p.quantity}</td>
+                    <td data-label={t('Sales value')}>{won(p.revenue)}</td>
+                    <td data-label={t('Ingredients')}>−{won(p.ingredientCost)}</td>
+                    {data.labor ? <td data-label={t('Labor')}>−{money(p.laborCost)}</td> : null}
+                    <td data-label={t('Result')}>
+                      <b className={tone(p.contribution)}>{won(p.contribution)}</b>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {data.labor && data.totals.unassignedLabor ? (
+              <span className="muted small">
+                {t('Hours on days without output cost {amount}; they are in the total.', {
+                  amount: won(data.totals.unassignedLabor),
+                })}
+              </span>
+            ) : null}
+          </section>
+          <section className="card">
+            <h2>{t('By day')}</h2>
+            {!data.days.length ? <Empty>{t('No output this month.')}</Empty> : null}
+            <table className="t">
+              <tbody>
+                {data.days.map((d) => (
+                  <tr key={d.date}>
+                    <td>{formatDate(d.date)}</td>
+                    <td className="muted small">{formatMinutes(d.minutes)}</td>
+                    <td className="muted small">{t('{n} pieces', { n: d.quantity })}</td>
+                    <td style={{ textAlign: 'right' }}>
+                      <b className={tone(d.contribution)}>{won(d.contribution)}</b>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <span className="muted small">
+              {t(
+                'At today’s prices and ingredient costs; labor at the hourly cost of each day. Team output is shared equally.',
+              )}
+            </span>
+          </section>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+const monthLabel = (month: string) =>
+  new Date(`${month}-01T00:00:00Z`).toLocaleDateString(INTL[getLocale()], {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+
+/** DSH-3: who made what on one day, with hours and flags. */
+function DayOutput() {
+  const [date, setDate] = useState(today());
+  const { data, error, loading, reload } = useApi<ShiftOutput>(
+    `/dashboard/shift-output?date=${date}`,
+    60_000,
+  );
+  return (
+    <div className="stack" style={{ gap: 14 }}>
+      <div className="viewbar">
         <input
           className="input"
           type="date"
@@ -232,7 +584,7 @@ function AdminOutput() {
           onChange={(e) => setDate(e.target.value)}
           aria-label={t('Date')}
         />
-      </PageHead>
+      </div>
       {loading && !data ? <Loading /> : null}
       <ErrorBox error={error} onRetry={reload} />
       {data ? (

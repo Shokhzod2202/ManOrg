@@ -25,3 +25,9 @@ export const cancelAdvanceSchema = z.strictObject({
   reason: z.string().trim().max(200).optional(),
 });
 export type CancelAdvanceInput = z.infer<typeof cancelAdvanceSchema>;
+
+/** Decided 2026-11-26: what one hour of a person's work costs, in whole won (owners only). */
+export const hourlyRateSchema = z.strictObject({
+  hourlyRate: z.number().int('Use whole won.').min(0).max(10_000_000),
+});
+export type HourlyRateInput = z.infer<typeof hourlyRateSchema>;

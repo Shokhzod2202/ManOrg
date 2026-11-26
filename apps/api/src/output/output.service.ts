@@ -6,7 +6,9 @@ import { type AuthUser, dbContext, orgCan, type OrgContext } from '../common/req
 import { addDays, localDate } from '../common/time';
 import { DatabaseService } from '../database/database.service';
 import { type Tx } from '../database/prisma-client';
+import { productEconomics } from '../products/product-costs';
 import { TimesheetService } from '../shifts/timesheet.service';
+import { hourlyRates, rateOn, workedByDay } from '../shifts/worked';
 import { creditFor, expectedMinutes, type LineLike, totalsByProduct } from './calc';
 import {
   type CreateTeamInput,
@@ -428,6 +430,222 @@ export class OutputService {
           name: names.get(productId) ?? '',
           quantity,
         })),
+      };
+    });
+  }
+
+  /**
+   * Decided 2026-11-26: Output opens on each employee's latest day with output (within 60 days),
+   * with that day's worked hours (finished shifts, as in Work hours).
+   */
+  latest(user: AuthUser, org: OrgContext) {
+    const all = orgCan(org, 'output.readAll');
+    return this.db.run(dbContext(user, org), async (tx) => {
+      const { timezone } = await tx.organization.findUniqueOrThrow({
+        where: { id: org.organizationId },
+        select: { timezone: true },
+      });
+      const today = localDate(timezone);
+      const from = addDays(today, -59);
+      const rows = await tx.membership.findMany({
+        where: {
+          organizationId: org.organizationId,
+          status: 'active',
+          role: 'employee',
+          ...(all ? {} : { userId: user.userId }),
+        },
+        select: PERSON,
+        orderBy: { createdAt: 'asc' },
+      });
+      const people = rows.map(personOf);
+      const ids = people.map((p) => p.id);
+      const [days, worked] = await Promise.all([
+        this.days(tx, org, ids, from, today),
+        workedByDay(tx, org.organizationId, timezone, ids, from, today),
+      ]);
+      const employees = people.map((p) => {
+        const list = (days.get(p.id) ?? []) as {
+          date: string;
+          personal: unknown[];
+          team: unknown[];
+          cleaningHours: number;
+        }[];
+        const last = [...list]
+          .reverse()
+          .find((d) => d.personal.length || d.team.length || d.cleaningHours > 0);
+        return {
+          employee: p,
+          date: last?.date ?? null,
+          workedMinutes: last ? (worked.get(p.id)?.days.get(last.date)?.minutes ?? 0) : 0,
+          output: last ?? null,
+        };
+      });
+      employees.sort(
+        (a, b) =>
+          (b.date ?? '').localeCompare(a.date ?? '') ||
+          a.employee.name.localeCompare(b.employee.name),
+      );
+      return { today, employees };
+    });
+  }
+
+  /**
+   * Decided 2026-11-26: what one employee's work brought the organization in a month (their
+   * "efficiency"). For each product they made (team output credited in equal shares): price
+   * minus ingredient cost minus their labor. Labor is their worked hours (punch cards, finished
+   * shifts) times their hourly cost, shared over that day's products by expected minutes; hours
+   * on days without output stay as unassigned labor. Prices and costs are today's; the hourly cost
+   * is the one in force on each day. Hourly cost is for owners only: for other admins every labor
+   * figure is null and the result is before labor.
+   */
+  efficiency(user: AuthUser, org: OrgContext, employeeId: string, month: string | undefined) {
+    const owner = org.owner && !user.viaBot;
+    return this.db.run(dbContext(user, org), async (tx) => {
+      const { timezone } = await tx.organization.findUniqueOrThrow({
+        where: { id: org.organizationId },
+        select: { timezone: true },
+      });
+      const member = await tx.membership.findFirst({
+        where: {
+          organizationId: org.organizationId,
+          userId: employeeId,
+          status: { in: ['active', 'removed'] },
+        },
+        select: PERSON,
+      });
+      if (!member) throw Errors.notFound('Employee');
+      const today = localDate(timezone);
+      const m = month ?? today.slice(0, 7);
+      const [y, mo] = m.split('-').map(Number) as [number, number];
+      const from = `${m}-01`;
+      const to = `${m}-${String(new Date(Date.UTC(y, mo, 0)).getUTCDate()).padStart(2, '0')}`;
+      const lines = (await this.lines(tx, org, from, to)).filter((l) =>
+        l.teamId === null ? l.employeeId === employeeId : l.teamMemberIds.includes(employeeId),
+      );
+      const [worked, rates, products] = await Promise.all([
+        workedByDay(tx, org.organizationId, timezone, [employeeId], from, to),
+        owner ? hourlyRates(tx, org.organizationId, [employeeId]) : null,
+        productEconomics(tx, org.organizationId, [...new Set(lines.map((l) => l.productId))]),
+      ]);
+      const workedDays = worked.get(employeeId)!.days;
+      const history = rates?.get(employeeId);
+      const labor = Boolean(history?.length);
+
+      type Acc = {
+        quantity: number;
+        expectedMinutes: number;
+        revenue: number;
+        ingredientCost: number;
+        laborCost: number;
+      };
+      const zero = (): Acc => ({
+        quantity: 0,
+        expectedMinutes: 0,
+        revenue: 0,
+        ingredientCost: 0,
+        laborCost: 0,
+      });
+      const byProduct = new Map<string, Acc>();
+      const byDay = new Map<string, Acc & { minutes: number; unassignedLabor: number }>();
+      const dates = new Set([...workedDays.keys(), ...lines.map((l) => l.date)]);
+      for (const date of [...dates].sort()) {
+        const minutes = workedDays.get(date)?.minutes ?? 0;
+        const dayLabor = labor ? ((rateOn(history, date, timezone) ?? 0) * minutes) / 60 : 0;
+        const mine = lines
+          .filter((l) => l.date === date)
+          .map((l) => {
+            const share = l.teamId === null ? 1 : 1 / Math.max(l.teamMemberIds.length, 1);
+            return {
+              productId: l.productId,
+              quantity: l.quantity * share,
+              expected: expectedMinutes(l.quantity, l.minutesPer10) * share,
+            };
+          });
+        const totalExpected = mine.reduce((n, x) => n + x.expected, 0);
+        const totalQuantity = mine.reduce((n, x) => n + x.quantity, 0);
+        const day = { ...zero(), minutes, unassignedLabor: mine.length ? 0 : dayLabor };
+        for (const x of mine) {
+          const p = products.get(x.productId);
+          const weight =
+            totalExpected > 0 ? x.expected / totalExpected : x.quantity / totalQuantity;
+          const part = {
+            quantity: x.quantity,
+            expectedMinutes: x.expected,
+            revenue: (p?.unitPrice ?? 0) * x.quantity,
+            ingredientCost: (p?.costPerPiece ?? 0) * x.quantity,
+            laborCost: dayLabor * weight,
+          };
+          const acc = byProduct.get(x.productId) ?? zero();
+          for (const k of Object.keys(part) as (keyof Acc)[]) {
+            acc[k] += part[k];
+            day[k] += part[k];
+          }
+          byProduct.set(x.productId, acc);
+        }
+        byDay.set(date, day);
+      }
+      const r = (n: number) => Math.round(n);
+      const r2 = (n: number) => Math.round(n * 100) / 100;
+      const totalMinutes = [...workedDays.values()].reduce((n, d) => n + d.minutes, 0);
+      const sum = (k: keyof Acc) => [...byProduct.values()].reduce((n, a) => n + a[k], 0);
+      const unassigned = [...byDay.values()].reduce((n, d) => n + d.unassignedLabor, 0);
+      const laborTotal = sum('laborCost') + unassigned;
+      const contribution = sum('revenue') - sum('ingredientCost') - laborTotal;
+      return {
+        employee: personOf(member),
+        month: m,
+        from,
+        to,
+        // Whether labor is included: an owner, and an hourly cost is set.
+        labor,
+        hourlyRate: owner ? (history?.at(-1)?.hourlyRate ?? null) : null,
+        minutes: totalMinutes,
+        products: [...byProduct.entries()]
+          .map(([productId, a]) => {
+            const p = products.get(productId);
+            return {
+              productId,
+              name: p?.name ?? '',
+              quantity: r2(a.quantity),
+              unitPrice: p?.unitPrice ?? null,
+              costPerPiece: p?.costPerPiece == null ? null : r(p.costPerPiece),
+              revenue: r(a.revenue),
+              ingredientCost: r(a.ingredientCost),
+              expectedMinutes: r(a.expectedMinutes),
+              laborCost: labor ? r(a.laborCost) : null,
+              contribution: r(a.revenue - a.ingredientCost - (labor ? a.laborCost : 0)),
+            };
+          })
+          .sort((a, b) => b.contribution - a.contribution),
+        days: [...byDay.entries()].map(([date, d]) => ({
+          date,
+          minutes: d.minutes,
+          quantity: r2(d.quantity),
+          revenue: r(d.revenue),
+          ingredientCost: r(d.ingredientCost),
+          laborCost: labor ? r(d.laborCost + d.unassignedLabor) : null,
+          contribution: r(
+            d.revenue - d.ingredientCost - (labor ? d.laborCost + d.unassignedLabor : 0),
+          ),
+        })),
+        totals: {
+          quantity: r2(sum('quantity')),
+          revenue: r(sum('revenue')),
+          ingredientCost: r(sum('ingredientCost')),
+          laborCost: labor ? r(laborTotal) : null,
+          unassignedLabor: labor ? r(unassigned) : null,
+          contribution: r(contribution),
+          perHour: totalMinutes > 0 ? r(contribution / (totalMinutes / 60)) : null,
+        },
+        missing: {
+          prices: [...byProduct.keys()].filter((id) => products.get(id)?.unitPrice == null).length,
+          costs: [...byProduct.keys()].filter((id) => products.get(id)?.costPerPiece == null)
+            .length,
+          hourlyRate: owner && !labor,
+          // Days with output but no finished shift: no hours, so no labor counted for them.
+          daysWithoutHours: [...byDay.values()].filter((d) => d.quantity > 0 && d.minutes === 0)
+            .length,
+        },
       };
     });
   }

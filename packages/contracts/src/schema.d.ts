@@ -1256,6 +1256,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/hourly-rates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Everyone's current hourly cost (owners only)
+         * @description Decided 2026-11-26. Owners only; other admins, employees and the bot get 403.
+         */
+        get: operations["listHourlyRates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{id}/hourly-rate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set what one hour of a person's work costs (owners only)
+         * @description Whole won, from now on; past days keep their rate. Audited. Decided 2026-11-26.
+         */
+        put: operations["setHourlyRate"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/output-latest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Each employee's latest day with output
+         * @description Decided 2026-11-26. Within the last 60 days, with that day's worked hours (finished shifts). Employees see only themselves unless Everyone's output is open to them.
+         */
+        get: operations["getLatestOutput"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/output/efficiency": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What one employee's month of output brought in
+         * @description Decided 2026-11-26. Per product (team output in equal shares): price minus ingredient cost minus the employee's labor (worked hours from punch cards times their hourly cost, shared over the day's products by expected minutes). Prices and costs are today's; each day uses the hourly cost in force then. Labor is shown to owners only; for other admins it is null and figures are before labor. Admins only (prices.manage).
+         */
+        get: operations["getEfficiency"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/punch-change-requests": {
         parameters: {
             query?: never;
@@ -2946,10 +3026,93 @@ export interface components {
                     total: number;
                     items: components["schemas"]["SalaryAdvance"][];
                 };
+                /** @description Owners only (decided 2026-11-26). */
+                hourlyRate?: number | null;
+                /** @description Owners only. The month's worked hours at the hourly cost in force each day. */
+                laborCost?: number | null;
             }[];
             totals: {
                 minutes: number;
                 advances: number;
+            };
+        };
+        HourlyRate: {
+            /** Format: uuid */
+            employeeId: string;
+            /** @description Whole won per hour. */
+            hourlyRate: number;
+            /** Format: date-time */
+            effectiveFrom: string;
+        };
+        LatestOutput: {
+            /** Format: date */
+            today: string;
+            employees: {
+                employee: components["schemas"]["PersonRef"];
+                /**
+                 * Format: date
+                 * @description Null when nothing in 60 days.
+                 */
+                date: string | null;
+                workedMinutes: number;
+                output: components["schemas"]["OutputDay"] | null;
+            }[];
+        };
+        Efficiency: {
+            employee: components["schemas"]["PersonRef"];
+            month: string;
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            /** @description Whether labor is included (owner */
+            labor: boolean;
+            /** @description Owners only. */
+            hourlyRate: number | null;
+            /** @description Worked minutes (finished shifts). */
+            minutes: number;
+            products: {
+                /** Format: uuid */
+                productId: string;
+                name: string;
+                quantity: number;
+                unitPrice: number | null;
+                costPerPiece: number | null;
+                revenue: number;
+                ingredientCost: number;
+                expectedMinutes: number;
+                laborCost: number | null;
+                contribution: number;
+            }[];
+            days: {
+                /** Format: date */
+                date: string;
+                minutes: number;
+                quantity: number;
+                revenue: number;
+                ingredientCost: number;
+                laborCost: number | null;
+                contribution: number;
+            }[];
+            totals: {
+                quantity: number;
+                revenue: number;
+                ingredientCost: number;
+                laborCost: number | null;
+                /** @description Labor on days with hours but no output logged. */
+                unassignedLabor: number | null;
+                contribution: number;
+                perHour: number | null;
+            };
+            missing: {
+                /** @description Products made without a price. */
+                prices: number;
+                /** @description Products made without a cost per piece. */
+                costs: number;
+                /** @description An owner looks and no hourly cost is set. */
+                hourlyRate: boolean;
+                /** @description Days with output but no finished shift, so no labor is counted for them. */
+                daysWithoutHours: number;
             };
         };
         PersonRef: {
@@ -6474,6 +6637,125 @@ export interface operations {
             409: components["responses"]["Conflict"];
         };
     };
+    listHourlyRates: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The current rates. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["HourlyRate"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setHourlyRate: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    hourlyRate: number;
+                };
+            };
+        };
+        responses: {
+            /** @description The new rate. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HourlyRate"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getLatestOutput: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One row per employee, latest first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LatestOutput"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getEfficiency: {
+        parameters: {
+            query: {
+                employee_id: string;
+                month?: string;
+            };
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The month. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Efficiency"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
     listPunchChangeRequests: {
         parameters: {
             query?: {
@@ -8278,7 +8560,8 @@ export interface operations {
         parameters: {
             query?: {
                 status?: "active" | "removed";
-                limit?: components["parameters"]["Limit"];
+                /** @description Up to 100 at a time; 100 unless asked otherwise (decided 2026-11-26). */
+                limit?: number;
                 /** @description `nextCursor` from the previous page. */
                 cursor?: components["parameters"]["Cursor"];
             };
@@ -8291,7 +8574,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Members, oldest first. */
+            /** @description Members, oldest first; removed members newest first. */
             200: {
                 headers: {
                     [name: string]: unknown;

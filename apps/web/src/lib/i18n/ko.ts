@@ -894,4 +894,48 @@ export const ko: Record<string, string> = {
     '미종료: {date} {time} 시작. 끝나면 포함됩니다.',
   'Fix in Shifts': '근무에서 수정',
   'Shift from {date} not ended yet': '{date} 시작 근무가 아직 끝나지 않음',
+  'Hourly cost': '시간당 인건비',
+  'Only owners see this.': '소유자만 볼 수 있습니다.',
+  'Won per hour': '시간당 원',
+  'Hourly cost of {name}': '{name}님의 시간당 인건비',
+  'This month: {amount} for {hours}': '이번 달: {hours}에 {amount}',
+  'Saved. It applies from now on.': '저장했습니다. 지금부터 적용됩니다.',
+  'All employees': '전체 직원',
+  Latest: '최근',
+  'Latest output': '최근 생산량',
+  'Last output': '마지막 생산',
+  today: '오늘',
+  'Nothing in the last 60 days': '최근 60일간 없음',
+  Efficiency: '효율',
+  '{name} brought in': '{name}님이 벌어온 금액',
+  'before labor cost': '인건비 제외 전',
+  '{amount} per hour · {hours} worked': '시간당 {amount} · 근무 {hours}',
+  Pieces: '개수',
+  'Sales value': '판매 금액',
+  Labor: '인건비',
+  '{amount}/h': '{amount}/시간',
+  'Set {name}’s hourly cost in Work hours to include labor.':
+    '인건비를 포함하려면 근무 시간에서 {name}님의 시간당 인건비를 설정하세요.',
+  'Labor cost is shown to owners only.': '인건비는 소유자에게만 보입니다.',
+  '{prices} products without a price and {costs} without a cost count as ₩0.':
+    '가격 없는 제품 {prices}개와 원가 없는 제품 {costs}개는 ₩0으로 계산됩니다.',
+  'No output this month.': '이번 달 생산 기록이 없습니다.',
+  Result: '결과',
+  'Hours on days without output cost {amount}; they are in the total.':
+    '생산 기록이 없는 날의 근무 시간은 {amount}이며 합계에 포함됩니다.',
+  '{n} pieces': '{n}개',
+  'At today’s prices and ingredient costs; labor at the hourly cost of each day. Team output is shared equally.':
+    '오늘의 가격과 재료비 기준이며, 인건비는 그날의 시간당 인건비로 계산합니다. 팀 생산량은 똑같이 나눕니다.',
+  'My hours': '내 근무 시간',
+  'By day and month': '일별·월별 보기',
+  'This month': '이번 달',
+  '{n} shifts not ended yet: they count once ended.':
+    '아직 끝나지 않은 근무 {n}건: 끝나면 포함됩니다.',
+  '{n} days have output but no finished shift, so their labor is not counted. End those shifts in Shifts.':
+    '생산 기록은 있지만 끝난 근무가 없는 날이 {n}일 있어 그날 인건비가 빠졌습니다. 근무에서 해당 근무를 끝내세요.',
+  '{n} products have no price and count as ₩0.': '가격 없는 제품 {n}개는 ₩0으로 계산됩니다.',
+  '{n} products have no ingredient cost yet (set it in Products).':
+    '재료비가 없는 제품 {n}개 (제품에서 설정).',
+  'No output in the last 60 days:': '최근 60일간 생산 기록 없음:',
+  '1 day': '1일',
 };

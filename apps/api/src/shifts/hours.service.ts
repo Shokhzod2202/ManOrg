@@ -3,11 +3,11 @@ import { actorFor, AuditService } from '../audit/audit.service';
 import { Errors } from '../common/errors';
 import { PERSON, personOf, WORKS_SHIFTS } from '../common/memberships';
 import { type AuthUser, dbContext, orgCan, type OrgContext } from '../common/request-context';
-import { addDays, localDate, zonedToUtc } from '../common/time';
+import { addDays, localDate } from '../common/time';
 import { DatabaseService } from '../database/database.service';
 import { type Tx } from '../database/prisma-client';
 import { type CancelAdvanceInput, type CreateAdvanceInput, type HoursQuery } from './hours.schemas';
-import { buildSessions, type PunchEventLike, workedMinutes } from './timesheet';
+import { hourlyRates, rateOn, workedByDay } from './worked';
 
 const day = (d: string) => new Date(`${d}T00:00:00Z`);
 const iso = (d: Date) => d.toISOString().slice(0, 10);
@@ -39,6 +39,7 @@ export class HoursService {
       throw Errors.forbidden();
     }
     const only = everyone ? input.employee_id : user.userId;
+    const owner = org.owner && !user.viaBot;
     return this.db.run(dbContext(user, org), async (tx) => {
       const { timezone } = await tx.organization.findUniqueOrThrow({
         where: { id: org.organizationId },
@@ -66,18 +67,8 @@ export class HoursService {
         orderBy: { createdAt: 'asc' },
       });
       const ids = members.map((m) => m.user.id);
-      const [events, advances] = await Promise.all([
-        tx.punchEvent.findMany({
-          where: {
-            organizationId: org.organizationId,
-            employeeId: { in: ids },
-            occurredAt: {
-              gte: zonedToUtc(addDays(from, -1), '00:00', timezone),
-              lt: zonedToUtc(addDays(to, 2), '00:00', timezone),
-            },
-          },
-          orderBy: { occurredAt: 'asc' },
-        }),
+      const [worked, advances, rates] = await Promise.all([
+        workedByDay(tx, org.organizationId, timezone, ids, from, to),
         tx.salaryAdvance.findMany({
           where: {
             organizationId: org.organizationId,
@@ -86,32 +77,25 @@ export class HoursService {
           },
           orderBy: [{ paidOn: 'asc' }, { createdAt: 'asc' }],
         }),
+        // Decided 2026-11-26: hourly cost is for owners only, never other admins or the bot.
+        owner ? hourlyRates(tx, org.organizationId, ids) : null,
       ]);
-      const now = new Date();
       const people = members.map((m) => {
         const id = m.user.id;
-        const sessions = buildSessions(
-          events.filter((e) => e.employeeId === id) as PunchEventLike[],
-          now,
-        );
-        const byDate = new Map<string, { minutes: number; shifts: number }>();
-        const open: Date[] = [];
-        for (const s of sessions) {
-          const date = localDate(timezone, s.startedAt);
-          if (date < from || date > to) continue;
-          // Still working, paused, or End Shift forgotten: not counted until it is ended.
-          if (s.status !== 'ended' || !s.endedAt) {
-            open.push(s.startedAt);
-            continue;
-          }
-          const d = byDate.get(date) ?? { minutes: 0, shifts: 0 };
-          d.minutes += workedMinutes(s, now);
-          d.shifts += 1;
-          byDate.set(date, d);
-        }
-        const days = [...byDate.entries()]
+        const w = worked.get(id)!;
+        const open = w.open;
+        const days = [...w.days.entries()]
           .sort(([a], [b]) => a.localeCompare(b))
           .map(([date, d]) => ({ date, minutes: d.minutes, shifts: d.shifts }));
+        const history = rates?.get(id);
+        const labor = rates
+          ? Math.round(
+              days.reduce(
+                (n, d) => n + ((rateOn(history, d.date, timezone) ?? 0) * d.minutes) / 60,
+                0,
+              ),
+            )
+          : null;
         const own = advances.filter((a) => a.employeeId === id).map(presentAdvance);
         return {
           employee: personOf(m),
@@ -127,6 +111,9 @@ export class HoursService {
             total: own.filter((a) => !a.cancelledAt).reduce((n, a) => n + a.amount, 0),
             items: own,
           },
+          // Owners only: the current hourly cost and what the month's worked hours cost.
+          hourlyRate: rates ? (history?.at(-1)?.hourlyRate ?? null) : null,
+          laborCost: history?.length ? labor : null,
         };
       });
       // A removed person is listed only for a month they worked or were paid in.
@@ -222,6 +209,67 @@ export class HoursService {
     });
   }
 
+  /** Decided 2026-11-26: the current hourly cost of everyone who has one. Owners only. */
+  rates(user: AuthUser, org: OrgContext) {
+    ownerOnly(user, org);
+    return this.db.run(dbContext(user, org), async (tx) => {
+      const rows = await tx.hourlyRate.findMany({
+        where: { organizationId: org.organizationId },
+        orderBy: [{ effectiveFrom: 'desc' }, { createdAt: 'desc' }],
+      });
+      const seen = new Set<string>();
+      const items = rows
+        .filter((r) => !seen.has(r.employeeId) && seen.add(r.employeeId))
+        .map((r) => ({
+          employeeId: r.employeeId,
+          hourlyRate: r.hourlyRate,
+          effectiveFrom: r.effectiveFrom,
+        }));
+      return { items };
+    });
+  }
+
+  /**
+   * Owners set what one hour of a person's work costs (whole won). It applies from now on; past
+   * days keep the rate they had. Audited. Never shown to other admins, employees or the bot.
+   */
+  setRate(user: AuthUser, org: OrgContext, employeeId: string, hourlyRate: number) {
+    ownerOnly(user, org);
+    return this.db.run(dbContext(user, org), async (tx) => {
+      const member = await tx.membership.findFirst({
+        where: {
+          organizationId: org.organizationId,
+          userId: employeeId,
+          status: { in: ['active', 'removed'] },
+        },
+        select: { id: true },
+      });
+      if (!member) throw Errors.notFound('Employee');
+      const before = await tx.hourlyRate.findFirst({
+        where: { organizationId: org.organizationId, employeeId },
+        orderBy: [{ effectiveFrom: 'desc' }, { createdAt: 'desc' }],
+      });
+      const row = await tx.hourlyRate.create({
+        data: {
+          organizationId: org.organizationId,
+          employeeId,
+          hourlyRate,
+          createdById: user.userId,
+        },
+      });
+      await this.audit.record(tx, {
+        organizationId: org.organizationId,
+        actor: actorFor(user),
+        action: 'hourly_rate.set',
+        entity: 'membership',
+        entityId: member.id,
+        before: { hourlyRate: before?.hourlyRate ?? null },
+        after: { hourlyRate, effectiveFrom: row.effectiveFrom },
+      });
+      return { employeeId, hourlyRate, effectiveFrom: row.effectiveFrom };
+    });
+  }
+
   private async find(tx: Tx, org: OrgContext, id: string) {
     const row = await tx.salaryAdvance.findFirst({
       where: { id, organizationId: org.organizationId },
@@ -253,4 +301,10 @@ function presentAdvance(a: {
     cancelledAt: a.cancelledAt,
     cancelReason: a.cancelReason,
   };
+}
+
+/** Decided 2026-11-26: hourly cost is owners' business only; the bot never acts as an owner. */
+function ownerOnly(user: AuthUser, org: OrgContext): void {
+  if (!org.owner || user.viaBot)
+    throw Errors.forbidden('Only an owner can see or set hourly cost.');
 }

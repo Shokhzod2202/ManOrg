@@ -262,6 +262,7 @@ model Organization {
   products                   Product[]
   productTypes               ProductType[]
   salaryAdvances             SalaryAdvance[]
+  hourlyRates                HourlyRate[]
   ingredients                Ingredient[]
   productIngredients         ProductIngredient[]
   employeeProducts           EmployeeProduct[]
@@ -1308,4 +1309,23 @@ model SalaryAdvance {
   @@index([organizationId, paidOn])
   @@index([organizationId, employeeId, paidOn])
   @@map("salary_advances")
+}
+
+/// Decided 2026-11-26: what one hour of a person's work costs the organization, in whole won,
+/// set and seen by owners only. Append-only: a change is a new row from that moment, so past
+/// days keep the rate they had.
+model HourlyRate {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  employeeId     String   @map("employee_id") @db.Uuid
+  hourlyRate     Int      @map("hourly_rate")
+  effectiveFrom  DateTime @default(now()) @map("effective_from") @db.Timestamptz(3)
+  createdById    String   @map("created_by") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, employeeId, effectiveFrom])
+  @@map("hourly_rates")
 }
