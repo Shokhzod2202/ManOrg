@@ -247,7 +247,26 @@ describe('remove from everything, or hand over (decided 2026-11-28)', () => {
       })
       .expect(201);
     const id = await remove(leaver);
+    // Decided 2026-11-26: the removed list says what they still hold, and 0 once cleared.
+    const leftoverOf = async () =>
+      (await admin().get('/members?status=removed').expect(200)).body.items.find(
+        (m: { id: string }) => m.id === id,
+      ).leftover;
+    expect(await leftoverOf()).toMatchObject({ teams: 1, tasks: 1, repeatingTasks: 1 });
+    expect((await leftoverOf()).total).toBeGreaterThan(2);
     await admin().post(`/members/${id}/hand-over`).send({ toUserId: null }).expect(200);
+    expect(await leftoverOf()).toEqual({
+      shiftDays: 0,
+      teams: 0,
+      tasks: 0,
+      repeatingTasks: 0,
+      ingredients: 0,
+      products: 0,
+      total: 0,
+    });
+    // Active members are listed without it.
+    const active = (await admin().get('/members').expect(200)).body.items[0];
+    expect(active).not.toHaveProperty('leftover');
     const teamNow = (await admin().get('/teams').expect(200)).body.items.find(
       (x: { id: string }) => x.id === team.body.id,
     );

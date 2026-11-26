@@ -1460,3 +1460,18 @@ table.t.valued tr.sum td.amt {
   font-weight: 500;
   margin-top: 4px;
 }
+/* Decided 2026-11-26: removed members who still hold work first; cleared ones folded away. */
+.removed-row {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+details.cleared summary {
+  cursor: pointer;
+  font-weight: 600;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+}
+details.cleared .removed-row {
+  padding: 8px 0;
+}

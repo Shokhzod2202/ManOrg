@@ -115,7 +115,7 @@ function RemovedMembers() {
   const removed = useApi<{ items: Member[] }>('/members?status=removed');
   const active = useApi<{ items: Member[] }>('/members');
   const [to, setTo] = useState<Record<string, string>>({});
-  const [done, setDone] = useState<Record<string, string>>({});
+  const [done, setDone] = useState<string | null>(null);
   const [err, setErr] = useState<ApiError | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const items = [...(removed.data?.items ?? [])].sort((a, b) =>
@@ -164,20 +164,14 @@ function RemovedMembers() {
     setBusy(m.id);
     try {
       const r = await post<HandOver>(`/members/${m.id}/hand-over`, { toUserId });
-      setDone({
-        ...done,
-        [m.id]: t(
-          'Done: {shifts} shift days, {teams} teams, {tasks} tasks, {rules} repeating tasks, {ingredients} ingredients, {products} products.',
-          {
-            shifts: r.shiftDays,
-            teams: r.teams,
-            tasks: r.tasks,
-            rules: r.repeatingTasks,
-            ingredients: r.ingredients,
-            products: r.products,
-          },
-        ),
-      });
+      setDone(
+        t('Done for {name}: {what}.', {
+          name: m.displayName || m.user.name,
+          what: holdings(r) || t('nothing was left'),
+        }),
+      );
+      // The person moves to Cleared once they hold nothing more.
+      await removed.reload();
       refreshApi('/shifts', '/teams', '/tasks', '/recurring-tasks', '/dashboard', '/ingredients');
     } catch (e) {
       setErr(e as ApiError);
@@ -186,36 +180,58 @@ function RemovedMembers() {
     }
   }
 
+  const waiting = items.filter((m) => (m.leftover?.total ?? 1) > 0);
+  const cleared = items.filter((m) => m.leftover?.total === 0);
+  const undoButton = (m: Member) =>
+    undoable(m.removedAt) && (iAmOwner || m.role === 'employee') ? (
+      <span className="row" style={{ gap: 6 }}>
+        <span className="muted small">{undoLeft(m.removedAt!)}</span>
+        <button
+          className="btn ghost small-btn"
+          disabled={busy === m.id}
+          onClick={() => void undo(m)}
+        >
+          {t('Undo remove')}
+        </button>
+      </span>
+    ) : null;
+  const who = (m: Member) => (
+    <span className="row" style={{ gap: 10 }}>
+      <Avatar name={m.user.name} url={m.user.avatarUrl} size={32} />
+      <b>{m.displayName || m.user.name}</b>
+      {m.removedAt ? (
+        <span className="muted small">
+          {t('removed {date}', { date: formatDate(m.removedAt.slice(0, 10)) })}
+        </span>
+      ) : null}
+    </span>
+  );
+
   return (
     <section className="card">
       <h2>{t('Removed members')}</h2>
       <p className="muted small" style={{ margin: 0 }}>
         {t(
-          'Their past shifts, punches, output and tasks stay, marked removed. Clear what they still had for the future, or give it to another employee.',
+          'Their past shifts, punches, output and tasks stay, marked removed. Hand what they still hold to another employee, or clear it.',
         )}
       </p>
       <ErrorBox error={removed.error ?? err} />
-      {items.map((m) => (
-        <div key={m.id} className="stack" style={{ gap: 6 }}>
+      {done ? (
+        <span className="pill ok" role="status">
+          {done}
+        </span>
+      ) : null}
+      {waiting.map((m) => (
+        <div key={m.id} className="stack removed-row" style={{ gap: 6 }}>
           <div className="row between wrap">
-            <span className="row" style={{ gap: 10 }}>
-              <Avatar name={m.user.name} url={m.user.avatarUrl} size={32} />
-              <b>{m.displayName || m.user.name}</b>
-              {m.removedAt ? (
-                <span className="muted small">
-                  {t('removed {date}', { date: formatDate(m.removedAt.slice(0, 10)) })}
-                </span>
-              ) : null}
-            </span>
-            {undoable(m.removedAt) && (iAmOwner || m.role === 'employee') ? (
-              <span className="row" style={{ gap: 6 }}>
-                <span className="muted small">{undoLeft(m.removedAt!)}</span>
-                <button className="btn" disabled={busy === m.id} onClick={() => void undo(m)}>
-                  {t('Undo remove')}
-                </button>
-              </span>
-            ) : null}
+            {who(m)}
+            {undoButton(m)}
           </div>
+          {m.leftover ? (
+            <span className="small" style={{ color: 'var(--warn-ink)' }}>
+              {t('Still has: {what}', { what: holdings(m.leftover) })}
+            </span>
+          ) : null}
           <div className="row wrap">
             <select
               className="input"
@@ -246,11 +262,47 @@ function RemovedMembers() {
               {t('Remove from shifts and teams')}
             </button>
           </div>
-          {done[m.id] ? <span className="pill ok">{done[m.id]}</span> : null}
         </div>
       ))}
+      {!waiting.length ? (
+        <p className="muted small" style={{ margin: 0 }}>
+          {t('Nothing left to hand over: everyone removed is cleared.')}
+        </p>
+      ) : null}
+      {cleared.length ? (
+        <details className="cleared">
+          <summary>{t('Cleared ({n})', { n: cleared.length })}</summary>
+          {cleared.map((m) => (
+            <div key={m.id} className="row between wrap removed-row">
+              {who(m)}
+              {undoButton(m)}
+            </div>
+          ))}
+        </details>
+      ) : null}
     </section>
   );
+}
+
+/** What a removed person still holds, as short parts ("3 shift days · 1 team"). */
+function holdings(
+  h: Pick<
+    HandOver,
+    'shiftDays' | 'teams' | 'tasks' | 'repeatingTasks' | 'ingredients' | 'products'
+  >,
+): string {
+  const part = (n: number, one: string, many: string) =>
+    n === 1 ? t(one) : n ? t(many, { n }) : '';
+  return [
+    part(h.shiftDays, '1 shift day', '{n} shift days'),
+    part(h.teams, '1 team', '{n} teams'),
+    part(h.tasks, '1 open task', '{n} open tasks'),
+    part(h.repeatingTasks, '1 repeating task', '{n} repeating tasks'),
+    part(h.ingredients, '1 ingredient to order', '{n} ingredients to order'),
+    part(h.products, '1 product', '{n} products'),
+  ]
+    .filter(Boolean)
+    .join(' · ');
 }
 
 /**

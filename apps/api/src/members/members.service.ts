@@ -75,14 +75,104 @@ export class MembersService {
         include: { user: { select: userFields } },
         ...pageArgs(input),
       });
+      const left =
+        input.status === 'removed'
+          ? await this.leftovers(
+              tx,
+              org.organizationId,
+              rows.map((r) => r.userId),
+            )
+          : null;
       const withAvatars = await Promise.all(
         rows.map(async (r) => ({
           ...r,
           avatarUrl: r.user.avatarKey ? await this.storage.signedUrl(r.user.avatarKey) : null,
         })),
       );
-      return toPage(withAvatars, input, present);
+      return toPage(withAvatars, input, (m) => ({
+        ...present(m),
+        ...(left ? { leftover: left(m.user.id) } : {}),
+      }));
     });
+  }
+
+  /**
+   * Decided 2026-11-26: what a removed person still holds for the future (the things hand-over
+   * clears or hands on), so the admin sees who still needs attention and who is done.
+   */
+  private async leftovers(tx: Tx, organizationId: string, userIds: string[]) {
+    const ids = { in: userIds };
+    const [shifts, places, ownTeams, tasks, assigneeTasks, rules, ingredients, products] =
+      await Promise.all([
+        tx.shift.groupBy({
+          by: ['employeeId'],
+          where: { organizationId, employeeId: ids },
+          _count: true,
+        }),
+        tx.teamMember.groupBy({
+          by: ['employeeId'],
+          where: { organizationId, employeeId: ids, team: { deletedAt: null } },
+          _count: true,
+        }),
+        tx.team.groupBy({
+          by: ['ownerId'],
+          where: { organizationId, ownerId: ids, shared: false, deletedAt: null },
+          _count: true,
+        }),
+        tx.task.findMany({
+          where: { organizationId, status: 'open', assigneeId: ids },
+          select: { id: true, assigneeId: true },
+        }),
+        tx.taskAssignee.findMany({
+          where: { organizationId, employeeId: ids, task: { status: 'open' } },
+          select: { taskId: true, employeeId: true },
+        }),
+        tx.recurringTask.findMany({
+          // A paused rule makes no more tasks, so it no longer counts.
+          where: {
+            organizationId,
+            active: true,
+            OR: [{ assigneeId: ids }, { assigneeIds: { hasSome: userIds } }],
+          },
+          select: { assigneeId: true, assigneeIds: true },
+        }),
+        tx.ingredientResponsibility.groupBy({
+          by: ['employeeId'],
+          where: { organizationId, employeeId: ids },
+          _count: true,
+        }),
+        tx.employeeProduct.groupBy({
+          by: ['employeeId'],
+          where: { organizationId, employeeId: ids },
+          _count: true,
+        }),
+      ]);
+    const count = <K extends string>(
+      rows: ({ _count: number } & Record<K, string | null>)[],
+      key: K,
+    ) => new Map(rows.map((r) => [r[key], r._count]));
+    const shiftN = count(shifts, 'employeeId');
+    const teamN = count(places, 'employeeId');
+    const ownN = count(ownTeams, 'ownerId');
+    const ingredientN = count(ingredients, 'employeeId');
+    const productN = count(products, 'employeeId');
+    return (userId: string) => {
+      const taskIds = new Set([
+        ...tasks.filter((t) => t.assigneeId === userId).map((t) => t.id),
+        ...assigneeTasks.filter((a) => a.employeeId === userId).map((a) => a.taskId),
+      ]);
+      const left = {
+        shiftDays: shiftN.get(userId) ?? 0,
+        teams: (teamN.get(userId) ?? 0) + (ownN.get(userId) ?? 0),
+        tasks: taskIds.size,
+        repeatingTasks: rules.filter(
+          (r) => r.assigneeId === userId || r.assigneeIds.includes(userId),
+        ).length,
+        ingredients: ingredientN.get(userId) ?? 0,
+        products: productN.get(userId) ?? 0,
+      };
+      return { ...left, total: Object.values(left).reduce((n, x) => n + x, 0) };
+    };
   }
 
   create(user: AuthUser, org: OrgContext, input: CreateMemberInput) {

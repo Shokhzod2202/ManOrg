@@ -3786,6 +3786,16 @@ export interface components {
             ownerGrantedBy?: string | null;
             /** Format: date-time */
             ownerGrantedAt?: string | null;
+            /** @description Only when listing removed members (status=removed): what the person still holds for the future, which hand-over clears or hands on (decided 2026-11-26). total 0 means done. */
+            leftover?: {
+                shiftDays: number;
+                teams: number;
+                tasks: number;
+                repeatingTasks: number;
+                ingredients: number;
+                products: number;
+                total: number;
+            };
             /** @description The name the organization's admins gave the person; shown instead of the account name (user.name) everywhere inside the organization. */
             displayName: string | null;
             /** @description The person's title here, e.g. Head baker. */

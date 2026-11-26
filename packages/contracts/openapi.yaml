@@ -5870,6 +5870,20 @@ components:
           format: uuid
           description: The owner who made this person an owner; that owner may undo it for 3 days after ownerGrantedAt (decided 2026-11-30).
         ownerGrantedAt: { type: [string, 'null'], format: date-time }
+        leftover:
+          type: object
+          description: >-
+            Only when listing removed members (status=removed): what the person still holds for the
+            future, which hand-over clears or hands on (decided 2026-11-26). total 0 means done.
+          required: [shiftDays, teams, tasks, repeatingTasks, ingredients, products, total]
+          properties:
+            shiftDays: { type: integer }
+            teams: { type: integer }
+            tasks: { type: integer }
+            repeatingTasks: { type: integer }
+            ingredients: { type: integer }
+            products: { type: integer }
+            total: { type: integer }
         displayName:
           type: [string, 'null']
           description: The name the organization's admins gave the person; shown instead of the account name (user.name) everywhere inside the organization.
