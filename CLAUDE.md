@@ -23,6 +23,7 @@ Multi-organization app for a bakery's operations: shifts and punch cards, daily 
 7. The AI bot is phase 2. It uses the same API and permission checks; no delete tools.
 8. "Next order" means the order due for delivery next, never the order dated tomorrow. Today's Orders and My Orders select by delivery due and must not change at midnight, so night shifts see one stable list (spec TOD-1 to TOD-7).
 9. Validate every request body with a schema. No business logic in route handlers; use service modules.
+10. The app is tested with real data: migrations only add. Never drop a column, table or type, empty a table, delete rows or change a column's type; leave unused columns in place (marked unused in `schema.prisma`) so a rollback stays possible. A destructive change needs the product owner's written approval in the migration (`test/migrations.test.ts` enforces this).
 
 ## Workflow
 - Work one requirement ID at a time (e.g. SHF-3). Branch `feature/<id>-short-name`; Conventional Commits.

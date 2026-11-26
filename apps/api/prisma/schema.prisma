@@ -526,6 +526,9 @@ model ProductIngredient {
   /// quantity per 10 units.
   batchQuantity  Decimal?  @map("batch_quantity") @db.Decimal(12, 3)
   batchUnit      PackUnit? @map("batch_unit")
+  /// Unused since 2026-12-01 (replaced by batch_quantity and batch_unit). Kept, not dropped, so
+  /// the previous version can be rolled back to (product owner, 2026-11-26).
+  quantityPer10  Decimal?  @map("quantity_per_10") @db.Decimal(12, 3)
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 

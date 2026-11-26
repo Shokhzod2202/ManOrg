@@ -24,4 +24,6 @@ ALTER TABLE "products" FORCE ROW LEVEL SECURITY;
 ALTER TABLE "product_ingredients" FORCE ROW LEVEL SECURITY;
 ALTER TABLE "ingredients" FORCE ROW LEVEL SECURITY;
 
-ALTER TABLE "product_ingredients" DROP COLUMN "quantity_per_10";
+-- Decided 2026-11-26 (product owner): while the app is tested with real data, no migration deletes
+-- a column, table or rows. "quantity_per_10" stays, unused, so the previous version can still be
+-- rolled back to at any time.
