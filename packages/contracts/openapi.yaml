@@ -4715,7 +4715,8 @@ components:
           type: array
           items:
             type: object
-            required: [employee, removedOn, minutes, daysWorked, unfinished, days, advances]
+            required:
+              [employee, removedOn, minutes, daysWorked, unfinished, openSince, days, advances]
             properties:
               employee: { $ref: '#/components/schemas/PersonRef' }
               removedOn: { type: [string, 'null'], format: date }
@@ -4724,6 +4725,10 @@ components:
               unfinished:
                 type: integer
                 description: Shifts still open or never ended; counted once ended.
+              openSince:
+                type: array
+                description: When each of those shifts started (decided 2026-11-26).
+                items: { type: string, format: date-time }
               days:
                 type: array
                 items:
@@ -5042,14 +5047,29 @@ components:
           type: array
           items:
             type: object
-            required: [employee, removedOn, workedMinutes, flags, output]
+            required: [employee, removedOn, workedMinutes, flags, output, onShift, carriedOver]
             properties:
               employee: { $ref: '#/components/schemas/PersonRef' }
               removedOn:
                 type: [string, 'null']
                 format: date
                 description: Set when the person was removed (decided 2026-11-28); days after it are not shown.
-              workedMinutes: { type: integer }
+              workedMinutes:
+                type: integer
+                description: Shifts that started on this day (a shift belongs to the day it started).
+              onShift: { type: boolean, description: A shift of this day has not ended yet. }
+              carriedOver:
+                description: >-
+                  A shift from the day before that ran past midnight into this day. Its hours are
+                  counted on startedOn, not here (decided 2026-11-26).
+                oneOf:
+                  - type: object
+                    required: [startedOn, minutes, ongoing]
+                    properties:
+                      startedOn: { type: string, format: date }
+                      minutes: { type: integer }
+                      ongoing: { type: boolean }
+                  - type: 'null'
               flags: { type: array, items: { $ref: '#/components/schemas/Flag' } }
               output: { $ref: '#/components/schemas/OutputDay' }
         totals:

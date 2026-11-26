@@ -397,8 +397,10 @@ export class OutputService {
         }))
         .filter((m) => !m.removedOn || m.removedOn >= date);
       const ids = members.map((m) => m.id);
+      // The day before too: a night shift that started then and ran into this day is counted
+      // there (a shift belongs to the day it started), and is pointed out here (decided 2026-11-26).
       const [timesheets, output] = await Promise.all([
-        this.timesheet.days(tx, org.organizationId, clock, ids, date, date),
+        this.timesheet.days(tx, org.organizationId, clock, ids, addDays(date, -1), date),
         this.days(tx, org, ids, date, date),
       ]);
       const lines = await this.lines(tx, org, date, date);
@@ -415,8 +417,10 @@ export class OutputService {
         employees: members.map((m) => ({
           employee: { id: m.id, name: m.name, title: m.title },
           removedOn: m.removedOn,
-          workedMinutes: timesheets.get(m.id)?.[0]?.workedMinutes ?? 0,
-          flags: timesheets.get(m.id)?.[0]?.flags ?? [],
+          workedMinutes: timesheets.get(m.id)?.[1]?.workedMinutes ?? 0,
+          flags: timesheets.get(m.id)?.[1]?.flags ?? [],
+          onShift: (timesheets.get(m.id)?.[1]?.sessions ?? []).some((x) => x.status !== 'ended'),
+          carriedOver: carriedOver(timesheets.get(m.id)?.[0], date, clock.timezone),
           output: output.get(m.id)?.[0],
         })),
         totals: [...totals.entries()].map(([productId, quantity]) => ({
@@ -554,4 +558,35 @@ export class OutputService {
     });
     return new Map(rows.map((r) => [r.id, r.name]));
   }
+}
+
+/**
+ * Decided 2026-11-26: a shift from the day before that ran past midnight into `date`. It is
+ * counted on the day it started; Output shows it on the next day as a pointer, not as hours.
+ */
+function carriedOver(
+  dayBefore:
+    | {
+        date: string;
+        sessions: {
+          startedAt: Date;
+          endedAt: Date | null;
+          status: string;
+          workedMinutes: number;
+        }[];
+      }
+    | undefined,
+  date: string,
+  timezone: string,
+) {
+  const now = new Date();
+  const into = (dayBefore?.sessions ?? []).filter(
+    (s) => localDate(timezone, s.endedAt ?? (s.status === 'ended' ? s.startedAt : now)) >= date,
+  );
+  if (!dayBefore || !into.length) return null;
+  return {
+    startedOn: dayBefore.date,
+    minutes: into.reduce((n, s) => n + s.workedMinutes, 0),
+    ongoing: into.some((s) => s.status !== 'ended'),
+  };
 }

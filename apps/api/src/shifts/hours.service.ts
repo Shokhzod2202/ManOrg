@@ -95,13 +95,13 @@ export class HoursService {
           now,
         );
         const byDate = new Map<string, { minutes: number; shifts: number }>();
-        let unfinished = 0;
+        const open: Date[] = [];
         for (const s of sessions) {
           const date = localDate(timezone, s.startedAt);
           if (date < from || date > to) continue;
           // Still working, paused, or End Shift forgotten: not counted until it is ended.
           if (s.status !== 'ended' || !s.endedAt) {
-            unfinished += 1;
+            open.push(s.startedAt);
             continue;
           }
           const d = byDate.get(date) ?? { minutes: 0, shifts: 0 };
@@ -119,7 +119,9 @@ export class HoursService {
             m.status === 'removed' && m.removedAt ? localDate(timezone, m.removedAt) : null,
           minutes: days.reduce((n, d) => n + d.minutes, 0),
           daysWorked: days.length,
-          unfinished,
+          unfinished: open.length,
+          // Decided 2026-11-26: when each of those started, so a forgotten End Shift is found.
+          openSince: open,
           days,
           advances: {
             total: own.filter((a) => !a.cancelledAt).reduce((n, a) => n + a.amount, 0),

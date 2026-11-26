@@ -7,6 +7,7 @@ import { Empty, ErrorBox, Flag, Loading, PageHead } from '../../../components/ui
 import {
   type ApiError,
   del,
+  formatDate,
   formatMinutes,
   patch,
   post,
@@ -88,7 +89,10 @@ function MyOutput() {
 
   return (
     <div className="page">
-      <PageHead title={t('Output')}>
+      <PageHead
+        title={t('Output')}
+        sub={t('A shift counts on the day it started, so a night shift shows on the day before.')}
+      >
         <input
           className="input"
           type="date"
@@ -216,7 +220,10 @@ function AdminOutput() {
   );
   return (
     <div className="page wide">
-      <PageHead title={t('Output')}>
+      <PageHead
+        title={t('Output')}
+        sub={t('A shift counts on the day it started, so a night shift shows on the day before.')}
+      >
         <input
           className="input"
           type="date"
@@ -262,7 +269,35 @@ function AdminOutput() {
                         </div>
                       ))}
                     </td>
-                    <td data-label={t('Worked')}>{formatMinutes(e.workedMinutes)}</td>
+                    <td data-label={t('Worked')}>
+                      <div className="worked-cell">
+                        <span>
+                          {formatMinutes(e.workedMinutes)}
+                          {e.onShift ? (
+                            <span className="pill" style={{ marginLeft: 6 }}>
+                              {t('still on shift')}
+                            </span>
+                          ) : null}
+                        </span>
+                        {/* Decided 2026-11-26: a shift is counted on the day it started. */}
+                        {e.carriedOver ? (
+                          <button
+                            type="button"
+                            className="carried"
+                            onClick={() => setDate(e.carriedOver!.startedOn)}
+                          >
+                            {e.carriedOver.ongoing
+                              ? t('Shift from {date} not ended yet', {
+                                  date: formatDate(e.carriedOver.startedOn),
+                                })
+                              : t('Night shift from {date}: {time}, counted on that day', {
+                                  date: formatDate(e.carriedOver.startedOn),
+                                  time: formatMinutes(e.carriedOver.minutes),
+                                })}
+                          </button>
+                        ) : null}
+                      </div>
+                    </td>
                     <td data-label={t('Items')}>
                       {Math.round(e.output.creditedQuantity * 10) / 10}
                     </td>

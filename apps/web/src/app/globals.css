@@ -1475,3 +1475,40 @@ details.cleared summary {
 details.cleared .removed-row {
   padding: 8px 0;
 }
+/* Decided 2026-11-26: a night shift from the day before, pointed out on Output. */
+button.carried {
+  display: block;
+  margin-top: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--primary);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.open-shifts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+.worked-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.worked-cell button.carried {
+  text-align: right;
+}
+@media (min-width: 761px) {
+  .worked-cell {
+    align-items: flex-start;
+  }
+  .worked-cell button.carried {
+    text-align: left;
+  }
+}

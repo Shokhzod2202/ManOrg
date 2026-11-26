@@ -71,6 +71,7 @@ describe('worked hours (punch cards only)', () => {
       { date: d(10), minutes: 480, shifts: 1 },
     ]);
     expect(row).toMatchObject({ minutes: 930, daysWorked: 2, unfinished: 1 });
+    expect(row.openSince).toEqual([zonedToUtc(d(20), '08:00', TZ).toISOString()]);
     // People who never punched are listed with zero; the shift plan never adds hours.
     const none = res.body.people.find(
       (p: { employee: { id: string } }) => p.employee.id === idle.userId,
@@ -89,6 +90,26 @@ describe('worked hours (punch cards only)', () => {
       .expect(403);
     await api.as(w.contractor.admin, w.contractor.id).get('/work-hours').expect(403);
     await admin().get('/work-hours?month=2026-13').expect(400);
+  });
+});
+
+describe('a night shift on Output (decided 2026-11-26)', () => {
+  it('counts on the day it started and is pointed out on the next day', async () => {
+    const rowOf = async (date: string) =>
+      (await admin().get(`/dashboard/shift-output?date=${date}`).expect(200)).body.employees.find(
+        (e: { employee: { id: string } }) => e.employee.id === joon.userId,
+      );
+    expect(await rowOf(d(10))).toMatchObject({
+      workedMinutes: 480,
+      onShift: false,
+      carriedOver: null,
+    });
+    expect(await rowOf(d(11))).toMatchObject({
+      workedMinutes: 0,
+      carriedOver: { startedOn: d(10), minutes: 480, ongoing: false },
+    });
+    // A shift never ended shows as still on shift on its day.
+    expect(await rowOf(d(20))).toMatchObject({ onShift: true });
   });
 });
 

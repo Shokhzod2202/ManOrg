@@ -885,4 +885,13 @@ export const ko: Record<string, string> = {
   '1 repeating task': '반복 업무 1개',
   '1 ingredient to order': '주문 담당 재료 1개',
   '1 product': '제품 1개',
+  'A shift counts on the day it started, so a night shift shows on the day before.':
+    '근무는 시작한 날짜에 포함되므로 야간 근무는 전날에 표시됩니다.',
+  'still on shift': '근무 중',
+  'Night shift from {date}: {time}, counted on that day': '{date} 야간 근무: {time}, 그날에 포함됨',
+  'not ended': '미종료',
+  'Not ended: started {date} {time}. It counts once ended.':
+    '미종료: {date} {time} 시작. 끝나면 포함됩니다.',
+  'Fix in Shifts': '근무에서 수정',
+  'Shift from {date} not ended yet': '{date} 시작 근무가 아직 끝나지 않음',
 };

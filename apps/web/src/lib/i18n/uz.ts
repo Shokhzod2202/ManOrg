@@ -897,4 +897,14 @@ export const uz: Record<string, string> = {
   '1 repeating task': '1 takroriy vazifa',
   '1 ingredient to order': 'buyurtma qilinadigan 1 ingredient',
   '1 product': '1 mahsulot',
+  'A shift counts on the day it started, so a night shift shows on the day before.':
+    'Smena boshlangan kuniga hisoblanadi, shuning uchun tungi smena oldingi kunda koʻrinadi.',
+  'still on shift': 'hali smenada',
+  'Night shift from {date}: {time}, counted on that day':
+    '{date} dagi tungi smena: {time}, oʻsha kunga hisoblangan',
+  'not ended': 'tugatilmagan',
+  'Not ended: started {date} {time}. It counts once ended.':
+    'Tugatilmagan: {date} {time} da boshlangan. Tugagach hisoblanadi.',
+  'Fix in Shifts': 'Smenalarda tuzatish',
+  'Shift from {date} not ended yet': '{date} dagi smena hali tugatilmagan',
 };

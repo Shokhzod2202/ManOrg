@@ -1,10 +1,18 @@
 'use client';
 
+import Link from 'next/link';
 import { type FormEvent, useState } from 'react';
 import { confirmAction } from '../../../components/confirm';
 import { won } from '../../../components/orders/value';
 import { Empty, ErrorBox, Icon, Loading, PageHead } from '../../../components/ui';
-import { type ApiError, formatDate, formatMinutes, post, type Schemas } from '../../../lib/api';
+import {
+  type ApiError,
+  formatDate,
+  formatMinutes,
+  formatTime,
+  post,
+  type Schemas,
+} from '../../../lib/api';
 import { getLocale, INTL, t } from '../../../lib/i18n';
 import { useSession } from '../../../lib/session';
 import { refreshApi, useApi } from '../../../lib/use-api';
@@ -13,6 +21,14 @@ type Month = Schemas['WorkHoursMonth'];
 type Person = Month['people'][number];
 type Advance = Schemas['SalaryAdvance'];
 
+/** The organization's local date of an instant, as YYYY-MM-DD. */
+const localDay = (iso: string, timeZone: string) =>
+  new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(iso));
 const shiftMonth = (month: string, by: number) => {
   const [y, m] = month.split('-').map(Number) as [number, number];
   const d = new Date(Date.UTC(y, m - 1 + by, 1));
@@ -170,6 +186,24 @@ function PersonHours({
           ) : (
             <p className="muted small">{t('No finished shifts this month.')}</p>
           )}
+          {/* Decided 2026-11-26: when each shift that has not ended started. */}
+          {p.openSince.length ? (
+            <div className="open-shifts">
+              {p.openSince.map((at) => (
+                <span key={at} className="hint-bad">
+                  {t('Not ended: started {date} {time}. It counts once ended.', {
+                    date: formatDate(localDay(at, month.timezone)),
+                    time: formatTime(at, month.timezone),
+                  })}
+                </span>
+              ))}
+              {admin ? (
+                <Link className="small" href="/app/shifts">
+                  {t('Fix in Shifts')}
+                </Link>
+              ) : null}
+            </div>
+          ) : null}
         </div>
         <Advances person={p} month={month} admin={admin} onChanged={onChanged} />
       </div>

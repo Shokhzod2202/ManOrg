@@ -2933,6 +2933,8 @@ export interface components {
                 daysWorked: number;
                 /** @description Shifts still open or never ended; counted once ended. */
                 unfinished: number;
+                /** @description When each of those shifts started (decided 2026-11-26). */
+                openSince: string[];
                 days: {
                     /** Format: date */
                     date: string;
@@ -3208,7 +3210,17 @@ export interface components {
                  * @description Set when the person was removed (decided 2026-11-28); days after it are not shown.
                  */
                 removedOn: string | null;
+                /** @description Shifts that started on this day (a shift belongs to the day it started). */
                 workedMinutes: number;
+                /** @description A shift of this day has not ended yet. */
+                onShift: boolean;
+                /** @description A shift from the day before that ran past midnight into this day. Its hours are counted on startedOn, not here (decided 2026-11-26). */
+                carriedOver: {
+                    /** Format: date */
+                    startedOn: string;
+                    minutes: number;
+                    ongoing: boolean;
+                } | null;
                 flags: components["schemas"]["Flag"][];
                 output: components["schemas"]["OutputDay"];
             }[];
