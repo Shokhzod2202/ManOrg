@@ -40,6 +40,8 @@ export function navFor(actor: Actor | null): Item[] {
       { href: '/app/output', label: 'Output', icon: 'output' },
       { href: '/app/shifts', label: 'Shifts', icon: 'shifts' },
       { href: '/app/hours', label: 'Work hours', icon: 'clock' },
+      // Decided 2026-11-28: their own output, day by day.
+      { href: '/app/output-history', label: 'Output history', icon: 'list' },
       { href: '/app/tasks', label: 'Tasks', icon: 'tasks' },
       { href: '/app/ingredients', label: 'Ingredients', icon: 'ingredients' },
       { href: '/app/settings', label: 'Settings', icon: 'settings' },

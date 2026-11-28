@@ -963,4 +963,8 @@ export const uz: Record<string, string> = {
   'team {team}: {n} in all': '{team} jamoasi: jami {n}',
   '{n} days with output have no finished shift and are left out of pace.':
     'Ishlab chiqarish bor, lekin tugagan smenasi yoʻq {n} kun surʼatdan chiqarildi.',
+  'Output history': 'Ishlab chiqarish tarixi',
+  'My output': 'Mening ishlab chiqarishim',
+  '{n} pieces on {d} days': '{d} kunda {n} dona',
+  'No product matches.': 'Mos mahsulot yoʻq.',
 };

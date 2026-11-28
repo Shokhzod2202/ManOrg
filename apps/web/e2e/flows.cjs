@@ -1055,6 +1055,37 @@ async function rowAction(page, rowText, action) {
   );
   if (!dayCards || paceShown !== 1 || !effAgain) throw new Error('Output day by day failed');
 
+  // 30. Decided 2026-11-28. An employee's own output history (More → Output history): the
+  // month's days with their products, searchable by product.
+  const histPage = await as(b, 'mina@sunrise.test', { width: 390, height: 844 });
+  await histPage.goto(`${W}/app/more`);
+  await histPage.click('.page .card a:has-text("Output history")');
+  const histDays = await histPage
+    .locator('[data-testid=output-day]')
+    .first()
+    .waitFor({ timeout: 10000 })
+    .then(
+      () => histPage.locator('[data-testid=output-day]').count(),
+      () => 0,
+    );
+  const firstProduct = (await histPage.locator('.batch-list li span').first().innerText()).trim();
+  await histPage.fill('input[type=search]', firstProduct.slice(0, 3));
+  const searched = await histPage
+    .locator('[data-testid=search-found]')
+    .waitFor({ timeout: 5000 })
+    .then(
+      () => histPage.textContent('[data-testid=search-found]'),
+      () => '',
+    );
+  await histPage.context().close();
+  log(
+    '30 output history: days shown =',
+    histDays,
+    `| search "${firstProduct.slice(0, 3)}":`,
+    searched,
+  );
+  if (!histDays || !searched) throw new Error('Output history failed');
+
   await b.close();
 })().catch((e) => {
   console.error('FAILED', e.message.slice(0, 400));

@@ -950,4 +950,8 @@ export const ko: Record<string, string> = {
   'team {team}: {n} in all': '{team} 팀: 전체 {n}개',
   '{n} days with output have no finished shift and are left out of pace.':
     '생산 기록은 있지만 끝난 근무가 없는 {n}일은 속도 계산에서 빠졌습니다.',
+  'Output history': '생산 기록',
+  'My output': '내 생산량',
+  '{n} pieces on {d} days': '{d}일 동안 {n}개',
+  'No product matches.': '일치하는 제품이 없습니다.',
 };
