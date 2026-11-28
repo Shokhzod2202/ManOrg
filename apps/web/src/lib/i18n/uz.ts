@@ -971,4 +971,12 @@ export const uz: Record<string, string> = {
   'Hours without output logged.': 'Ishlab chiqarish yozilmagan soatlar.',
   'Open Shifts': 'Smenalarni ochish',
   'Close the list': 'Roʻyxatni yopish',
+  pack: 'qadoq',
+  'Ordered by: {names}': 'Buyurtma qiladi: {names}',
+  'nobody yet': 'hali hech kim',
+  'More for {name}': '{name} uchun boshqa',
+  packs: 'qadoq',
+  'A new price applies from now on.': 'Yangi narx hozirdan boshlab qoʻllanadi.',
+  'Who orders it': 'Kim buyurtma qiladi',
+  'Saved. The new price applies from now on.': 'Saqlandi. Yangi narx hozirdan boshlab qoʻllanadi.',
 };

@@ -1650,3 +1650,18 @@ button.kpi.on {
   border-color: var(--primary);
   box-shadow: 0 0 0 2px var(--soft);
 }
+/* Decided 2026-11-28: a quiet ingredient card. */
+.ing-card {
+  gap: 10px;
+}
+.ing-price {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.ing-actions {
+  gap: 8px;
+}
+.ing-edit {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}

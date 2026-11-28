@@ -1114,6 +1114,36 @@ async function rowAction(page, rowText, action) {
   log('31 On shift now opens the list:', onShiftPanel);
   if (!onShiftPanel) throw new Error('On shift now did not open');
 
+  // 32. Decided 2026-11-28. An ingredient card is Ask to order, Edit and ⋯. Edit changes the
+  // price (and anything else) in one form; ⋯ → Price history shows it.
+  await boss.goto(`${W}/app/ingredients`);
+  const ingCard = boss.locator('.ing-card').first();
+  await ingCard.waitFor();
+  const cardButtons = await ingCard.locator('.ing-actions > button').count();
+  await ingCard.locator('button:has-text("Edit")').click();
+  const priceBox = ingCard.locator('label:has-text("Price per pack") input');
+  const oldPrice = Number(await priceBox.inputValue()) || 1000;
+  await priceBox.fill(String(oldPrice + 100));
+  await ingCard.locator('.ing-edit button:has-text("Save")').click();
+  await ingCard.locator('.pill.ok').waitFor();
+  await ingCard.locator('.more-btn').click();
+  await ingCard.locator('.more-list button:has-text("Price history")').click();
+  const historyRows = await ingCard
+    .locator('table.t tr')
+    .first()
+    .waitFor({ timeout: 8000 })
+    .then(
+      () => ingCard.locator('table.t tr').count(),
+      () => 0,
+    );
+  log(
+    '32 ingredient card buttons:',
+    cardButtons,
+    '| price saved from Edit | history rows:',
+    historyRows,
+  );
+  if (cardButtons > 2 || historyRows < 2) throw new Error('Ingredient card failed');
+
   await b.close();
 })().catch((e) => {
   console.error('FAILED', e.message.slice(0, 400));

@@ -958,4 +958,12 @@ export const ko: Record<string, string> = {
   'Hours without output logged.': '생산 기록 없이 근무한 시간입니다.',
   'Open Shifts': '근무 화면 열기',
   'Close the list': '목록 닫기',
+  pack: '팩',
+  'Ordered by: {names}': '주문 담당: {names}',
+  'nobody yet': '아직 없음',
+  'More for {name}': '{name} 더 보기',
+  packs: '팩',
+  'A new price applies from now on.': '새 가격은 지금부터 적용됩니다.',
+  'Who orders it': '주문 담당자',
+  'Saved. The new price applies from now on.': '저장했습니다. 새 가격은 지금부터 적용됩니다.',
 };
