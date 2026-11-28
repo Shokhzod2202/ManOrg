@@ -65,6 +65,7 @@ function IngredientCard({
     weekday: ing.orderSchedule ? String(ing.orderSchedule.weekday) : '',
     time: ing.orderSchedule?.time ?? '18:00',
     price: ing.packPrice != null ? String(ing.packPrice) : '',
+    waste: ing.wasteQuantity ? String(ing.wasteQuantity) : '',
   });
   const [f, setF] = useState(blank);
   const [packs, setPacks] = useState(1);
@@ -106,12 +107,14 @@ function IngredientCard({
   /** Saves only what changed: the details, the price (from now on) and who orders it. */
   async function saveAll() {
     const schedule = f.weekday === '' ? null : { weekday: Number(f.weekday), time: f.time };
+    const wasteValue = f.waste.trim() === '' ? 0 : Number(f.waste);
     const was = ing.orderSchedule ?? null;
     const detailsChanged =
       f.name.trim() !== ing.name ||
       f.source.trim() !== ing.source ||
       f.packQuantity !== ing.packQuantity ||
       f.packUnit !== ing.packUnit ||
+      wasteValue !== ing.wasteQuantity ||
       JSON.stringify(schedule) !==
         JSON.stringify(was ? { weekday: was.weekday, time: was.time } : null);
     const newPrice = f.price.trim() === '' ? null : Math.max(0, Math.round(Number(f.price)));
@@ -128,6 +131,7 @@ function IngredientCard({
               source: f.source.trim(),
               packQuantity: f.packQuantity,
               packUnit: f.packUnit,
+              wasteQuantity: wasteValue,
               orderSchedule: schedule,
             },
             { ifMatch: ing.version },
@@ -154,8 +158,15 @@ function IngredientCard({
         <div style={{ minWidth: 0 }}>
           <h2>{ing.name}</h2>
           <span className="muted small">
-            {t('{qty} {unit} per pack', { qty: ing.packQuantity, unit: ing.packUnit })} ·{' '}
-            {ing.source}
+            {t('{qty} {unit} per pack', { qty: ing.packQuantity, unit: ing.packUnit })}
+            {ing.wasteQuantity
+              ? ` (${t('{waste} {unit} thrown away, {usable} {unit} usable', {
+                  waste: ing.wasteQuantity,
+                  usable: ing.usableQuantity,
+                  unit: ing.packUnit,
+                })})`
+              : ''}{' '}
+            · {ing.source}
             {ing.orderSchedule
               ? ` · ${t('order {day} by {time}', { day: t(WEEKDAYS[ing.orderSchedule.weekday]), time: ing.orderSchedule.time })}`
               : ''}
@@ -285,6 +296,12 @@ function IngredientCard({
                 </select>
               </span>
             </label>
+            <WasteField
+              value={f.waste}
+              unit={f.packUnit}
+              pack={f.packQuantity}
+              onChange={(waste) => setF({ ...f, waste })}
+            />
             <label className="field">
               {t('Price per pack (won)')}
               <input
@@ -392,6 +409,7 @@ function NewIngredient({ onCreated }: { onCreated: () => void }) {
     packQuantity: 1,
     packUnit: 'kg',
     packPrice: 0,
+    waste: '',
     weekday: '',
     time: '18:00',
   });
@@ -407,6 +425,7 @@ function NewIngredient({ onCreated }: { onCreated: () => void }) {
         packQuantity: f.packQuantity,
         packUnit: f.packUnit,
         packPrice: f.packPrice,
+        ...(f.waste.trim() ? { wasteQuantity: Number(f.waste) } : {}),
         orderSchedule: f.weekday === '' ? null : { weekday: Number(f.weekday), time: f.time },
       });
       setOpen(false);
@@ -457,6 +476,12 @@ function NewIngredient({ onCreated }: { onCreated: () => void }) {
             ))}
           </select>
         </label>
+        <WasteField
+          value={f.waste}
+          unit={f.packUnit}
+          pack={f.packQuantity}
+          onChange={(waste) => setF({ ...f, waste })}
+        />
         <label className="field">
           {t('Price per pack (won)')}
           <input
@@ -487,5 +512,47 @@ function NewIngredient({ onCreated }: { onCreated: () => void }) {
         </button>
       </div>
     </form>
+  );
+}
+
+/**
+ * Decided 2026-11-28: how much of one pack is thrown away (peel, trimmings), e.g. 4 kg of a 20 kg
+ * sack of potatoes. Product costs use what is left.
+ */
+function WasteField({
+  value,
+  unit,
+  pack,
+  onChange,
+}: {
+  value: string;
+  unit: string;
+  pack: number;
+  onChange: (v: string) => void;
+}) {
+  const waste = Number(value) || 0;
+  const usable = Math.round((pack - waste) * 1000) / 1000;
+  return (
+    <label className="field">
+      {t('Thrown away per pack ({unit})', { unit })}
+      <input
+        type="number"
+        min={0}
+        step="any"
+        inputMode="decimal"
+        placeholder={t('e.g. peel, trimmings: 0 if none')}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      {waste > 0 ? (
+        waste >= pack ? (
+          <span className="hint-bad">{t('Must be less than the pack.')}</span>
+        ) : (
+          <span className="muted small">
+            {t('{usable} {unit} of each pack can be used; costs use that.', { usable, unit })}
+          </span>
+        )
+      ) : null}
+    </label>
   );
 }

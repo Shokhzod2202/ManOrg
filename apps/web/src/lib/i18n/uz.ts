@@ -979,4 +979,11 @@ export const uz: Record<string, string> = {
   'A new price applies from now on.': 'Yangi narx hozirdan boshlab qoʻllanadi.',
   'Who orders it': 'Kim buyurtma qiladi',
   'Saved. The new price applies from now on.': 'Saqlandi. Yangi narx hozirdan boshlab qoʻllanadi.',
+  '{waste} {unit} thrown away, {usable} {unit} usable':
+    '{waste} {unit} tashlanadi, {usable} {unit} ishlatiladi',
+  'Thrown away per pack ({unit})': 'Har qadoqdan tashlanadigan ({unit})',
+  'e.g. peel, trimmings: 0 if none': 'masalan, poʻchoq, chiqindi: boʻlmasa 0',
+  'Must be less than the pack.': 'Qadoqdan kam boʻlishi kerak.',
+  '{usable} {unit} of each pack can be used; costs use that.':
+    'Har qadoqdan {usable} {unit} ishlatiladi; tannarx shundan hisoblanadi.',
 };

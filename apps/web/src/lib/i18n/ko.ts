@@ -966,4 +966,10 @@ export const ko: Record<string, string> = {
   'A new price applies from now on.': '새 가격은 지금부터 적용됩니다.',
   'Who orders it': '주문 담당자',
   'Saved. The new price applies from now on.': '저장했습니다. 새 가격은 지금부터 적용됩니다.',
+  '{waste} {unit} thrown away, {usable} {unit} usable': '{waste}{unit} 버림, {usable}{unit} 사용',
+  'Thrown away per pack ({unit})': '팩당 버리는 양 ({unit})',
+  'e.g. peel, trimmings: 0 if none': '예: 껍질, 손질 부분 — 없으면 0',
+  'Must be less than the pack.': '팩보다 적어야 합니다.',
+  '{usable} {unit} of each pack can be used; costs use that.':
+    '팩마다 {usable}{unit}을 쓸 수 있으며, 원가는 이 양으로 계산합니다.',
 };

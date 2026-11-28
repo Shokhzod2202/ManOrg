@@ -33,6 +33,7 @@ type Row = {
   orderScheduleTime: Date | null;
   packQuantity: { toString(): string };
   packUnit: 'g' | 'kg' | 'pc' | 'L' | 'mL';
+  wasteQuantity: { toString(): string };
   version: number;
   createdAt: Date;
   prices: { packPrice: number; effectiveFrom: Date }[];
@@ -58,6 +59,9 @@ export async function packPriceAt(tx: Tx, ingredientId: string, at: Date): Promi
 
 function present(row: Row, view: ViewContext) {
   const packQuantity = Number(row.packQuantity.toString());
+  const wasteQuantity = Number(row.wasteQuantity.toString());
+  // Decided 2026-11-28: costs use what is left after peeling or trimming.
+  const usableQuantity = Math.max(packQuantity - wasteQuantity, 0);
   const current = row.prices[0];
   const responsible = row.responsibilities.map((a) => ({
     id: a.employeeId,
@@ -73,10 +77,15 @@ function present(row: Row, view: ViewContext) {
         : null,
     packQuantity,
     packUnit: row.packUnit,
+    wasteQuantity,
+    usableQuantity,
     ...(view.showPrices
       ? {
           packPrice: current?.packPrice ?? null,
-          unitPrice: current ? Math.round((current.packPrice / packQuantity) * 100) / 100 : null,
+          unitPrice:
+            current && usableQuantity > 0
+              ? Math.round((current.packPrice / usableQuantity) * 100) / 100
+              : null,
           priceEffectiveFrom: current?.effectiveFrom ?? null,
         }
       : {}),
@@ -125,6 +134,7 @@ export class IngredientsService {
   }
 
   create(user: AuthUser, org: OrgContext, input: CreateIngredientInput) {
+    wasteFits(input.packQuantity, input.wasteQuantity);
     return this.db.run(dbContext(user, org), async (tx) => {
       const ingredient = await tx.ingredient.create({
         data: {
@@ -135,6 +145,7 @@ export class IngredientsService {
           orderScheduleTime: input.orderSchedule ? hhmmToTime(input.orderSchedule.time) : null,
           packQuantity: input.packQuantity,
           packUnit: input.packUnit,
+          wasteQuantity: input.wasteQuantity,
         },
       });
       await this.audit.record(tx, {
@@ -163,6 +174,10 @@ export class IngredientsService {
     return this.db.run(dbContext(user, org), async (tx) => {
       const before = await this.find(tx, org, id);
       if (before.version !== version) throw Errors.versionConflict();
+      wasteFits(
+        input.packQuantity ?? Number(before.packQuantity.toString()),
+        input.wasteQuantity ?? Number(before.wasteQuantity.toString()),
+      );
       const result = await tx.ingredient.updateMany({
         where: { id, version },
         data: {
@@ -178,6 +193,7 @@ export class IngredientsService {
             : {}),
           ...(input.packQuantity !== undefined ? { packQuantity: input.packQuantity } : {}),
           ...(input.packUnit !== undefined ? { packUnit: input.packUnit } : {}),
+          ...(input.wasteQuantity !== undefined ? { wasteQuantity: input.wasteQuantity } : {}),
           version: { increment: 1 },
         },
       });
@@ -305,5 +321,14 @@ export class IngredientsService {
       todayWeekday: weekdayIn(organization.timezone),
       names: new Map(users.map((u) => [u.id, u.name])),
     };
+  }
+}
+
+/** Decided 2026-11-28: something must be left of a pack after what is thrown away. */
+function wasteFits(packQuantity: number, wasteQuantity: number): void {
+  if (wasteQuantity >= packQuantity) {
+    throw Errors.validation({
+      wasteQuantity: ['What is thrown away must be less than the pack.'],
+    });
   }
 }

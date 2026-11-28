@@ -62,6 +62,8 @@ const ingredientInput = z.strictObject({
   source: z.string().trim().min(1).max(200).optional().describe('Where it is bought'),
   pack_quantity: z.number().positive().max(1_000_000).optional(),
   pack_unit: z.enum(['g', 'kg', 'pc', 'L', 'mL']).optional(),
+  /** Decided 2026-11-28: how much of one pack is thrown away (peel, trimmings), in pack_unit. */
+  waste_quantity: z.number().min(0).max(1_000_000).optional(),
   pack_price_won: z
     .number()
     .int()
@@ -346,6 +348,7 @@ export class BotTools {
             source: i.source!,
             packQuantity: i.pack_quantity!,
             packUnit: i.pack_unit!,
+            wasteQuantity: i.waste_quantity ?? 0,
             orderSchedule:
               i.order_weekday == null
                 ? null
@@ -358,6 +361,7 @@ export class BotTools {
           ...(i.source !== undefined ? { source: i.source } : {}),
           ...(i.pack_quantity !== undefined ? { packQuantity: i.pack_quantity } : {}),
           ...(i.pack_unit !== undefined ? { packUnit: i.pack_unit } : {}),
+          ...(i.waste_quantity !== undefined ? { wasteQuantity: i.waste_quantity } : {}),
           ...(i.order_weekday !== undefined
             ? {
                 orderSchedule:
@@ -477,6 +481,7 @@ export class BotTools {
     set('source', current.source, i.source);
     set('packQuantity', current.packQuantity, i.pack_quantity);
     set('packUnit', current.packUnit, i.pack_unit);
+    set('thrownAwayPerPack', current.wasteQuantity, i.waste_quantity);
     set('pricePerPack', current.packPrice ?? null, i.pack_price_won);
     if (i.order_weekday !== undefined) {
       set(

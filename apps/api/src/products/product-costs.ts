@@ -22,6 +22,7 @@ export async function productEconomics(tx: Tx, organizationId: string, productId
             select: {
               packQuantity: true,
               packUnit: true,
+              wasteQuantity: true,
               prices: { orderBy: [{ effectiveFrom: 'desc' }, { createdAt: 'desc' }], take: 1 },
             },
           },
@@ -36,7 +37,9 @@ export async function productEconomics(tx: Tx, organizationId: string, productId
           lineCost(
             i.batchQuantity === null ? null : Number(i.batchQuantity.toString()),
             i.batchUnit,
-            Number(i.ingredient.packQuantity.toString()),
+            // Decided 2026-11-28: the usable part of the pack.
+            Number(i.ingredient.packQuantity.toString()) -
+              Number(i.ingredient.wasteQuantity.toString()),
             i.ingredient.packUnit,
             i.ingredient.prices[0]?.packPrice ?? null,
           ),

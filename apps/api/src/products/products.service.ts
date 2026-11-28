@@ -28,6 +28,7 @@ const include = {
           name: true,
           packQuantity: true,
           packUnit: true,
+          wasteQuantity: true,
           // The price per pack in force now: prices take effect when saved, so the latest row
           // (decided 2026-11-12: append-only history).
           prices: {
@@ -489,7 +490,9 @@ export class ProductsService {
       lineCost(
         i.batchQuantity === null ? null : Number(i.batchQuantity.toString()),
         i.batchUnit,
-        Number(i.ingredient.packQuantity.toString()),
+        // Decided 2026-11-28: the usable part of the pack (minus what is thrown away).
+        Number(i.ingredient.packQuantity.toString()) -
+          Number(i.ingredient.wasteQuantity.toString()),
         i.ingredient.packUnit,
         i.ingredient.prices[0]?.packPrice ?? null,
       ),

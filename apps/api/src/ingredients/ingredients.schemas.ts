@@ -5,6 +5,11 @@ const name = z.string().trim().min(1, 'Enter a name.').max(120, 'Use at most 120
 const source = z.string().trim().min(1, 'Enter where it is bought.').max(200);
 const packUnit = z.enum(['g', 'kg', 'pc', 'L', 'mL']);
 const packQuantity = z.number().positive('Must be more than 0.').max(1_000_000).multipleOf(0.001);
+/**
+ * Decided 2026-11-28: how much of one pack is thrown away (peel, trimmings), in the pack unit;
+ * must be less than the pack.
+ */
+const wasteQuantity = z.number().min(0).max(1_000_000).multipleOf(0.001);
 /** Whole won (decided 2026-11-12). */
 export const won = z.number().int('Use whole won.').min(0).max(1_000_000_000);
 
@@ -17,6 +22,7 @@ export const createIngredientSchema = z.strictObject({
   orderSchedule: orderSchedule.default(null),
   packQuantity,
   packUnit,
+  wasteQuantity: wasteQuantity.default(0),
   packPrice: won.optional(),
 });
 
@@ -28,6 +34,7 @@ export const updateIngredientSchema = z
     orderSchedule: orderSchedule.optional(),
     packQuantity: packQuantity.optional(),
     packUnit: packUnit.optional(),
+    wasteQuantity: wasteQuantity.optional(),
   })
   .refine((v) => Object.values(v).some((x) => x !== undefined), 'Send at least one field.');
 

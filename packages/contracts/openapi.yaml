@@ -4553,6 +4553,8 @@ components:
           orderSchedule,
           packQuantity,
           packUnit,
+          wasteQuantity,
+          usableQuantity,
           responsibleEmployees,
           isMyResponsibility,
           dueToday,
@@ -4569,12 +4571,18 @@ components:
             - type: 'null'
         packQuantity: { type: number, description: How much one pack contains, in packUnit. }
         packUnit: { $ref: '#/components/schemas/PackUnit' }
+        wasteQuantity:
+          type: number
+          description: How much of one pack is thrown away (peel, trimmings), in packUnit (decided 2026-11-28).
+        usableQuantity:
+          type: number
+          description: packQuantity minus wasteQuantity; product costs use this.
         packPrice:
           type: [integer, 'null']
           description: Current price per pack in whole won. Only for callers allowed to read prices.
         unitPrice:
           type: [number, 'null']
-          description: packPrice divided by packQuantity, rounded to 0.01 won. Only with packPrice.
+          description: packPrice divided by usableQuantity (the cost of one usable unit), rounded to 0.01 won. Only with packPrice.
         priceEffectiveFrom:
           type: [string, 'null']
           format: date-time
@@ -4605,6 +4613,10 @@ components:
             - type: 'null'
         packQuantity: { type: number, exclusiveMinimum: 0 }
         packUnit: { $ref: '#/components/schemas/PackUnit' }
+        wasteQuantity:
+          type: number
+          minimum: 0
+          description: How much of one pack is thrown away, in packUnit; less than packQuantity (decided 2026-11-28).
         packPrice: { type: integer, minimum: 0, description: Whole won per pack. }
     UpdateIngredientRequest:
       type: object
@@ -4619,6 +4631,10 @@ components:
             - type: 'null'
         packQuantity: { type: number, exclusiveMinimum: 0 }
         packUnit: { $ref: '#/components/schemas/PackUnit' }
+        wasteQuantity:
+          type: number
+          minimum: 0
+          description: How much of one pack is thrown away, in packUnit; less than packQuantity (decided 2026-11-28).
 
     ProductIngredientInput:
       type: object

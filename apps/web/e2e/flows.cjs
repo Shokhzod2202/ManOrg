@@ -1143,6 +1143,24 @@ async function rowAction(page, rowText, action) {
     historyRows,
   );
   if (cardButtons > 2 || historyRows < 2) throw new Error('Ingredient card failed');
+  // Decided 2026-11-28: what is thrown away per pack shows on the card; then back to none.
+  await ingCard.locator('button:has-text("Edit")').click();
+  await ingCard.locator('label:has-text("Thrown away") input').fill('1');
+  await ingCard.locator('.ing-edit button:has-text("Save")').click();
+  const wasteShown = await ingCard
+    .locator('text=thrown away')
+    .first()
+    .waitFor({ timeout: 8000 })
+    .then(
+      () => true,
+      () => false,
+    );
+  await ingCard.locator('button:has-text("Edit")').click();
+  await ingCard.locator('label:has-text("Thrown away") input').fill('');
+  await ingCard.locator('.ing-edit button:has-text("Save")').click();
+  await ingCard.locator('.ing-edit').waitFor({ state: 'detached' });
+  log('32 thrown away per pack shown on the card:', wasteShown);
+  if (!wasteShown) throw new Error('Thrown away per pack failed');
 
   await b.close();
 })().catch((e) => {

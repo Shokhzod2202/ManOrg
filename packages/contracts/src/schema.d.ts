@@ -2831,9 +2831,13 @@ export interface components {
             /** @description How much one pack contains */
             packQuantity: number;
             packUnit: components["schemas"]["PackUnit"];
+            /** @description How much of one pack is thrown away (peel, trimmings), in packUnit (decided 2026-11-28). */
+            wasteQuantity: number;
+            /** @description packQuantity minus wasteQuantity; product costs use this. */
+            usableQuantity: number;
             /** @description Current price per pack in whole won. Only for callers allowed to read prices. */
             packPrice?: number | null;
-            /** @description packPrice divided by packQuantity, rounded to 0.01 won. Only with packPrice. */
+            /** @description packPrice divided by usableQuantity (the cost of one usable unit), rounded to 0.01 won. Only with packPrice. */
             unitPrice?: number | null;
             /** Format: date-time */
             priceEffectiveFrom?: string | null;
@@ -2855,6 +2859,8 @@ export interface components {
             orderSchedule?: components["schemas"]["OrderSchedule"] | null;
             packQuantity: number;
             packUnit: components["schemas"]["PackUnit"];
+            /** @description How much of one pack is thrown away, in packUnit; less than packQuantity (decided 2026-11-28). */
+            wasteQuantity?: number;
             /** @description Whole won per pack. */
             packPrice?: number;
         };
@@ -2864,6 +2870,8 @@ export interface components {
             orderSchedule?: components["schemas"]["OrderSchedule"] | null;
             packQuantity?: number;
             packUnit?: components["schemas"]["PackUnit"];
+            /** @description How much of one pack is thrown away, in packUnit; less than packQuantity (decided 2026-11-28). */
+            wasteQuantity?: number;
         };
         ProductIngredientInput: {
             /** Format: uuid */

@@ -482,6 +482,9 @@ model Ingredient {
   orderScheduleTime DateTime? @map("order_schedule_time") @db.Time(0)
   packQuantity      Decimal   @map("pack_quantity") @db.Decimal(12, 3)
   packUnit          PackUnit  @map("pack_unit")
+  /// Decided 2026-11-28: how much of one pack is thrown away (peel, trimmings), in the pack
+  /// unit. Costs use what is left: pack quantity minus this.
+  wasteQuantity     Decimal   @default(0) @map("waste_quantity") @db.Decimal(12, 3)
   deletedAt         DateTime? @map("deleted_at") @db.Timestamptz(3)
   version           Int       @default(1)
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)

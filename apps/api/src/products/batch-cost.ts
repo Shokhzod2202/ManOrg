@@ -22,7 +22,8 @@ export function sameKind(a: PackUnit, b: PackUnit): boolean {
 }
 
 /**
- * Cost of `quantity` `unit` of an ingredient whose pack holds `packQuantity` `packUnit` and costs
+ * Cost of `quantity` `unit` of an ingredient whose pack gives `packQuantity` `packUnit` that can be
+ * used (after what is thrown away, decided 2026-11-28) and costs
  * `packPrice` won, unrounded. Null when something is missing or the units do not match.
  */
 export function lineCost(
