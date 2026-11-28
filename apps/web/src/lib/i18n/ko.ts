@@ -979,4 +979,11 @@ export const ko: Record<string, string> = {
   '{time} worked': '{time} 근무',
   'paused {time}': '{time} 휴식',
   'back {time}': '{time} 복귀',
+  'Your correction is waiting for {name} to answer.':
+    '정정 요청이 {name}의 답을 기다리고 있습니다.',
+  '{name} asks for a correction': '{name}에서 정정을 요청했습니다',
+  'Ask {name} to correct': '{name}에 정정 요청',
+  '{name} delivered': '{name} 배송 수량',
+  'Why?': '이유',
+  'Send to {name}': '{name}에 보내기',
 };

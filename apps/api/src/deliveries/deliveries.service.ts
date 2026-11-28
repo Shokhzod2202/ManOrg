@@ -255,25 +255,41 @@ export class DeliveriesService {
     );
   }
 
-  /** DEL-6: after confirming, the contractor asks for a change; the delivery stays as it is. */
+  /**
+   * DEL-6, decided 2026-11-28: once a delivery is recorded (completed or confirmed), either side
+   * asks to correct some products; the delivery stays as it is until the other side decides.
+   * One request at a time.
+   */
   requestChange(user: AuthUser, org: OrgContext, id: string, input: DeliveryChangeInput) {
     return this.db.run(dbContext(user, org), async (tx) => {
-      const d = await tx.delivery.findFirst({ where: { id, contractorOrgId: org.organizationId } });
+      const d = await tx.delivery.findFirst({
+        where: {
+          id,
+          OR: [{ organizationId: org.organizationId }, { contractorOrgId: org.organizationId }],
+        },
+      });
       if (!d) throw Errors.notFound('Delivery');
-      if (d.status !== 'confirmed') {
+      const side: Side = d.organizationId === org.organizationId ? 'provider' : 'contractor';
+      if (d.status === 'change_requested') {
         throw Errors.conflict(
-          'NOT_CONFIRMED',
-          'Confirm the delivery first; a request can follow only a confirmed delivery.',
+          'CHANGE_PENDING',
+          'A change is already waiting for an answer on this delivery.',
         );
       }
-      await switchOrganization(tx, d.organizationId);
+      if (d.status !== 'completed' && d.status !== 'confirmed') {
+        throw Errors.conflict(
+          'NOT_RECORDED',
+          'Only a completed delivery can be corrected; a draft is simply edited.',
+        );
+      }
+      if (side === 'contractor') await switchOrganization(tx, d.organizationId);
       const request = await tx.deliveryChangeRequest.create({
         data: {
           organizationId: d.organizationId,
-          contractorOrgId: org.organizationId,
+          contractorOrgId: d.contractorOrgId,
           deliveryId: d.id,
           requestedById: user.userId,
-          payload: { lines: input.lines },
+          payload: { lines: input.lines, side, fromStatus: d.status },
           reason: input.reason,
         },
       });
@@ -287,27 +303,47 @@ export class DeliveriesService {
         action: 'delivery.change_request',
         entity: 'delivery',
         entityId: d.id,
-        after: { requestId: request.id, lines: input.lines, reason: input.reason },
+        after: { requestId: request.id, side, lines: input.lines, reason: input.reason },
       });
+      // The other side is told.
       await this.notifications.notify(tx, {
         organizationId: d.organizationId,
-        userIds: await this.notifications.admins(tx, d.organizationId),
+        userIds:
+          side === 'contractor'
+            ? await this.notifications.admins(tx, d.organizationId)
+            : await this.contractorAdmins(tx, d.contractorOrgId, d.organizationId),
         type: 'delivery.change_requested',
         payload: { deliveryId: d.id, requestId: request.id },
       });
-      return this.present(tx, d.id);
+      return this.present(tx, d.id, orgCan(org, 'finance.view'));
     });
   }
 
-  /** DEL-6: the provider admin approves (the delivery changes) or rejects (it stays). */
+  /**
+   * DEL-6, decided 2026-11-28: the other side approves (the delivery changes and counts as
+   * confirmed) or rejects (it goes back to how it was).
+   */
   decideChange(user: AuthUser, org: OrgContext, id: string, requestId: string, approve: boolean) {
     return this.db.run(dbContext(user, org), async (tx) => {
-      const d = await tx.delivery.findFirst({ where: { id, organizationId: org.organizationId } });
+      const d = await tx.delivery.findFirst({
+        where: {
+          id,
+          OR: [{ organizationId: org.organizationId }, { contractorOrgId: org.organizationId }],
+        },
+      });
       if (!d) throw Errors.notFound('Delivery');
+      const mySide: Side = d.organizationId === org.organizationId ? 'provider' : 'contractor';
       const request = await tx.deliveryChangeRequest.findFirst({
         where: { id: requestId, deliveryId: id },
       });
       if (!request) throw Errors.notFound('Change request');
+      const asked = storedPayload.parse(request.payload);
+      const askedBy: Side = asked.side ?? 'contractor';
+      if (askedBy === mySide) {
+        throw Errors.forbidden('The other side decides on this change.');
+      }
+      // Writes belong to the provider's organization, also when the contractor decides.
+      if (mySide === 'contractor') await switchOrganization(tx, d.organizationId);
       const decided = await tx.deliveryChangeRequest.updateMany({
         where: { id: requestId, status: 'pending' },
         data: {
@@ -319,7 +355,7 @@ export class DeliveriesService {
       if (decided.count !== 1)
         throw Errors.conflict('NOT_PENDING', 'This request has already been decided.');
       const before = await tx.deliveryLine.findMany({ where: { deliveryId: id } });
-      const lines = payloadLines(request.payload);
+      const lines = asked.lines;
       if (approve) {
         const order = d.orderId
           ? await tx.order.findUnique({ where: { id: d.orderId }, include: { lines: true } })
@@ -354,12 +390,19 @@ export class DeliveriesService {
           }
         }
       }
+      // Approved: both sides agree on the numbers, so it counts as confirmed. Rejected: back to
+      // how it was (still waiting for confirmation, or confirmed).
+      const next = approve ? 'confirmed' : (asked.fromStatus ?? 'confirmed');
       await tx.delivery.update({
         where: { id },
-        data: { status: 'confirmed', version: { increment: 1 } },
+        data: {
+          status: next,
+          ...(next === 'confirmed' && !d.confirmedAt ? { confirmedAt: new Date() } : {}),
+          version: { increment: 1 },
+        },
       });
       await this.audit.record(tx, {
-        organizationId: org.organizationId,
+        organizationId: d.organizationId,
         actor: actorFor(user),
         action: approve ? 'delivery.change_approve' : 'delivery.change_reject',
         entity: 'delivery',
@@ -367,15 +410,19 @@ export class DeliveriesService {
         before: {
           lines: before.map((l) => ({ productId: l.productId, delivered: l.deliveredQuantity })),
         },
-        after: approve ? { lines } : { unchanged: true },
+        after: approve ? { lines, askedBy } : { unchanged: true, askedBy },
       });
+      // The side that asked is told.
       await this.notifications.notify(tx, {
-        organizationId: org.organizationId,
-        userIds: await this.contractorAdmins(tx, d.contractorOrgId, org.organizationId),
+        organizationId: d.organizationId,
+        userIds:
+          askedBy === 'contractor'
+            ? await this.contractorAdmins(tx, d.contractorOrgId, d.organizationId)
+            : await this.notifications.admins(tx, d.organizationId),
         type: approve ? 'delivery.change_approved' : 'delivery.change_rejected',
         payload: { deliveryId: id },
       });
-      return this.present(tx, id);
+      return this.present(tx, id, orgCan(org, 'finance.view'));
     });
   }
 
@@ -652,6 +699,7 @@ export class DeliveriesService {
         ? {
             id: pending.id,
             lines: payloadLines(pending.payload),
+            requestedBy: storedPayload.parse(pending.payload).side ?? 'contractor',
             reason: pending.reason,
             createdAt: pending.createdAt,
           }
@@ -665,7 +713,12 @@ export class DeliveriesService {
 
 const storedPayload = z.object({
   lines: z.array(z.object({ productId: z.string(), deliveredQuantity: z.number() })),
+  /** Decided 2026-11-28: who asked (older requests were always the contractor's). */
+  side: z.enum(['provider', 'contractor']).optional(),
+  /** The delivery's status when asked, restored if the change is rejected. */
+  fromStatus: z.enum(['completed', 'confirmed']).optional(),
 });
+type Side = 'provider' | 'contractor';
 
 /** The lines a contractor asked for, as stored in delivery_change_requests.payload. */
 function payloadLines(payload: unknown): LineInput[] {

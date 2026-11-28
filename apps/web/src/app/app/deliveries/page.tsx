@@ -155,6 +155,7 @@ function DeliveryEditor({
   onTimeChange: () => void;
 }) {
   const { isAdmin } = useRoles();
+  const [correcting, setCorrecting] = useState(false);
   const [d, setD] = useState<Delivery | null>(null);
   const [qty, setQty] = useState<Record<string, number>>({});
   const [error, setError] = useState<ApiError | null>(null);
@@ -288,50 +289,42 @@ function DeliveryEditor({
           </tbody>
         </table>
       ) : null}
-      {d.pendingChange ? (
-        <div
-          className="stack"
-          style={{ background: 'var(--warn-bg)', borderRadius: 10, padding: 12 }}
-        >
-          <b>{t('The contractor asks for a change')}</b>
-          {d.pendingChange.reason ? <span>“{d.pendingChange.reason}”</span> : null}
-          {d.pendingChange.lines?.map((l) => (
-            <span key={l.productId}>
-              {d.lines.find((x) => x.productId === l.productId)?.productName ?? t('Product')}:{' '}
-              {l.deliveredQuantity}
-            </span>
-          ))}
-          {isAdmin ? (
-            <div className="row">
-              <button
-                className="btn"
-                disabled={busy}
-                onClick={() =>
-                  act(() =>
-                    post(`/deliveries/${d.id}/change-requests/${d.pendingChange?.id}/decision`, {
-                      decision: 'approve',
-                    }),
-                  )
-                }
-              >
-                {t('Approve')}
-              </button>
-              <button
-                className="btn ghost"
-                disabled={busy}
-                onClick={() =>
-                  act(() =>
-                    post(`/deliveries/${d.id}/change-requests/${d.pendingChange?.id}/decision`, {
-                      decision: 'reject',
-                    }),
-                  )
-                }
-              >
-                {t('Reject')}
-              </button>
-            </div>
-          ) : null}
-        </div>
+      <PendingChange
+        d={d}
+        mySide="provider"
+        canDecide={isAdmin}
+        busy={busy}
+        onDecide={(decision) =>
+          act(() =>
+            post(`/deliveries/${d.id}/change-requests/${d.pendingChange?.id}/decision`, {
+              decision,
+            }),
+          )
+        }
+      />
+      {/* Decided 2026-11-28: the bakery can ask to correct a recorded delivery too. */}
+      {isAdmin && (d.status === 'completed' || d.status === 'confirmed') && d.id ? (
+        correcting ? (
+          <CorrectionForm
+            d={d}
+            busy={busy}
+            onCancel={() => setCorrecting(false)}
+            onSend={(lines, reason) =>
+              act(async () => {
+                await post(`/deliveries/${d.id}/change-requests`, { lines, reason });
+                setCorrecting(false);
+              })
+            }
+          />
+        ) : (
+          <button
+            className="btn ghost"
+            style={{ alignSelf: 'flex-start' }}
+            onClick={() => setCorrecting(true)}
+          >
+            {t('Ask for a correction')}
+          </button>
+        )
       ) : null}
       {editable ? (
         <AddProduct
@@ -395,6 +388,119 @@ function DeliveryEditor({
         </details>
       ) : null}
     </section>
+  );
+}
+
+type DeliveryRow = Schemas['Delivery'];
+
+/**
+ * Decided 2026-11-28: a correction waiting for an answer. The side that asked sees that it is
+ * waiting; the other side sees each product's current and asked number, and approves or rejects.
+ */
+function PendingChange({
+  d,
+  mySide,
+  canDecide,
+  busy,
+  onDecide,
+}: {
+  d: DeliveryRow;
+  mySide: 'provider' | 'contractor';
+  canDecide: boolean;
+  busy: boolean;
+  onDecide: (decision: 'approve' | 'reject') => void;
+}) {
+  const p = d.pendingChange;
+  if (!p) return null;
+  const mine = (p.requestedBy ?? 'contractor') === mySide;
+  const other = mySide === 'provider' ? d.contractor.name : d.provider.name;
+  return (
+    <div className="stack change-box" data-testid="pending-change">
+      <b>
+        {mine
+          ? t('Your correction is waiting for {name} to answer.', { name: other ?? '' })
+          : t('{name} asks for a correction', { name: other ?? '' })}
+      </b>
+      {p.reason ? <span>“{p.reason}”</span> : null}
+      {p.lines?.map((l) => {
+        const line = d.lines.find((x) => x.productId === l.productId);
+        return (
+          <span key={l.productId}>
+            {line?.productName ?? t('Product')}: {line?.deliveredQuantity ?? 0} →{' '}
+            <b>{l.deliveredQuantity}</b>
+          </span>
+        );
+      })}
+      {!mine && canDecide ? (
+        <div className="row">
+          <button className="btn" disabled={busy} onClick={() => onDecide('approve')}>
+            {t('Approve')}
+          </button>
+          <button className="btn ghost" disabled={busy} onClick={() => onDecide('reject')}>
+            {t('Reject')}
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** Decided 2026-11-28: the bakery asks to correct some products of a recorded delivery. */
+function CorrectionForm({
+  d,
+  busy,
+  onSend,
+  onCancel,
+}: {
+  d: DeliveryRow;
+  busy: boolean;
+  onSend: (lines: { productId: string; deliveredQuantity: number }[], reason: string) => void;
+  onCancel: () => void;
+}) {
+  const [qty, setQty] = useState<Record<string, number>>({});
+  const [reason, setReason] = useState('');
+  const changed = Object.entries(qty).filter(
+    ([id, n]) => d.lines.find((l) => l.productId === id)?.deliveredQuantity !== n,
+  );
+  return (
+    <div className="stack change-box">
+      <b>{t('Ask {name} to correct', { name: d.contractor.name ?? '' })}</b>
+      {d.lines.map((l) => (
+        <label key={l.productId} className="row between">
+          <span>{l.productName}</span>
+          <input
+            className="input qty"
+            type="number"
+            min={0}
+            inputMode="numeric"
+            aria-label={t('{name} delivered', { name: l.productName })}
+            value={qty[l.productId] ?? l.deliveredQuantity}
+            onChange={(e) => setQty({ ...qty, [l.productId]: Math.max(0, Number(e.target.value)) })}
+          />
+        </label>
+      ))}
+      <label className="field">
+        {t('Why?')}
+        <textarea maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} />
+      </label>
+      <div className="row">
+        <button
+          className="btn"
+          disabled={busy || !changed.length || !reason.trim()}
+          onClick={() =>
+            onSend(
+              changed.map(([productId, deliveredQuantity]) => ({ productId, deliveredQuantity })),
+              reason.trim(),
+            )
+          }
+        >
+          {t('Send to {name}', { name: d.contractor.name ?? '' })}
+        </button>
+        <button className="btn ghost" onClick={onCancel}>
+          {t('Cancel')}
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -487,15 +593,31 @@ function ContractorDeliveries() {
               ))}
             </tbody>
           </table>
-          {d.status === 'completed' && changing !== d.id ? (
+          <PendingChange
+            d={d}
+            mySide="contractor"
+            canDecide
+            busy={busy}
+            onDecide={(decision) =>
+              act(() =>
+                post(`/deliveries/${d.id}/change-requests/${d.pendingChange?.id}/decision`, {
+                  decision,
+                }),
+              )
+            }
+          />
+          {/* Decided 2026-11-28: "Something is wrong" also after confirming. */}
+          {(d.status === 'completed' || d.status === 'confirmed') && changing !== d.id ? (
             <div className="row wrap">
-              <button
-                className="btn"
-                disabled={busy}
-                onClick={() => act(() => post(`/deliveries/${d.id}/confirm`))}
-              >
-                {t('Confirm delivery')}
-              </button>
+              {d.status === 'completed' ? (
+                <button
+                  className="btn"
+                  disabled={busy}
+                  onClick={() => act(() => post(`/deliveries/${d.id}/confirm`))}
+                >
+                  {t('Confirm delivery')}
+                </button>
+              ) : null}
               <button
                 className="btn ghost"
                 onClick={() => {
@@ -527,10 +649,16 @@ function ContractorDeliveries() {
                     act(() =>
                       post(`/deliveries/${d.id}/change-requests`, {
                         reason: reason.trim(),
-                        lines: Object.entries(qty).map(([productId, deliveredQuantity]) => ({
-                          productId,
-                          deliveredQuantity,
-                        })),
+                        lines: Object.entries(qty)
+                          .filter(
+                            ([productId, n]) =>
+                              d.lines.find((l) => l.productId === productId)?.deliveredQuantity !==
+                              n,
+                          )
+                          .map(([productId, deliveredQuantity]) => ({
+                            productId,
+                            deliveredQuantity,
+                          })),
                       }),
                     )
                   }

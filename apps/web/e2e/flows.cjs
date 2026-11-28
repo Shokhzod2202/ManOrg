@@ -75,6 +75,47 @@ async function rowAction(page, rowText, action) {
     path: require('node:path').join(OUT, 'flow-cafe-confirmed.png'),
     fullPage: true,
   });
+  // 2b. Decided 2026-11-28. After confirming, the contractor still reports something wrong; the
+  // bakery approves. Then the bakery asks to correct it back; the contractor approves.
+  const dayIso = await admin.locator('input[aria-label="Delivery date"]').inputValue();
+  const dayLabel = new Date(`${dayIso}T00:00:00Z`).toLocaleDateString('en-GB', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  });
+  const cafeCard = cafe.locator('section.card', { hasText: dayLabel }).first();
+  await cafeCard.locator('button:has-text("Something is wrong")').click();
+  const cafeQty = cafeCard.locator('input[aria-label$="delivered"]').first();
+  const deliveredBefore = Number(await cafeQty.inputValue());
+  await cafeQty.fill(String(Math.max(0, deliveredBefore - 1)));
+  await cafeCard.locator('textarea').fill('One was missing.');
+  await cafeCard.locator('button:has-text("Send to the bakery")').click();
+  await cafeCard.locator('[data-testid=pending-change]:has-text("waiting")').waitFor();
+  // The page opens on the next delivery due; this one is done, so open its day.
+  await admin.goto(`${W}/app/deliveries?date=${dayIso}`);
+  await admin.locator(`button:has-text("${picked}")`).first().click();
+  const askBox = admin.locator('[data-testid=pending-change]:has-text("asks for a correction")');
+  await askBox.waitFor({ timeout: 10000 });
+  await askBox.locator('button:has-text("Approve")').click();
+  await askBox.waitFor({ state: 'detached', timeout: 10000 });
+  await admin.locator('button:has-text("Ask for a correction")').click();
+  const fixQty = admin.locator('.change-box input[aria-label$="delivered"]').first();
+  await fixQty.fill(String(deliveredBefore));
+  await admin.locator('.change-box textarea').fill('Recounted: all were there.');
+  await admin.locator('.change-box button:has-text("Send to")').click();
+  await admin.locator('[data-testid=pending-change]:has-text("waiting")').waitFor();
+  await cafe.reload();
+  const backBox = cafe
+    .locator('section.card', { hasText: dayLabel })
+    .first()
+    .locator('[data-testid=pending-change]:has-text("asks for a correction")');
+  await backBox.waitFor({ timeout: 10000 });
+  await backBox.locator('button:has-text("Approve")').click();
+  await backBox.waitFor({ state: 'detached', timeout: 10000 });
+  log(
+    '2b correction after confirming: contractor asked, bakery approved; bakery asked, contractor approved',
+  );
   // 3. Admin creates a task for Mina.
   await admin.goto(`${W}/app/tasks`);
   await admin.click('button:has-text("New task")');
@@ -986,7 +1027,9 @@ async function rowAction(page, rowText, action) {
   await minaRate.waitFor();
   if (!(await minaRate.evaluate((el) => el.open))) await minaRate.locator('summary').click();
   // A different rate each run (an unchanged rate cannot be saved again).
-  const rate = 10000 + (Date.now() % 50) * 100;
+  const currentRate = Number(await minaRate.locator('.owner-rate input').inputValue()) || 0;
+  let rate = 10000 + (Date.now() % 50) * 100;
+  if (rate === currentRate) rate += 100;
   await minaRate.locator('.owner-rate input').fill(String(rate));
   await minaRate.locator('.owner-rate button:has-text("Save")').click();
   await minaRate.locator('.owner-rate .pill.ok').waitFor();

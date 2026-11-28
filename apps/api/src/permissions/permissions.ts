@@ -53,8 +53,10 @@ const MATRIX = {
   'orders.edit': { employee: false, org_admin: 'any', contractor_admin: 'own' },
   'deliveries.record': { employee: false, org_admin: 'any', contractor_admin: false },
   'deliveries.confirm': { employee: false, org_admin: false, contractor_admin: 'own' },
-  'deliveries.requestChange': { employee: false, org_admin: false, contractor_admin: 'own' },
-  'deliveries.decideChange': { employee: false, org_admin: 'any', contractor_admin: false },
+  // Decided 2026-11-28: either side asks for a correction of a recorded delivery; the other side
+  // decides (the service checks it is the other side).
+  'deliveries.requestChange': { employee: false, org_admin: 'any', contractor_admin: 'own' },
+  'deliveries.decideChange': { employee: false, org_admin: 'any', contractor_admin: 'own' },
   'organization.readAll': { employee: false, org_admin: 'any', contractor_admin: 'own' },
   'ingredients.order': { employee: 'any', org_admin: 'any', contractor_admin: false },
   'ingredients.fulfil': { employee: false, org_admin: 'any', contractor_admin: false },

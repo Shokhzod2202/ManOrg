@@ -3525,8 +3525,12 @@ paths:
   /deliveries/{id}/change-requests:
     post:
       operationId: requestDeliveryChange
-      summary: 'Ask to change a confirmed delivery (DEL-6)'
-      description: 'The delivery stays unchanged until the provider admin approves.'
+      summary: 'Ask to correct a recorded delivery (DEL-6)'
+      description: >-
+        Decided 2026-11-28: either side (the provider admin or the contractor admin) asks to
+        correct some products of a completed or confirmed delivery. The delivery stays unchanged
+        until the other side decides. One request at a time (409 CHANGE_PENDING); a draft is
+        edited instead (409 NOT_RECORDED). Audited; the other side is notified.
       tags: [deliveries]
       parameters:
         - $ref: '#/components/parameters/IdPath'
@@ -3551,8 +3555,12 @@ paths:
   /deliveries/{id}/change-requests/{requestId}/decision:
     post:
       operationId: decideDeliveryChange
-      summary: 'Approve or reject a delivery change (DEL-6)'
-      description: 'Approval applies the requested numbers. Audited; the contractor is notified.'
+      summary: 'Approve or reject a delivery correction (DEL-6)'
+      description: >-
+        By the side that did not ask (403 otherwise). Approval applies the numbers, re-prices the
+        delivery with the prices copied at completion (a closed settlement period gets an
+        adjustment in the open one) and counts it as confirmed; rejection puts the delivery back
+        to how it was. Audited; the side that asked is notified.
       tags: [deliveries]
       parameters:
         - $ref: '#/components/parameters/IdPath'
@@ -5898,6 +5906,10 @@ components:
                 lines: { type: array, items: { $ref: '#/components/schemas/DeliveredLine' } }
                 reason: { type: [string, 'null'] }
                 createdAt: { type: string, format: date-time }
+                requestedBy:
+                  type: string
+                  enum: [provider, contractor]
+                  description: Which side asked; the other side decides (decided 2026-11-28).
             - type: 'null'
         completedAt: { type: [string, 'null'], format: date-time }
         confirmedAt: { type: [string, 'null'], format: date-time }

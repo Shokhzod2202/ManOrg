@@ -993,4 +993,10 @@ export const uz: Record<string, string> = {
   '{time} worked': '{time} ishlangan',
   'paused {time}': '{time} tanaffus',
   'back {time}': '{time} qaytdi',
+  'Your correction is waiting for {name} to answer.': 'Tuzatishingiz {name} javobini kutmoqda.',
+  '{name} asks for a correction': '{name} tuzatish soʻramoqda',
+  'Ask {name} to correct': '{name}dan tuzatishni soʻrash',
+  '{name} delivered': '{name} yetkazildi',
+  'Why?': 'Nima uchun?',
+  'Send to {name}': '{name}ga yuborish',
 };

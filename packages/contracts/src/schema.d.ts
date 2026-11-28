@@ -2138,8 +2138,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Ask to change a confirmed delivery (DEL-6)
-         * @description The delivery stays unchanged until the provider admin approves.
+         * Ask to correct a recorded delivery (DEL-6)
+         * @description Decided 2026-11-28: either side (the provider admin or the contractor admin) asks to correct some products of a completed or confirmed delivery. The delivery stays unchanged until the other side decides. One request at a time (409 CHANGE_PENDING); a draft is edited instead (409 NOT_RECORDED). Audited; the other side is notified.
          */
         post: operations["requestDeliveryChange"];
         delete?: never;
@@ -2158,8 +2158,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Approve or reject a delivery change (DEL-6)
-         * @description Approval applies the requested numbers. Audited; the contractor is notified.
+         * Approve or reject a delivery correction (DEL-6)
+         * @description By the side that did not ask (403 otherwise). Approval applies the numbers, re-prices the delivery with the prices copied at completion (a closed settlement period gets an adjustment in the open one) and counts it as confirmed; rejection puts the delivery back to how it was. Audited; the side that asked is notified.
          */
         post: operations["decideDeliveryChange"];
         delete?: never;
@@ -3809,6 +3809,11 @@ export interface components {
                 reason?: string | null;
                 /** Format: date-time */
                 createdAt?: string;
+                /**
+                 * @description Which side asked; the other side decides (decided 2026-11-28).
+                 * @enum {string}
+                 */
+                requestedBy?: "provider" | "contractor";
             } | null;
             /** Format: date-time */
             completedAt: string | null;

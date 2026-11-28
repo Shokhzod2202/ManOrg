@@ -1678,3 +1678,10 @@ button.kpi.on {
   font-size: 12px;
   opacity: 0.85;
 }
+/* Decided 2026-11-28: delivery corrections from either side. */
+.change-box {
+  background: var(--warn-bg);
+  border-radius: 10px;
+  padding: 12px;
+  gap: 6px;
+}

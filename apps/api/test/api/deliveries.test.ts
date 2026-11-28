@@ -331,6 +331,99 @@ describe('delivery change after confirming (DEL-6)', () => {
   });
 });
 
+describe('corrections from either side (decided 2026-11-28)', () => {
+  it('lets the bakery ask to correct a confirmed delivery; the contractor decides', async () => {
+    const list = await cafe().get(`/deliveries?from=${yesterday()}&to=${yesterday()}`).expect(200);
+    const id = list.body.items[0].id;
+    const asked = await admin()
+      .post(`/deliveries/${id}/change-requests`)
+      .send({
+        lines: [{ productId: w.a.productId, deliveredQuantity: 15 }],
+        reason: 'Three were left in the van.',
+      })
+      .expect(201);
+    expect(asked.body).toMatchObject({
+      status: 'change_requested',
+      pendingChange: { requestedBy: 'provider', reason: 'Three were left in the van.' },
+    });
+    const requestId = asked.body.pendingChange.id;
+    // One at a time, and the side that asked does not decide.
+    await cafe()
+      .post(`/deliveries/${id}/change-requests`)
+      .send({ lines: [{ productId: w.a.productId, deliveredQuantity: 1 }], reason: 'x' })
+      .expect(409);
+    await admin()
+      .post(`/deliveries/${id}/change-requests/${requestId}/decision`)
+      .send({ decision: 'approve' })
+      .expect(403);
+    // The contractor says no: it stays as it was, confirmed.
+    const no = await cafe()
+      .post(`/deliveries/${id}/change-requests/${requestId}/decision`)
+      .send({ decision: 'reject' })
+      .expect(200);
+    expect(no.body).toMatchObject({ status: 'confirmed', pendingChange: null });
+    expect(
+      no.body.lines.find((l: { productId: string }) => l.productId === w.a.productId)
+        .deliveredQuantity,
+    ).toBe(18);
+    // Asked again, the contractor agrees.
+    const again = await admin()
+      .post(`/deliveries/${id}/change-requests`)
+      .send({ lines: [{ productId: w.a.productId, deliveredQuantity: 15 }], reason: 'Recounted.' })
+      .expect(201);
+    const yes = await cafe()
+      .post(`/deliveries/${id}/change-requests/${again.body.pendingChange.id}/decision`)
+      .send({ decision: 'approve' })
+      .expect(200);
+    expect(
+      yes.body.lines.find((l: { productId: string }) => l.productId === w.a.productId),
+    ).toMatchObject({ deliveredQuantity: 15 });
+    const audit = await auditFor(id, { organizationId: w.a.id, userId: w.a.admin.userId });
+    expect(audit.map((a) => a.action).slice(-4)).toEqual([
+      'delivery.change_request',
+      'delivery.change_reject',
+      'delivery.change_request',
+      'delivery.change_approve',
+    ]);
+  });
+
+  it('lets the contractor ask before confirming; a rejection leaves it waiting to be confirmed', async () => {
+    const day = addDays(today(), -2);
+    await asOwner({ organizationId: w.a.id, userId: w.a.admin.userId }, (tx) =>
+      tx.order.create({
+        data: {
+          organizationId: w.a.id,
+          contractorOrgId: w.contractor.id,
+          deliveryDate: new Date(`${day}T00:00:00Z`),
+          placedById: w.contractor.admin.userId,
+          lines: {
+            create: [{ productId: w.a.productId, productName: 'Alpha Bread', quantity: 6 }],
+          },
+        },
+      }),
+    );
+    const saved = await admin()
+      .put(`/deliveries/${w.contractor.id}/${day}`)
+      .send({ lines: [{ productId: w.a.productId, deliveredQuantity: 6 }] })
+      .expect(200);
+    await admin().post(`/deliveries/${saved.body.id}/complete`).expect(200);
+    const asked = await cafe()
+      .post(`/deliveries/${saved.body.id}/change-requests`)
+      .send({
+        lines: [{ productId: w.a.productId, deliveredQuantity: 0 }],
+        reason: 'None of these came.',
+      })
+      .expect(201);
+    expect(asked.body.pendingChange).toMatchObject({ requestedBy: 'contractor' });
+    const no = await admin()
+      .post(`/deliveries/${saved.body.id}/change-requests/${asked.body.pendingChange.id}/decision`)
+      .send({ decision: 'reject' })
+      .expect(200);
+    expect(no.body.status).toBe('completed');
+    await cafe().post(`/deliveries/${saved.body.id}/confirm`).expect(200);
+  });
+});
+
 describe('a new standing time applies to today’s open delivery (DTM-2)', () => {
   it('moves the window of a draft delivery and leaves completed ones alone', async () => {
     await admin()
