@@ -1444,6 +1444,25 @@ async function rowAction(page, rowText, action) {
   );
   if (!noOrders || onShift < 1) throw new Error('Contractor staff failed');
 
+  // 38. Decided 2026-11-29. The ▾ beside the organization's name lists the person's
+  // organizations and switches with one tap (the newcomer belongs to three by now).
+  await newcomer.goto(`${W}/app`);
+  await newcomer.locator('.topbar .org-pick-btn').click();
+  const choices = await newcomer.locator('.org-pick-list [role="menuitemradio"]').count();
+  await newcomer
+    .locator('.org-pick-list [role="menuitemradio"]:has-text("Sunrise")')
+    .first()
+    .click();
+  const switched = await newcomer
+    .locator('.topbar .brand-org:has-text("Sunrise")')
+    .waitFor({ timeout: 8000 })
+    .then(
+      () => true,
+      () => false,
+    );
+  log('38 organization ▾: choices', choices, '| switched to Sunrise from the top bar:', switched);
+  if (choices < 2 || !switched) throw new Error('Organization switch in the top bar failed');
+
   await b.close();
 })().catch((e) => {
   console.error('FAILED', e.message.slice(0, 400));

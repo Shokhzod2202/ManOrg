@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { type ReactNode, useEffect } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { type Actor, useSession } from '../lib/session';
 import { Avatar, Icon, Loading } from './ui';
 import { t } from '../lib/i18n';
@@ -109,29 +109,14 @@ export function AppShell({ children }: { children: ReactNode }) {
   const isOn = (href: string) => (href === '/app' ? path === '/app' : path.startsWith(href));
   const tabs = [...items.slice(0, 4), { href: '/app/more', label: 'More', icon: 'more' }];
   const orgName = s.membership.organization.name;
-  const active = s.me.memberships.filter((m) => m.status === 'active');
 
   return (
     <div className="shell">
       <nav className="side" aria-label={t('Main')}>
-        <Brand sub={orgName} />
-        {active.length > 1 ? (
-          <select
-            className="input org-switch"
-            aria-label={t('Switch organization')}
-            value={s.orgId ?? ''}
-            onChange={(e) => {
-              s.chooseOrg(e.target.value);
-              router.push('/app');
-            }}
-          >
-            {active.map((m) => (
-              <option key={m.organization.id} value={m.organization.id}>
-                {m.organization.name}
-              </option>
-            ))}
-          </select>
-        ) : null}
+        <div className="brand-row side-brand">
+          <Brand sub={orgName} />
+          <OrgSwitch />
+        </div>
         {items.map((i) => (
           <Link
             key={i.href}
@@ -165,7 +150,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         </button>
       </nav>
       <header className="topbar">
-        <Brand sub={orgName} className="brand-top" />
+        <div className="brand-row">
+          <Brand sub={orgName} className="brand-top" />
+          <OrgSwitch />
+        </div>
         <Link
           href="/app/notifications"
           aria-label={t('Notifications')}
@@ -190,5 +178,78 @@ export function AppShell({ children }: { children: ReactNode }) {
         ))}
       </nav>
     </div>
+  );
+}
+
+/**
+ * Decided 2026-11-29: a small ▾ beside the organization's name on every page; it lists the
+ * organizations the person belongs to and switches with one tap. Hidden with only one.
+ */
+function OrgSwitch() {
+  const s = useSession();
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: Event) => {
+      if (
+        e instanceof KeyboardEvent ? e.key === 'Escape' : !box.current?.contains(e.target as Node)
+      )
+        setOpen(false);
+    };
+    document.addEventListener('pointerdown', close);
+    document.addEventListener('keydown', close);
+    return () => {
+      document.removeEventListener('pointerdown', close);
+      document.removeEventListener('keydown', close);
+    };
+  }, [open]);
+  const active = s.me?.memberships.filter((m) => m.status === 'active') ?? [];
+  if (active.length < 2) return null;
+  return (
+    <span className="org-pick" ref={box}>
+      <button
+        type="button"
+        className={open ? 'org-pick-btn on' : 'org-pick-btn'}
+        aria-label={t('Switch organization')}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+      >
+        <Icon name="chevron" size={18} />
+      </button>
+      {open ? (
+        <span className="org-pick-list" role="menu" aria-label={t('Switch organization')}>
+          {active.map((m) => {
+            const here = m.organization.id === s.orgId;
+            return (
+              <button
+                key={m.organization.id}
+                type="button"
+                role="menuitemradio"
+                aria-checked={here}
+                className={here ? 'here' : ''}
+                onClick={() => {
+                  setOpen(false);
+                  if (here) return;
+                  s.chooseOrg(m.organization.id);
+                  router.push('/app');
+                }}
+              >
+                <span className="org-pick-name">
+                  <b>{m.organization.name}</b>
+                  <span className="muted small">
+                    {t(m.role === 'admin' ? 'Admin' : 'Employee')} ·{' '}
+                    {m.organization.type === 'contractor' ? t('Contractor') : t('Organization')}
+                  </span>
+                </span>
+                {here ? <Icon name="check" size={18} /> : null}
+              </button>
+            );
+          })}
+        </span>
+      ) : null}
+    </span>
   );
 }

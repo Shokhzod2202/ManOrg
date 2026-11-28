@@ -1202,9 +1202,108 @@ fieldset.who legend {
   opacity: 0.5;
 }
 
-.org-switch {
-  margin: 0 0 10px;
-  width: 100%;
+/* Decided 2026-11-29: the ▾ beside the organization's name switches organization. */
+.brand-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.topbar .brand-row {
+  flex: 1;
+}
+.brand-row .brand-top {
+  flex: 0 1 auto;
+}
+.side-brand {
+  padding: 0 0 16px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.side-brand .brand {
+  padding: 0 0 0 6px;
+  margin: 0;
+  border: 0;
+  min-width: 0;
+}
+.org-pick {
+  position: relative;
+  flex: none;
+}
+.org-pick-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.org-pick-btn.on {
+  background: var(--soft);
+}
+.org-pick-btn.on svg {
+  transform: rotate(180deg);
+}
+.org-pick-list {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  z-index: 60;
+  width: 260px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+}
+.org-pick-list button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 10px 12px;
+  min-height: 52px;
+  border-radius: 8px;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.org-pick-list button:hover,
+.org-pick-list button:focus-visible,
+.org-pick-list button.here {
+  background: var(--soft);
+}
+.org-pick-list button.here {
+  color: var(--primary-dark);
+}
+.org-pick-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.org-pick-name b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 760px) {
+  /* Under the top bar, across the screen, whatever the length of the name. */
+  .org-pick-list {
+    position: fixed;
+    top: 62px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+  }
 }
 
 .avatar {
