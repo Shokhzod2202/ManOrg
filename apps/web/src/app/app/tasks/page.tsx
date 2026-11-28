@@ -34,8 +34,8 @@ export function repeatText(r: Pick<Rule, 'frequency' | 'weekdays' | 'dayOfMonth'
 }
 
 export default function TasksPage() {
-  const { actor } = useSession();
-  const admin = actor === 'org_admin';
+  // Decided 2026-11-29: admins of any organization, contractors too.
+  const { admin } = useSession();
   const [status, setStatus] = useState<'open' | 'done' | 'repeating'>('open');
   const { data, error, loading, reload } = useApi<{ items: Task[] }>(
     `/tasks?status=${status === 'repeating' ? 'open' : status}`,

@@ -118,8 +118,8 @@ export class OrganizationsService {
   }
 
   /**
-   * ACC-5 / ACC-6. Without an organization context a user applies to join a bakery as an
-   * employee. With a contractor organization's context, its admin applies for that contractor to
+   * ACC-5 / ACC-6. Without an organization context a user applies to join an organization (a
+   * bakery or, decided 2026-11-29, a contractor) as an employee. With a contractor organization's context, its admin applies for that contractor to
    * buy from the bakery.
    */
   apply(user: AuthUser, org: OrgContext | undefined, targetId: string) {
@@ -131,13 +131,17 @@ export class OrganizationsService {
           select: poolFields,
         });
         if (!target) throw Errors.notFound('Organization');
-        if (target.type !== 'provider') {
-          throw Errors.unprocessable(
-            'CONTRACTOR_ADMINS_ONLY',
-            'Contractor organizations have admins only; ask an admin to add you.',
-          );
+        // Decided 2026-11-29: people apply to work at any organization; only bakeries take
+        // contractors as buyers.
+        if (org) {
+          if (target.type !== 'provider') {
+            throw Errors.unprocessable(
+              'PROVIDERS_ONLY',
+              'Only a bakery (a provider) takes contractors as buyers.',
+            );
+          }
+          return this.applyAsContractor(tx, user, org, target);
         }
-        if (org) return this.applyAsContractor(tx, user, org, target);
         return this.applyAsEmployee(tx, user, target);
       },
     );

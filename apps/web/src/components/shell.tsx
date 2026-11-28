@@ -14,7 +14,7 @@ interface Item {
 }
 
 /** Menus follow what each role may use (spec section 2); the server still checks every call. */
-export function navFor(actor: Actor | null): Item[] {
+export function navFor(actor: Actor | null, provider = true): Item[] {
   if (actor === 'org_admin')
     return [
       { href: '/app', label: 'Today', icon: 'home' },
@@ -36,7 +36,8 @@ export function navFor(actor: Actor | null): Item[] {
   if (actor === 'employee')
     return [
       { href: '/app', label: 'Home', icon: 'home' },
-      { href: '/app/orders', label: 'Orders', icon: 'orders' },
+      // A contractor's employees see no orders (decided 2026-11-29).
+      ...(provider ? [{ href: '/app/orders', label: 'Orders', icon: 'orders' }] : []),
       { href: '/app/output', label: 'Output', icon: 'output' },
       { href: '/app/shifts', label: 'Shifts', icon: 'shifts' },
       { href: '/app/hours', label: 'Work hours', icon: 'clock' },
@@ -51,8 +52,16 @@ export function navFor(actor: Actor | null): Item[] {
       { href: '/app', label: 'Orders', icon: 'orders' },
       { href: '/app/orders/new', label: 'New order', icon: 'products' },
       { href: '/app/deliveries', label: 'Deliveries', icon: 'deliveries' },
+      // Decided 2026-11-29: contractors run their own staff, products and ingredients too.
+      { href: '/app/today', label: 'Today', icon: 'home' },
+      { href: '/app/shifts', label: 'Shifts', icon: 'shifts' },
+      { href: '/app/hours', label: 'Work hours', icon: 'clock' },
+      { href: '/app/output', label: 'Output', icon: 'output' },
+      { href: '/app/tasks', label: 'Tasks', icon: 'tasks' },
+      { href: '/app/products', label: 'Products', icon: 'products' },
+      { href: '/app/ingredients', label: 'Ingredients', icon: 'ingredients' },
+      { href: '/app/people', label: 'People and teams', icon: 'people' },
       { href: '/app/finance', label: 'Finance', icon: 'money' },
-      { href: '/app/people', label: 'Admins', icon: 'people' },
       { href: '/app/settings', label: 'Settings', icon: 'settings' },
     ];
   return [];
@@ -86,7 +95,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!s.ready || !s.membership) return;
     const allowed = [
-      ...navFor(s.actor).map((i) => i.href),
+      ...navFor(s.actor, s.provider).map((i) => i.href),
       '/app/notifications',
       '/app/more',
       '/app/settings',
@@ -96,7 +105,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [s.ready, s.membership, s.actor, path, router]);
 
   if (!s.ready || !s.me || !s.membership) return <Loading />;
-  const items = navFor(s.actor);
+  const items = navFor(s.actor, s.provider);
   const isOn = (href: string) => (href === '/app' ? path === '/app' : path.startsWith(href));
   const tabs = [...items.slice(0, 4), { href: '/app/more', label: 'More', icon: 'more' }];
   const orgName = s.membership.organization.name;

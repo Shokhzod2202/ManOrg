@@ -129,13 +129,13 @@ describe('POST /organizations/{id}/applications as a person (ACC-5)', () => {
     expect(res.body.error.code).toBe('ALREADY_IN_ORGANIZATION');
   });
 
-  it('refuses applications to contractor organizations, which have admins only', async () => {
-    const person = await api.register('Wrong Door');
+  it('takes applications to contractor organizations too (decided 2026-11-29)', async () => {
+    const person = await api.register('Cafe Applicant');
     const res = await api
       .as(person)
       .post(`/organizations/${w.contractor.id}/applications`)
-      .expect(422);
-    expect(res.body.error.code).toBe('CONTRACTOR_ADMINS_ONLY');
+      .expect(201);
+    expect(res.body).toMatchObject({ kind: 'employee', status: 'pending' });
   });
 
   it('answers 404 for an organization that does not exist', async () => {

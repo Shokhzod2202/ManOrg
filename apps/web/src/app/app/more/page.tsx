@@ -11,7 +11,7 @@ import { t } from '../../../lib/i18n';
 export default function MorePage() {
   const s = useSession();
   const router = useRouter();
-  const items = navFor(s.actor).slice(4);
+  const items = navFor(s.actor, s.provider).slice(4);
   return (
     <div className="page">
       <PageHead title={t('More')} />

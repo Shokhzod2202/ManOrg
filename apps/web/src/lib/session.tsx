@@ -23,6 +23,10 @@ interface SessionValue {
   /** The active membership in the chosen organization, if any. */
   membership: Membership | null;
   actor: Actor | null;
+  /** An admin of the chosen organization, a bakery or a contractor (decided 2026-11-29). */
+  admin: boolean;
+  /** The chosen organization sells (a bakery); contractors buy. */
+  provider: boolean;
   orgId: string | null;
   signIn: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
@@ -115,18 +119,21 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const value = useMemo<SessionValue>(() => {
     const membership =
       me?.memberships.find((m) => m.status === 'active' && m.organization.id === orgId) ?? null;
+    // Decided 2026-11-29: contractors have employees too.
     const actor: Actor | null = membership
-      ? membership.organization.type === 'contractor'
-        ? 'contractor_admin'
-        : membership.role === 'admin'
-          ? 'org_admin'
-          : 'employee'
+      ? membership.role === 'employee'
+        ? 'employee'
+        : membership.organization.type === 'contractor'
+          ? 'contractor_admin'
+          : 'org_admin'
       : null;
     return {
       ready,
       me,
       membership,
       actor,
+      admin: membership?.role === 'admin',
+      provider: membership?.organization.type === 'provider',
       orgId,
       reload,
       signIn: async (email, password) => {

@@ -88,7 +88,8 @@ describe('worked hours (punch cards only)', () => {
       .as(joon, w.a.id)
       .get(`/work-hours?month=${lastMonth()}&employee_id=${idle.userId}`)
       .expect(403);
-    await api.as(w.contractor.admin, w.contractor.id).get('/work-hours').expect(403);
+    // Decided 2026-11-29: contractors have staff and hours too.
+    await api.as(w.contractor.admin, w.contractor.id).get('/work-hours').expect(200);
     await admin().get('/work-hours?month=2026-13').expect(400);
   });
 });

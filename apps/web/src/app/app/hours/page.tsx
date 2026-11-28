@@ -47,8 +47,7 @@ const monthName = (month: string) =>
  * month, never from the shift plan; and the advances ("avans") admins logged that month.
  */
 export default function HoursPage() {
-  const { actor, membership } = useSession();
-  const admin = actor === 'org_admin';
+  const { admin, membership } = useSession();
   // Decided 2026-11-26: hourly cost is for owners only.
   const owner = admin && membership?.owner === true;
   const [month, setMonth] = useState<string | null>(null);

@@ -166,9 +166,10 @@ describe('POST /products (PRD-1)', () => {
     expect(res.body.error.fields).toHaveProperty('ingredients');
   });
 
-  it('is forbidden to employees and contractor admins', async () => {
+  it('is forbidden to employees; contractor admins have products too', async () => {
     await api.as(w.a.employee, w.a.id).post('/products').send({}).expect(403);
-    await api.as(w.contractor.admin, w.contractor.id).post('/products').send({}).expect(403);
+    // Decided 2026-11-29: reaches validation, not the permission check.
+    await api.as(w.contractor.admin, w.contractor.id).post('/products').send({}).expect(400);
   });
 });
 

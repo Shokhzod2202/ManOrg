@@ -88,14 +88,14 @@ describe('POST /members (ACC-7)', () => {
     expect(audit.map((a) => a.action)).toEqual(['membership.create']);
   });
 
-  it('lets a contractor admin add admins but not employees', async () => {
+  it('lets a contractor admin add employees and admins (decided 2026-11-29)', async () => {
     const helper = await api.register('Cafe Helper');
-    const res = await api
+    const barista = await api.register('Cafe Barista');
+    await api
       .as(w.contractor.admin, w.contractor.id)
       .post('/members')
-      .send({ email: helper.email, role: 'employee' })
-      .expect(422);
-    expect(res.body.error.code).toBe('CONTRACTOR_ADMINS_ONLY');
+      .send({ email: barista.email, role: 'employee' })
+      .expect(201);
     await api
       .as(w.contractor.admin, w.contractor.id)
       .post('/members')

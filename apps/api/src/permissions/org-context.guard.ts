@@ -80,6 +80,7 @@ export class OrgContextGuard implements CanActivate {
     const actor = user.agentKey ? 'bot' : memberActor;
     const worksShifts = user.agentKey ? false : membership.worksShifts;
     const settings = {
+      organizationType: membership.organization.type,
       employeeAccess: resolveEmployeeAccess(membership.organization.employeeAccess),
       botAccess: resolveBotAccess(membership.organization.botAccess),
     };
@@ -92,7 +93,6 @@ export class OrgContextGuard implements CanActivate {
 
     req.org = {
       organizationId: membership.organization.id,
-      organizationType: membership.organization.type,
       membershipId: membership.id,
       role: membership.role,
       actor,

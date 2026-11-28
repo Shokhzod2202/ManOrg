@@ -4,7 +4,12 @@ import { type MembershipRole, type OrganizationType } from '../generated/prisma/
 import { type DbContext } from '../database/prisma-client';
 import { type BotAccess } from '../permissions/bot-access';
 import { type EmployeeAccess } from '../permissions/employee-access';
-import { type Actor, can, type Capability } from '../permissions/permissions';
+import {
+  type Actor,
+  can,
+  type Capability,
+  CONTRACTOR_EMPLOYEE_NEVER,
+} from '../permissions/permissions';
 
 /** Decided 2026-11-29: the API key an outside bot signed in with. */
 export interface AgentKeyRef {
@@ -52,11 +57,22 @@ export function orgCan(org: OrgContext, capability: Capability): boolean {
 export function memberCan(
   actor: Actor,
   capability: Capability,
-  settings: Pick<OrgContext, 'employeeAccess' | 'botAccess'>,
+  settings: Pick<OrgContext, 'employeeAccess' | 'botAccess' | 'organizationType'>,
   worksShifts: boolean,
 ): boolean {
+  // Decided 2026-11-29: a contractor's employees never see its orders, deliveries or money.
+  if (
+    actor === 'employee' &&
+    settings.organizationType === 'contractor' &&
+    CONTRACTOR_EMPLOYEE_NEVER.has(capability)
+  )
+    return false;
   if (can(actor, capability, settings)) return true;
-  return actor === 'org_admin' && worksShifts && ADMIN_WORKER_CAPABILITIES.has(capability);
+  return (
+    (actor === 'org_admin' || actor === 'contractor_admin') &&
+    worksShifts &&
+    ADMIN_WORKER_CAPABILITIES.has(capability)
+  );
 }
 
 const ADMIN_WORKER_CAPABILITIES: ReadonlySet<Capability> = new Set<Capability>([

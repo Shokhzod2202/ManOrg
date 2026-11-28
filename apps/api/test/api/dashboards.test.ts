@@ -64,9 +64,14 @@ describe("Today's Dashboard (DSH-1)", () => {
     expect(res.body.waiting.applications).toBe(1);
   });
 
-  it('is for admins; employees and contractors use their own homes', async () => {
+  it('is for admins of any organization; employees use their own home', async () => {
     await api.as(w.a.employee, w.a.id).get('/dashboard/today').expect(403);
-    await api.as(w.contractor.admin, w.contractor.id).get('/dashboard/today').expect(403);
+    // Decided 2026-11-29: a contractor admin sees their staff; there is no production board.
+    const cafe = await api
+      .as(w.contractor.admin, w.contractor.id)
+      .get('/dashboard/today')
+      .expect(200);
+    expect(cafe.body.ordersDueNext).toBeNull();
     await api.as(w.a.admin, w.b.id).get('/dashboard/today').expect(404);
   });
 });

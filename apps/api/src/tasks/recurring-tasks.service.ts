@@ -225,11 +225,10 @@ export class RecurringTasksService {
       : { assigneeId: null, assigneeIds: ids, forAll: false };
   }
 
-  /** The job: today's tasks for every bakery, in each bakery's own time zone. */
+  /** The job: today's tasks for every organization, in its own time zone. */
   async generate(now = new Date()): Promise<number> {
     const orgs = await this.db.run({ organizationId: null, userId: SYSTEM_USER }, (tx) =>
       tx.organization.findMany({
-        where: { type: 'provider' },
         select: { id: true, timezone: true },
       }),
     );

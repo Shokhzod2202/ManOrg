@@ -4131,7 +4131,8 @@ export interface components {
                 ingredientOrders?: number;
             };
             outputTotals: Record<string, never>[];
-            ordersDueNext: components["schemas"]["DueNextOrders"];
+            /** @description Null for a contractor organization (decided 2026-11-29), which has no production board. */
+            ordersDueNext: components["schemas"]["DueNextOrders"] | null;
         };
         EmployeeHome: {
             /** Format: date */
@@ -4139,7 +4140,7 @@ export interface components {
             punchCard: components["schemas"]["PunchCard"];
             output: components["schemas"]["OutputDay"];
             tasks: Record<string, never>[];
-            /** @description Empty when the admin has closed Orders due next to employees. */
+            /** @description Empty when the admin has closed Orders due next to employees, and always for a contractor's employees (decided 2026-11-29). */
             myOrders: components["schemas"]["EmployeeDueNextOrders"] | null;
             unreadNotifications: number;
         };

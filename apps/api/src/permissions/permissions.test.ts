@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { memberCan } from '../common/request-context';
 import { resolveBotAccess } from './bot-access';
 import { EMPLOYEE_ACCESS_KEYS, resolveEmployeeAccess } from './employee-access';
 import {
@@ -9,6 +10,7 @@ import {
   CAPABILITIES,
   can,
   type Capability,
+  CONTRACTOR_EMPLOYEE_NEVER,
   grantFor,
   type OrgSettings,
 } from './permissions';
@@ -35,8 +37,8 @@ describe('actorFor', () => {
     expect(actorFor('provider', 'admin')).toBe('org_admin');
     expect(actorFor('provider', 'employee')).toBe('employee');
     expect(actorFor('contractor', 'admin')).toBe('contractor_admin');
-    // Contractor organizations have admins only in v1 (open question 10).
-    expect(actorFor('contractor', 'employee')).toBe('contractor_admin');
+    // Decided 2026-11-29: contractor organizations have employees too.
+    expect(actorFor('contractor', 'employee')).toBe('employee');
   });
 });
 
@@ -44,7 +46,7 @@ describe('permission matrix (spec section 2)', () => {
   const phase0: [Capability, Record<Actor, boolean>][] = [
     [
       'applications.decide',
-      { employee: false, org_admin: true, contractor_admin: false, bot: false },
+      { employee: false, org_admin: true, contractor_admin: true, bot: false },
     ],
     ['members.manage', { employee: false, org_admin: true, contractor_admin: true, bot: false }],
     [
@@ -66,8 +68,41 @@ describe('permission matrix (spec section 2)', () => {
     }
   });
 
-  it('contractor admins create admins only in their own organization', () => {
-    expect(grantFor('contractor_admin', 'members.manage')).toBe('own');
+  it('contractor admins run their own staff like a bakery admin (decided 2026-11-29)', () => {
+    for (const capability of [
+      'members.manage',
+      'applications.decide',
+      'shifts.set',
+      'punch.edit',
+      'tasks.manage',
+      'products.manage',
+      'ingredients.manage',
+      'hours.read',
+      'advances.manage',
+    ] as const) {
+      expect({ capability, grant: grantFor('contractor_admin', capability) }).toEqual({
+        capability,
+        grant: 'any',
+      });
+    }
+    // Selling stays with bakeries.
+    for (const capability of ['deliveries.record', 'orders.markMade', 'wall.manage'] as const) {
+      expect(can('contractor_admin', capability, allOpen)).toBe(false);
+    }
+  });
+
+  it('contractor employees never see orders, deliveries or money', () => {
+    const contractor = { ...allOpen, organizationType: 'contractor' as const };
+    const provider = { ...allOpen, organizationType: 'provider' as const };
+    for (const capability of CONTRACTOR_EMPLOYEE_NEVER) {
+      expect({ capability, ok: memberCan('employee', capability, contractor, false) }).toEqual({
+        capability,
+        ok: false,
+      });
+    }
+    expect(memberCan('employee', 'deliveries.read', provider, false)).toBe(true);
+    expect(memberCan('employee', 'punch.self', contractor, false)).toBe(true);
+    expect(memberCan('employee', 'tasks.complete', contractor, false)).toBe(true);
   });
 
   it('only employees punch and complete tasks, and only for themselves', () => {
@@ -89,7 +124,7 @@ describe('permission matrix (spec section 2)', () => {
         grant: 'own',
       });
     }
-    expect(can('contractor_admin', 'shifts.read', allOpen)).toBe(false);
+    expect(can('contractor_admin', 'payments.review', allOpen)).toBe(false);
   });
 
   it('lists every actor for every capability', () => {

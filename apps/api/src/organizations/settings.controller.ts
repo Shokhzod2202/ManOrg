@@ -65,7 +65,6 @@ export class SettingsController {
   @Get('location')
   @RequireOrg()
   getLocation(@CurrentUser() user: AuthUser, @CurrentOrg() org: OrgContext) {
-    if (org.organizationType !== 'provider') throw Errors.forbidden();
     return this.settings.location(user, org);
   }
 

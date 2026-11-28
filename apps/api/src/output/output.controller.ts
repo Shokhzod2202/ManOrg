@@ -35,10 +35,6 @@ import {
 } from './output.schemas';
 import { OutputService } from './output.service';
 
-function providerOnly(org: OrgContext): void {
-  if (org.organizationType !== 'provider') throw Errors.forbidden();
-}
-
 @Controller()
 export class OutputController {
   constructor(private readonly output: OutputService) {}
@@ -52,7 +48,6 @@ export class OutputController {
   @Get('teams')
   @RequireOrg()
   listTeams(@CurrentUser() user: AuthUser, @CurrentOrg() org: OrgContext) {
-    providerOnly(org);
     return this.output.listTeams(user, org);
   }
 
@@ -108,7 +103,6 @@ export class OutputController {
     @CurrentOrg() org: OrgContext,
     @ZodQuery(outputRangeSchema) query: OutputRangeInput,
   ) {
-    providerOnly(org);
     return this.output.getOutput(user, org, query);
   }
 
@@ -116,7 +110,6 @@ export class OutputController {
   @Get('dashboard/output-latest')
   @RequireOrg()
   latest(@CurrentUser() user: AuthUser, @CurrentOrg() org: OrgContext) {
-    providerOnly(org);
     return this.output.latest(user, org);
   }
 
@@ -128,7 +121,6 @@ export class OutputController {
     @CurrentOrg() org: OrgContext,
     @ZodQuery(efficiencyQuerySchema) query: z.infer<typeof efficiencyQuerySchema>,
   ) {
-    providerOnly(org);
     return this.output.efficiency(user, org, query.employee_id, query.month);
   }
 
@@ -139,7 +131,6 @@ export class OutputController {
     @CurrentOrg() org: OrgContext,
     @ZodQuery(dayQuerySchema) query: z.infer<typeof dayQuerySchema>,
   ) {
-    providerOnly(org);
     return this.output.shiftOutput(user, org, query.date);
   }
 }

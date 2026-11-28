@@ -233,7 +233,6 @@ export class ShiftsService {
   async notifyFlags(now = new Date()): Promise<number> {
     const orgs = await this.db.run({ organizationId: null, userId: SYSTEM_USER }, (tx) =>
       tx.organization.findMany({
-        where: { type: 'provider' },
         select: { id: true, timezone: true, punchToleranceMin: true },
       }),
     );

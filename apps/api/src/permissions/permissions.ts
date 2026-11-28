@@ -32,23 +32,30 @@ type Row = { employee: Grant; org_admin: Grant; contractor_admin: Grant };
 
 const setting = (key: EmployeeAccessKey) => ({ setting: key }) as const;
 
+/*
+ * Decided 2026-11-29: every organization runs its own staff. Contractor organizations have
+ * employees too (they apply and the admin approves), with punch cards, shifts, tasks, output,
+ * hours, products and ingredients like a bakery, so `contractor_admin` holds the provider admin's
+ * staff powers. Buying and selling stay by type: contractor employees see no orders, deliveries
+ * or money (CONTRACTOR_EMPLOYEE_NEVER).
+ */
 const MATRIX = {
   // Spec section 2, main table
   'organization.create': { employee: false, org_admin: 'any', contractor_admin: 'any' },
   'organization.apply': { employee: 'own', org_admin: false, contractor_admin: 'own' },
-  'applications.decide': { employee: false, org_admin: 'any', contractor_admin: false },
-  'members.manage': { employee: false, org_admin: 'any', contractor_admin: 'own' },
-  'shifts.set': { employee: false, org_admin: 'any', contractor_admin: false },
-  'shifts.read': { employee: setting('allShifts'), org_admin: 'any', contractor_admin: false },
+  'applications.decide': { employee: false, org_admin: 'any', contractor_admin: 'any' },
+  'members.manage': { employee: false, org_admin: 'any', contractor_admin: 'any' },
+  'shifts.set': { employee: false, org_admin: 'any', contractor_admin: 'any' },
+  'shifts.read': { employee: setting('allShifts'), org_admin: 'any', contractor_admin: 'any' },
   'punch.self': { employee: 'own', org_admin: false, contractor_admin: false },
-  'punch.edit': { employee: false, org_admin: 'any', contractor_admin: false },
+  'punch.edit': { employee: false, org_admin: 'any', contractor_admin: 'any' },
   'punch.requestChange': { employee: 'own', org_admin: false, contractor_admin: false },
-  'output.log': { employee: 'own', org_admin: 'any', contractor_admin: false },
-  'tasks.manage': { employee: false, org_admin: 'any', contractor_admin: false },
+  'output.log': { employee: 'own', org_admin: 'any', contractor_admin: 'any' },
+  'tasks.manage': { employee: false, org_admin: 'any', contractor_admin: 'any' },
   'tasks.complete': { employee: 'own', org_admin: false, contractor_admin: false },
-  'products.manage': { employee: false, org_admin: 'any', contractor_admin: false },
+  'products.manage': { employee: false, org_admin: 'any', contractor_admin: 'any' },
   'products.setAvailability': { employee: false, org_admin: 'any', contractor_admin: false },
-  'ingredients.manage': { employee: false, org_admin: 'any', contractor_admin: false },
+  'ingredients.manage': { employee: false, org_admin: 'any', contractor_admin: 'any' },
   'orders.place': { employee: false, org_admin: false, contractor_admin: 'own' },
   'orders.edit': { employee: false, org_admin: 'any', contractor_admin: 'own' },
   'deliveries.record': { employee: false, org_admin: 'any', contractor_admin: false },
@@ -58,20 +65,20 @@ const MATRIX = {
   'deliveries.requestChange': { employee: false, org_admin: 'any', contractor_admin: 'own' },
   'deliveries.decideChange': { employee: false, org_admin: 'any', contractor_admin: 'own' },
   'organization.readAll': { employee: false, org_admin: 'any', contractor_admin: 'own' },
-  'ingredients.order': { employee: 'any', org_admin: 'any', contractor_admin: false },
-  'ingredients.fulfil': { employee: false, org_admin: 'any', contractor_admin: false },
+  'ingredients.order': { employee: 'any', org_admin: 'any', contractor_admin: 'any' },
+  'ingredients.fulfil': { employee: false, org_admin: 'any', contractor_admin: 'any' },
   'ingredients.assignResponsibility': {
     employee: false,
     org_admin: 'any',
-    contractor_admin: false,
+    contractor_admin: 'any',
   },
   'teams.manage': { employee: 'own', org_admin: false, contractor_admin: false },
   // Decided 2026-11-13: admins create shared teams of employees who work together.
-  'teams.manageShared': { employee: false, org_admin: 'any', contractor_admin: false },
+  'teams.manageShared': { employee: false, org_admin: 'any', contractor_admin: 'any' },
   // Decided 2026-11-13: workers tick products as made on the production board.
   'orders.markMade': { employee: 'any', org_admin: 'any', contractor_admin: false },
   // Spec section 2, "Added capabilities"
-  'output.logTeam': { employee: 'own', org_admin: 'any', contractor_admin: false },
+  'output.logTeam': { employee: 'own', org_admin: 'any', contractor_admin: 'any' },
 
   // Reads employees get when the admin opens the area in Employee access (decided 2026-11-12).
   'orders.readDueNext': {
@@ -85,19 +92,19 @@ const MATRIX = {
     contractor_admin: 'own',
   },
   'deliveries.read': { employee: setting('deliveries'), org_admin: 'any', contractor_admin: 'own' },
-  'output.readAll': { employee: setting('outputAll'), org_admin: 'any', contractor_admin: false },
+  'output.readAll': { employee: setting('outputAll'), org_admin: 'any', contractor_admin: 'any' },
   'ingredients.readPrices': {
     employee: setting('ingredientPrices'),
     org_admin: 'any',
-    contractor_admin: false,
+    contractor_admin: 'any',
   },
   // Decided 2026-11-13: anyone at the provider accepts added products or larger quantities in a
   // contractor's change request; smaller quantities and removals need orders.edit (the admin).
   'orders.acceptAdditions': { employee: 'any', org_admin: 'any', contractor_admin: false },
-  'employeeAccess.manage': { employee: false, org_admin: 'any', contractor_admin: false },
+  'employeeAccess.manage': { employee: false, org_admin: 'any', contractor_admin: 'any' },
   'botAccess.manage': { employee: false, org_admin: 'any', contractor_admin: false },
   // Phase 2 (spec section 9): the bakery location and the arrival prompt.
-  'location.manage': { employee: false, org_admin: 'any', contractor_admin: false },
+  'location.manage': { employee: false, org_admin: 'any', contractor_admin: 'any' },
   // Phase 2 (spec section 10): the Bot screen is in the admin app only.
   'bot.use': { employee: false, org_admin: 'any', contractor_admin: false },
 
@@ -107,11 +114,11 @@ const MATRIX = {
   'wall.manage': { employee: false, org_admin: 'any', contractor_admin: false },
   // Decided 2026-11-29: API keys for outside bots (the service also checks the owner).
   'agentKeys.manage': { employee: false, org_admin: 'any', contractor_admin: false },
-  'hours.read': { employee: 'own', org_admin: 'any', contractor_admin: false },
-  'advances.manage': { employee: false, org_admin: 'any', contractor_admin: false },
+  'hours.read': { employee: 'own', org_admin: 'any', contractor_admin: 'any' },
+  'advances.manage': { employee: false, org_admin: 'any', contractor_admin: 'any' },
 
   // docs/F-001.md section 3 (built after the MVP gate)
-  'prices.manage': { employee: false, org_admin: 'any', contractor_admin: false },
+  'prices.manage': { employee: false, org_admin: 'any', contractor_admin: 'any' },
   'finance.view': { employee: setting('finance'), org_admin: 'any', contractor_admin: 'own' },
   'payments.submit': { employee: false, org_admin: false, contractor_admin: 'own' },
   'payments.view': { employee: setting('finance'), org_admin: 'any', contractor_admin: 'own' },
@@ -122,6 +129,18 @@ const MATRIX = {
 } as const satisfies Record<string, Row>;
 
 export type Capability = keyof typeof MATRIX;
+
+/** Decided 2026-11-29: the trading side a contractor's employees never see. */
+export const CONTRACTOR_EMPLOYEE_NEVER: ReadonlySet<Capability> = new Set<Capability>([
+  'orders.readDueNext',
+  'orders.readHistory',
+  'orders.acceptAdditions',
+  'orders.markMade',
+  'deliveries.read',
+  'finance.view',
+  'payments.view',
+  'settlement.view',
+]);
 
 /**
  * The bot acts for the provider admin and can see and do everything the admin can (decided
@@ -159,8 +178,8 @@ export const CAPABILITIES: Record<Capability, Record<Actor, Grant>> = Object.fro
 ) as Record<Capability, Record<Actor, Grant>>;
 
 export function actorFor(organizationType: OrganizationType, role: MembershipRole): Actor {
-  if (organizationType === 'contractor') return 'contractor_admin';
-  return role === 'admin' ? 'org_admin' : 'employee';
+  if (role === 'employee') return 'employee';
+  return organizationType === 'contractor' ? 'contractor_admin' : 'org_admin';
 }
 
 export function grantFor(actor: Actor, capability: Capability): Grant {

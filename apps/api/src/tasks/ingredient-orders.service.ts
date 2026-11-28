@@ -196,11 +196,10 @@ export class IngredientOrdersService {
     return sent;
   }
 
-  /** Every provider organization, read through the pool policy as a system user. */
+  /** Every organization (decided 2026-11-29: contractors too), read as a system user. */
   private async listOrganizations() {
     return this.db.run({ organizationId: null, userId: SYSTEM_USER }, (tx) =>
       tx.organization.findMany({
-        where: { type: 'provider' },
         select: { id: true, timezone: true },
       }),
     );

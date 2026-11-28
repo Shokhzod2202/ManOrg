@@ -40,7 +40,8 @@ const STATUS: Record<string, string> = {
 
 /** DSH-1: everything an admin needs today on one screen, refreshed every 30 seconds. */
 export function AdminToday() {
-  const { membership } = useSession();
+  // Decided 2026-11-29: contractor admins use this for their staff, without the selling parts.
+  const { membership, provider } = useSession();
   const { data, error, loading, reload } = useApi<Today>('/dashboard/today', 30_000);
   // Decided 2026-11-28: tapping "On shift now" shows who, since when and for how long.
   const [showShift, setShowShift] = useState(false);
@@ -50,8 +51,12 @@ export function AdminToday() {
   const waiting = [
     { n: w.applications ?? 0, label: 'Applications', href: '/app/people' },
     { n: w.punchChangeRequests ?? 0, label: 'Punch change requests', href: '/app/shifts' },
-    { n: w.orderChangeRequests ?? 0, label: 'Order changes', href: '/app/orders' },
-    { n: w.deliveryChangeRequests ?? 0, label: 'Delivery changes', href: '/app/deliveries' },
+    ...(provider
+      ? [
+          { n: w.orderChangeRequests ?? 0, label: 'Order changes', href: '/app/orders' },
+          { n: w.deliveryChangeRequests ?? 0, label: 'Delivery changes', href: '/app/deliveries' },
+        ]
+      : []),
     { n: w.ingredientOrders ?? 0, label: 'Ingredient orders', href: '/app/tasks' },
   ];
   const deliveries = data.deliveriesToday as unknown as DeliveryRow[];
@@ -100,10 +105,12 @@ export function AdminToday() {
           </Link>
         </section>
       ) : null}
-      <section className="stack">
-        <h2 className="center">{t('Orders due next')}</h2>
-        <OrdersBoard />
-      </section>
+      {provider ? (
+        <section className="stack">
+          <h2 className="center">{t('Orders due next')}</h2>
+          <OrdersBoard />
+        </section>
+      ) : null}
       <div className="grid2">
         <section className="card">
           <h2>{t('On shift')}</h2>
@@ -122,51 +129,53 @@ export function AdminToday() {
             </div>
           ) : null}
         </section>
-        <section className="card">
-          <h2>{t('Deliveries today')}</h2>
-          {deliveries.length ? (
-            <table className="t cards">
-              <thead>
-                <tr>
-                  <th>{t('Contractor')}</th>
-                  <th>{t('Time')}</th>
-                  <th>{t('Status')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {deliveries.map((d) => (
-                  <tr key={d.id}>
-                    <td data-label={t('Contractor')}>
-                      <Link href={`/app/deliveries?contractor=${d.contractor.id}`}>
-                        <b>{d.contractor.name}</b>
-                      </Link>
-                    </td>
-                    <td data-label={t('Time')}>
-                      {d.windowStart
-                        ? `${formatTime(d.windowStart)}–${formatTime(d.windowEnd)}`
-                        : '—'}
-                    </td>
-                    <td data-label={t('Status')}>
-                      <span
-                        className={
-                          d.status === 'confirmed'
-                            ? 'pill ok'
-                            : d.status === 'change_requested'
-                              ? 'pill warn'
-                              : 'pill'
-                        }
-                      >
-                        {t(STATUS[d.status] ?? d.status)}
-                      </span>
-                    </td>
+        {provider ? (
+          <section className="card">
+            <h2>{t('Deliveries today')}</h2>
+            {deliveries.length ? (
+              <table className="t cards">
+                <thead>
+                  <tr>
+                    <th>{t('Contractor')}</th>
+                    <th>{t('Time')}</th>
+                    <th>{t('Status')}</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <Empty>{t('No deliveries started today.')}</Empty>
-          )}
-        </section>
+                </thead>
+                <tbody>
+                  {deliveries.map((d) => (
+                    <tr key={d.id}>
+                      <td data-label={t('Contractor')}>
+                        <Link href={`/app/deliveries?contractor=${d.contractor.id}`}>
+                          <b>{d.contractor.name}</b>
+                        </Link>
+                      </td>
+                      <td data-label={t('Time')}>
+                        {d.windowStart
+                          ? `${formatTime(d.windowStart)}–${formatTime(d.windowEnd)}`
+                          : '—'}
+                      </td>
+                      <td data-label={t('Status')}>
+                        <span
+                          className={
+                            d.status === 'confirmed'
+                              ? 'pill ok'
+                              : d.status === 'change_requested'
+                                ? 'pill warn'
+                                : 'pill'
+                          }
+                        >
+                          {t(STATUS[d.status] ?? d.status)}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <Empty>{t('No deliveries started today.')}</Empty>
+            )}
+          </section>
+        ) : null}
         <section className="card">
           <h2>{t('Tasks due')}</h2>
           <span className="muted small">

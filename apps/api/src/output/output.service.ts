@@ -60,7 +60,6 @@ export class OutputService {
   }
   /** OUT-4, OUT-5: names of active coworkers, so an employee can build a team. No emails. */
   colleagues(user: AuthUser, org: OrgContext) {
-    if (org.organizationType !== 'provider') throw Errors.forbidden();
     return this.db.run(dbContext(user, org), async (tx) => {
       const rows = await tx.membership.findMany({
         where: { organizationId: org.organizationId, status: 'active', role: 'employee' },

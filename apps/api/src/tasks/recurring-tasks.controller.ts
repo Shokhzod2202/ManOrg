@@ -1,5 +1,4 @@
 import { Controller, Get, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
-import { Errors } from '../common/errors';
 import { IfMatchVersion } from '../common/if-match';
 import {
   type AuthUser,
@@ -17,10 +16,6 @@ import {
   updateRecurringSchema,
 } from './recurring-tasks.service';
 
-function providerOnly(org: OrgContext): void {
-  if (org.organizationType !== 'provider') throw Errors.forbidden();
-}
-
 /** Phase 3 repeating tasks: rules that make an ordinary task on each due day. */
 @Controller('recurring-tasks')
 export class RecurringTasksController {
@@ -29,7 +24,6 @@ export class RecurringTasksController {
   @Get()
   @RequireOrg('tasks.manage')
   list(@CurrentUser() user: AuthUser, @CurrentOrg() org: OrgContext) {
-    providerOnly(org);
     return this.recurring.list(user, org);
   }
 
@@ -40,7 +34,6 @@ export class RecurringTasksController {
     @CurrentOrg() org: OrgContext,
     @ZodBody(createRecurringSchema) body: CreateRecurringInput,
   ) {
-    providerOnly(org);
     return this.recurring.create(user, org, body);
   }
 
@@ -53,7 +46,6 @@ export class RecurringTasksController {
     @IfMatchVersion() version: number,
     @ZodBody(updateRecurringSchema) body: UpdateRecurringInput,
   ) {
-    providerOnly(org);
     return this.recurring.update(user, org, id, version, body);
   }
 }

@@ -36,10 +36,6 @@ import {
 } from './tasks.schemas';
 import { MAX_TASK_PHOTO_BYTES, TasksService } from './tasks.service';
 
-function providerOnly(org: OrgContext): void {
-  if (org.organizationType !== 'provider') throw Errors.forbidden();
-}
-
 const completeFields = z.object({ captureToken: z.string().min(10).max(200).optional() });
 
 @Controller()
@@ -66,7 +62,6 @@ export class TasksController {
     @CurrentOrg() org: OrgContext,
     @ZodQuery(listTasksSchema) query: ListTasksInput,
   ) {
-    providerOnly(org);
     return this.tasks.list(user, org, query);
   }
 
@@ -77,7 +72,6 @@ export class TasksController {
     @CurrentOrg() org: OrgContext,
     @Param('id', new ParseUUIDPipe()) id: string,
   ) {
-    providerOnly(org);
     return this.tasks.get(user, org, id);
   }
 
@@ -138,7 +132,6 @@ export class TasksController {
     @CurrentOrg() org: OrgContext,
     @ZodQuery(listIngredientOrdersSchema) query: z.infer<typeof listIngredientOrdersSchema>,
   ) {
-    providerOnly(org);
     return this.ingredientOrders.list(user, org, query.status);
   }
 

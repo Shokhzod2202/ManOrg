@@ -21,8 +21,7 @@ const won = (n: number) => `₩${n.toLocaleString('en-US')}`;
 
 /** ING-1 to ING-6. A new price applies from now on; past costs keep their price (decision 2026-11-12). */
 export default function IngredientsPage() {
-  const { actor } = useSession();
-  const admin = actor === 'org_admin';
+  const { admin } = useSession();
   const { data, error, loading, reload } = useApi<{ items: Ingredient[] }>('/ingredients');
   const items = [...(data?.items ?? [])].sort(
     (a, b) => Number(b.dueToday) - Number(a.dueToday) || a.name.localeCompare(b.name),

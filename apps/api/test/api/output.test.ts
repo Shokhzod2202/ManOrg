@@ -245,11 +245,12 @@ describe('reading output (OUT-2, OUT-3)', () => {
     ]);
   });
 
-  it('is not for contractor admins', async () => {
-    await api
+  it('is also for contractor admins (decided 2026-11-29)', async () => {
+    const res = await api
       .as(w.contractor.admin, w.contractor.id)
       .get(`/dashboard/shift-output?date=${today()}`)
-      .expect(403);
+      .expect(200);
+    expect(res.body.employees).toEqual([]);
   });
 });
 

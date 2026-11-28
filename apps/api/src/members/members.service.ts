@@ -180,8 +180,6 @@ export class MembersService {
   }
 
   create(user: AuthUser, org: OrgContext, input: CreateMemberInput) {
-    if (org.organizationType === 'contractor' && input.role !== 'admin')
-      throw contractorAdminsOnly();
     if (input.role === 'admin') ownerOnly(user, org);
     return this.db.run(dbContext(user, org), async (tx) => {
       const person = await tx.user.findUnique({
@@ -223,8 +221,6 @@ export class MembersService {
   }
 
   update(user: AuthUser, org: OrgContext, id: string, version: number, input: UpdateMemberInput) {
-    if (org.organizationType === 'contractor' && input.role === 'employee')
-      throw contractorAdminsOnly();
     return this.db.run(dbContext(user, org), async (tx) => {
       const before = await tx.membership.findFirst({
         where: { id, organizationId: org.organizationId, status: { in: ['active', 'removed'] } },
@@ -648,11 +644,4 @@ function ownerOnly(user: AuthUser, org: OrgContext): void {
   if (!org.owner || user.viaBot) {
     throw Errors.forbidden('Only an owner can do this.');
   }
-}
-
-function contractorAdminsOnly() {
-  return Errors.unprocessable(
-    'CONTRACTOR_ADMINS_ONLY',
-    'Contractor organizations have admins only in this version.',
-  );
 }

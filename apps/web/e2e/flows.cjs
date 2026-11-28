@@ -1378,6 +1378,72 @@ async function rowAction(page, rowText, action) {
   )
     throw new Error('API keys for bots failed');
 
+  // 37. Decided 2026-11-29. Contractors have staff too: a new person finds City Cafe with the
+  // organization search and applies; the cafe admin approves on People; the worker punches in
+  // and sees no Orders; the cafe admin sees them on Shifts and adds an ingredient and a product.
+  const cafeAdmin = await as(b, 'admin@citycafe.test');
+  const barista = await b.newPage({ viewport: { width: 390, height: 844 } });
+  const baristaName = `Cafe Barista ${Date.now() % 1000000}`;
+  await barista.goto(`${W}/register`);
+  await barista.fill('label:has-text("Your name") input', baristaName);
+  await barista.fill('input[type=email]', `barista${Date.now()}@example.test`);
+  await barista.locator('.password input').nth(0).fill('Password123!');
+  await barista.locator('.password input').nth(1).fill('Password123!');
+  await barista.click('button:has-text("Create account")');
+  await barista.waitForURL('**/start');
+  await barista.fill('label:has-text("Organization name") input', 'City Cafe');
+  await barista.click('form button:has-text("Search")');
+  await barista.locator('.card:has-text("City Cafe") button:has-text("Apply")').first().click();
+  await barista.waitForSelector('text=Waiting for approval');
+  await cafeAdmin.goto(`${W}/app/people`);
+  await cafeAdmin
+    .locator('section:has(h2:has-text("Applications"))')
+    .locator(`:is(div, tr):has-text("${baristaName}")`)
+    .last()
+    .locator('button:has-text("Approve")')
+    .click();
+  await cafeAdmin
+    .locator('section:has(h2:has-text("Members"))')
+    .getByText(baristaName)
+    .first()
+    .waitFor();
+  await barista.goto(`${W}/app`);
+  await barista.locator('button:has-text("Start shift")').click();
+  await barista.locator('button:has-text("Pause")').waitFor();
+  const navText = await barista.locator('nav.tabbar').innerText();
+  const noOrders = !/Orders/.test(navText);
+  await cafeAdmin.goto(`${W}/app/today`);
+  const onShift = await cafeAdmin
+    .locator('.kpi:has-text("On shift now") b')
+    .innerText()
+    .then((n) => Number(n));
+  const cafeIng = `Cafe milk ${Date.now() % 100000}`;
+  await cafeAdmin.goto(`${W}/app/ingredients`);
+  await cafeAdmin.click('button:has-text("New ingredient")');
+  await cafeAdmin.fill('form label:has-text("Name") input', cafeIng);
+  await cafeAdmin.fill('form label:has-text("Where it is bought") input', 'Dairy');
+  await cafeAdmin.fill('form label:has-text("Pack size") input', '1');
+  await cafeAdmin.fill('form label:has-text("Price per pack") input', '3000');
+  await cafeAdmin.click('form button:has-text("Add ingredient")');
+  await cafeAdmin.waitForSelector(`text=${cafeIng}`);
+  const cafeProduct = `Latte ${Date.now() % 100000}`;
+  await cafeAdmin.goto(`${W}/app/products`);
+  await cafeAdmin.click('button:has-text("New product")');
+  await cafeAdmin.fill('form label:has-text("Name") input', cafeProduct);
+  await cafeAdmin.fill('label:has-text("Price per piece") input', '4500');
+  await cafeAdmin.click('button:has-text("Add product")');
+  await cafeAdmin.waitForSelector(`text=${cafeProduct}`);
+  await barista.locator('button:has-text("End shift")').click();
+  await confirmInPage(barista).catch(() => undefined);
+  log(
+    '37 contractor staff: applied and approved; punched in; no Orders for the worker:',
+    noOrders,
+    '| on shift at the cafe:',
+    onShift,
+    '| cafe ingredient and product added',
+  );
+  if (!noOrders || onShift < 1) throw new Error('Contractor staff failed');
+
   await b.close();
 })().catch((e) => {
   console.error('FAILED', e.message.slice(0, 400));

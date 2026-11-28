@@ -90,11 +90,21 @@ describe('OrgContextGuard', () => {
     await expect(guard.canActivate(context)).rejects.toMatchObject({ status: 403 });
   });
 
-  it('denies contractor admins the bakery-only approval capability', async () => {
+  it('denies contractor admins the bakery-only selling capability', async () => {
     const { guard, context } = setup({
-      requirement: { kind: 'required', capability: 'applications.decide' },
+      requirement: { kind: 'required', capability: 'deliveries.record' },
       header: ORG,
       membership: { role: 'admin', type: 'contractor' },
+    });
+    await expect(guard.canActivate(context)).rejects.toMatchObject({ status: 403 });
+  });
+
+  it("keeps a contractor's employees out of its orders even when switched on", async () => {
+    const { guard, context } = setup({
+      requirement: { kind: 'required', capability: 'orders.readHistory' },
+      header: ORG,
+      membership: { role: 'employee', type: 'contractor' },
+      employeeAccess: { ordersHistory: true },
     });
     await expect(guard.canActivate(context)).rejects.toMatchObject({ status: 403 });
   });

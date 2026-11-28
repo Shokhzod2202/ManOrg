@@ -42,11 +42,6 @@ import { ShiftsService } from './shifts.service';
 const employeeQuery = z.object({ employee_id: z.uuid().optional() });
 const idempotencyKey = z.string().min(8).max(100).optional();
 
-/** Shifts and punch cards belong to provider organizations; contractor admins have none. */
-function providerOnly(org: OrgContext): void {
-  if (org.organizationType !== 'provider') throw Errors.forbidden();
-}
-
 @Controller()
 export class ShiftsController {
   constructor(private readonly shifts: ShiftsService) {}
@@ -58,7 +53,6 @@ export class ShiftsController {
     @CurrentOrg() org: OrgContext,
     @ZodQuery(employeeQuery) query: z.infer<typeof employeeQuery>,
   ) {
-    providerOnly(org);
     return this.shifts.listPlans(user, org, query.employee_id);
   }
 
@@ -77,7 +71,6 @@ export class ShiftsController {
   @HttpCode(200)
   @RequireOrg('punch.self')
   arrival(@CurrentUser() user: AuthUser, @CurrentOrg() org: OrgContext) {
-    providerOnly(org);
     return this.shifts.arrival(user, org);
   }
 
@@ -112,7 +105,6 @@ export class ShiftsController {
     @CurrentOrg() org: OrgContext,
     @ZodQuery(rangeSchema) query: RangeInput,
   ) {
-    providerOnly(org);
     return this.shifts.history(user, org, query);
   }
 
@@ -155,7 +147,6 @@ export class ShiftsController {
     @CurrentOrg() org: OrgContext,
     @ZodQuery(listChangeRequestsSchema) query: z.infer<typeof listChangeRequestsSchema>,
   ) {
-    providerOnly(org);
     return this.shifts.listRequests(user, org, query.status);
   }
 
@@ -188,7 +179,6 @@ export class ShiftsController {
     @CurrentOrg() org: OrgContext,
     @ZodQuery(rangeSchema) query: RangeInput,
   ) {
-    providerOnly(org);
     return this.shifts.dashboard(user, org, query, true);
   }
 }

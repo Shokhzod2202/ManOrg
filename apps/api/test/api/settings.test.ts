@@ -44,12 +44,12 @@ describe('GET /organization/employee-access', () => {
     });
   });
 
-  it('is for the organization admin only', async () => {
+  it('is for the organization admin only (contractor admins too, decided 2026-11-29)', async () => {
     await api.as(w.a.employee, w.a.id).get('/organization/employee-access').expect(403);
     await api
       .as(w.contractor.admin, w.contractor.id)
       .get('/organization/employee-access')
-      .expect(403);
+      .expect(200);
   });
 
   it('answers 404 for another organization', async () => {
@@ -117,15 +117,9 @@ describe('PUT /organization/employee-access', () => {
     expect(Object.keys(res.body.error.fields).sort()).toEqual(['editOrders', 'finance']);
   });
 
-  it('is forbidden to employees and contractor admins, and 404 across organizations', async () => {
+  it('is forbidden to employees, and 404 across organizations', async () => {
     await api
       .as(w.a.employee, w.a.id)
-      .put('/organization/employee-access')
-      .set('If-Match', '1')
-      .send({ finance: true })
-      .expect(403);
-    await api
-      .as(w.contractor.admin, w.contractor.id)
       .put('/organization/employee-access')
       .set('If-Match', '1')
       .send({ finance: true })

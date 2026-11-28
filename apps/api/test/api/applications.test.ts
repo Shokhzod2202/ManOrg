@@ -48,8 +48,9 @@ describe('GET /applications', () => {
     await api.as(w.a.employee, w.a.id).get('/applications').expect(403);
   });
 
-  it('is forbidden to contractor admins (403)', async () => {
-    await api.as(w.contractor.admin, w.contractor.id).get('/applications').expect(403);
+  it('also lists a contractor admin’s own applicants (decided 2026-11-29)', async () => {
+    const res = await api.as(w.contractor.admin, w.contractor.id).get('/applications').expect(200);
+    expect(res.body.items).toEqual([]);
   });
 
   it('answers 404 for another organization', async () => {

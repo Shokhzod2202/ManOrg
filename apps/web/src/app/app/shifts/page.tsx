@@ -70,8 +70,7 @@ function move(span: Span, anchor: string, step: number): string {
 /** SHF-2, SHF-6 to SHF-8: calendar by day, week or month, one colour per person, red for differences. */
 export default function ShiftsPage() {
   const session = useSession();
-  const { actor } = session;
-  const admin = actor === 'org_admin';
+  const { admin } = session;
   const [span, setSpan] = useState<Span>('week');
   const [anchor, setAnchor] = useState(today());
   const [isPhone, setIsPhone] = useState(false);

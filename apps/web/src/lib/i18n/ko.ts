@@ -1044,4 +1044,5 @@ export const ko: Record<string, string> = {
   'No keys yet.': '아직 키가 없습니다.',
   'last used {when}': '마지막 사용 {when}',
   'not used yet': '아직 사용 안 함',
+  'Workplace location': '근무지 위치',
 };

@@ -184,8 +184,8 @@ describe('arrival prompt "You came to work. Start shift" (spec section 9)', () =
     });
   });
 
-  it('is for employees of a bakery only', async () => {
+  it('is for employees; a contractor has a location too (decided 2026-11-29)', async () => {
     await api.as(w.contractor.admin, w.contractor.id).post('/punch/arrival').expect(403);
-    await api.as(w.contractor.admin, w.contractor.id).get('/organization/location').expect(403);
+    await api.as(w.contractor.admin, w.contractor.id).get('/organization/location').expect(200);
   });
 });

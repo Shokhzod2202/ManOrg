@@ -6424,7 +6424,11 @@ components:
             deliveryChangeRequests: { type: integer }
             ingredientOrders: { type: integer }
         outputTotals: { type: array, items: { type: object } }
-        ordersDueNext: { $ref: '#/components/schemas/DueNextOrders' }
+        ordersDueNext:
+          description: Null for a contractor organization (decided 2026-11-29), which has no production board.
+          oneOf:
+            - $ref: '#/components/schemas/DueNextOrders'
+            - type: 'null'
     EmployeeHome:
       type: object
       required: [today, punchCard, output, tasks, myOrders, unreadNotifications]
@@ -6434,7 +6438,9 @@ components:
         output: { $ref: '#/components/schemas/OutputDay' }
         tasks: { type: array, items: { type: object } }
         myOrders:
-          description: Empty when the admin has closed Orders due next to employees.
+          description: >-
+            Empty when the admin has closed Orders due next to employees, and always for a
+            contractor's employees (decided 2026-11-29).
           oneOf:
             - $ref: '#/components/schemas/EmployeeDueNextOrders'
             - type: 'null'

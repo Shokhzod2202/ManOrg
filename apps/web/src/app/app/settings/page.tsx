@@ -35,15 +35,18 @@ export default function SettingsPage() {
       <Language />
       <Telegram />
       {s.actor === 'employee' ? <ArrivalReminder /> : null}
-      {s.actor === 'org_admin' ? <BakeryLocation /> : null}
-      {s.actor === 'org_admin' ? (
+      {/* Decided 2026-11-29: admins of any organization, contractors too. */}
+      {s.admin ? <BakeryLocation /> : null}
+      {s.admin ? (
         <Switches<Access>
           title={t('Employee access')}
           sub={t('What employees may read. Employees never edit orders.')}
           path="/organization/employee-access"
+          // A contractor's employees never see its orders, deliveries or money.
+          only={s.provider ? undefined : ['allShifts', 'outputAll', 'ingredientPrices']}
         />
       ) : null}
-      {s.actor === 'org_admin' ? <WhoWorksShifts /> : null}
+      {s.admin ? <WhoWorksShifts /> : null}
       {s.actor === 'org_admin' && s.membership?.organization.type === 'provider' ? (
         <WallLinks />
       ) : null}
@@ -581,10 +584,13 @@ function Switches<T extends Access | Bot>({
   title,
   sub,
   path,
+  only,
 }: {
   title: string;
   sub: string;
   path: string;
+  /** Show only these switches. */
+  only?: string[];
 }) {
   const { data, error, loading, setData } = useApi<T>(path);
   const [err, setErr] = useState<ApiError | null>(null);
@@ -606,18 +612,20 @@ function Switches<T extends Access | Bot>({
       </p>
       {loading && !data ? <Loading /> : null}
       <ErrorBox error={error ?? err} />
-      {data?.areas.map((a) => (
-        <label key={a.key} className="row between" style={{ minHeight: 44 }}>
-          <span>{t(a.label)}</span>
-          <input
-            type="checkbox"
-            role="switch"
-            checked={a.enabled}
-            onChange={(e) => toggle(a.key, e.target.checked)}
-            style={{ width: 22, height: 22 }}
-          />
-        </label>
-      ))}
+      {data?.areas
+        .filter((a) => !only || only.includes(a.key))
+        .map((a) => (
+          <label key={a.key} className="row between" style={{ minHeight: 44 }}>
+            <span>{t(a.label)}</span>
+            <input
+              type="checkbox"
+              role="switch"
+              checked={a.enabled}
+              onChange={(e) => toggle(a.key, e.target.checked)}
+              style={{ width: 22, height: 22 }}
+            />
+          </label>
+        ))}
     </section>
   );
 }
@@ -810,6 +818,7 @@ function ArrivalReminder() {
 
 /** Spec section 9: where the bakery is, the radius, and when the arrival reminder may show. */
 function BakeryLocation() {
+  const { provider } = useSession();
   const { data, error, loading, setData } =
     useApi<Schemas['OrganizationLocation']>('/organization/location');
   const [form, setForm] = useState<{
@@ -863,7 +872,7 @@ function BakeryLocation() {
 
   return (
     <section className="card">
-      <h2>{t('Bakery location')}</h2>
+      <h2>{provider ? t('Bakery location') : t('Workplace location')}</h2>
       <p className="muted small" style={{ margin: 0 }}>
         {t(
           'The phone app reminds employees “You came to work. Start shift” when they arrive within the radius before a planned shift. It never punches by itself, and employees’ locations are never stored.',

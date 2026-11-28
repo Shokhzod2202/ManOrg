@@ -28,8 +28,8 @@ type History = Schemas['OutputHistory'];
 type ShiftOutput = Schemas['ShiftOutputDashboard'];
 
 export default function OutputPage() {
-  const { actor } = useSession();
-  return actor === 'org_admin' ? <AdminOutput /> : <MyOutput />;
+  const { admin } = useSession();
+  return admin ? <AdminOutput /> : <MyOutput />;
 }
 
 /** OUT-1 to OUT-4: personal lines, or team lines counted once and shared equally. */

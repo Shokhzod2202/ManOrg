@@ -57,9 +57,16 @@ describe('POST /ingredients (ING-1, ING-8)', () => {
     expect(Object.keys(res.body.error.fields).sort()).toEqual(['packPrice', 'packUnit', 'source']);
   });
 
-  it('is forbidden to employees and contractor admins', async () => {
+  it('is forbidden to employees; contractor admins track their own (decided 2026-11-29)', async () => {
     await api.as(w.a.employee, w.a.id).post('/ingredients').send(sugar).expect(403);
-    await api.as(w.contractor.admin, w.contractor.id).post('/ingredients').send(sugar).expect(403);
+    const cafe = await api
+      .as(w.contractor.admin, w.contractor.id)
+      .post('/ingredients')
+      .send({ ...sugar, name: 'Cafe sugar' })
+      .expect(201);
+    // Each organization sees only its own.
+    const bakery = await api.as(w.a.admin, w.a.id).get('/ingredients').expect(200);
+    expect(bakery.body.items.map((i: { id: string }) => i.id)).not.toContain(cafe.body.id);
   });
 });
 
@@ -209,8 +216,9 @@ describe('GET /ingredients for employees (ING-3, ING-4, open question 17)', () =
     expect([due.body.dueToday, notDue.body.dueToday]).toEqual([true, false]);
   });
 
-  it('is not for contractor admins', async () => {
-    await api.as(w.contractor.admin, w.contractor.id).get('/ingredients').expect(403);
+  it('is also for contractor admins, with their own list', async () => {
+    const res = await api.as(w.contractor.admin, w.contractor.id).get('/ingredients').expect(200);
+    expect(res.body.items.map((i: { name: string }) => i.name)).toEqual(['Cafe sugar']);
   });
 });
 

@@ -103,8 +103,8 @@ describe('GET /shifts (SHF-2)', () => {
     await api.as(w.b.employee, w.b.id).get(`/shifts?employee_id=${w.b.admin.userId}`).expect(403);
   });
 
-  it('is not for contractor admins', async () => {
-    await api.as(w.contractor.admin, w.contractor.id).get('/shifts').expect(403);
+  it('is also for contractor admins, who have staff too (decided 2026-11-29)', async () => {
+    await api.as(w.contractor.admin, w.contractor.id).get('/shifts').expect(200);
   });
 });
 

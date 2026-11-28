@@ -1057,4 +1057,5 @@ export const uz: Record<string, string> = {
   'No keys yet.': 'Hali kalitlar yoʻq.',
   'last used {when}': 'oxirgi ishlatilgan {when}',
   'not used yet': 'hali ishlatilmagan',
+  'Workplace location': 'Ish joyi manzili',
 };

@@ -25,15 +25,14 @@ const undoLeft = (at: string) => {
 };
 
 export default function PeoplePage() {
-  const { actor } = useSession();
-  const provider = actor === 'org_admin';
+  // Decided 2026-11-29: contractors have employees, applications and teams too.
   return (
     <div className="page">
-      <PageHead title={provider ? t('People and teams') : t('Admins')} />
-      {provider ? <Applications /> : null}
-      <Members provider={provider} />
-      {provider ? <RemovedMembers /> : null}
-      {provider ? <Teams /> : null}
+      <PageHead title={t('People and teams')} />
+      <Applications />
+      <Members />
+      <RemovedMembers />
+      <Teams />
     </div>
   );
 }
@@ -385,7 +384,7 @@ function NameCell({ member: m, onSaved }: { member: Member; onSaved: () => void 
   );
 }
 
-function Members({ provider }: { provider: boolean }) {
+function Members() {
   const { me, membership } = useSession();
   // Decided 2026-11-26/27: only owners make, demote or remove admins; ownership is shared.
   const iAmOwner = membership?.owner === true;
@@ -409,7 +408,7 @@ function Members({ provider }: { provider: boolean }) {
     await run(() =>
       post('/members', {
         email: email.trim(),
-        role: provider && iAmOwner ? role : provider ? 'employee' : 'admin',
+        role: iAmOwner ? role : 'employee',
       }),
     );
     setEmail('');
@@ -463,7 +462,7 @@ function Members({ provider }: { provider: boolean }) {
                     {t('Undo')}
                   </button>
                 ) : null}
-                {provider && iAmOwner && m.user.id !== me?.id && !m.owner ? (
+                {iAmOwner && m.user.id !== me?.id && !m.owner ? (
                   <select
                     className="input"
                     value={m.role}
@@ -494,32 +493,30 @@ function Members({ provider }: { provider: boolean }) {
           ))}
         </tbody>
       </table>
-      {!provider && !iAmOwner ? null : (
-        <form className="row wrap" onSubmit={add}>
-          <input
+      <form className="row wrap" onSubmit={add}>
+        <input
+          className="input"
+          type="email"
+          required
+          placeholder={t('Email of an existing account')}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          style={{ flex: 1, minWidth: 200 }}
+          aria-label={t('Email')}
+        />
+        {iAmOwner ? (
+          <select
             className="input"
-            type="email"
-            required
-            placeholder={t('Email of an existing account')}
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={{ flex: 1, minWidth: 200 }}
-            aria-label={t('Email')}
-          />
-          {provider && iAmOwner ? (
-            <select
-              className="input"
-              value={role}
-              onChange={(e) => setRole(e.target.value as 'admin' | 'employee')}
-              aria-label={t('Role')}
-            >
-              <option value="admin">{t('Admin')}</option>
-              <option value="employee">{t('Employee')}</option>
-            </select>
-          ) : null}
-          <button className="btn">{t('Add')}</button>
-        </form>
-      )}
+            value={role}
+            onChange={(e) => setRole(e.target.value as 'admin' | 'employee')}
+            aria-label={t('Role')}
+          >
+            <option value="admin">{t('Admin')}</option>
+            <option value="employee">{t('Employee')}</option>
+          </select>
+        ) : null}
+        <button className="btn">{t('Add')}</button>
+      </form>
       {!iAmOwner ? (
         <span className="muted small">{t('Only an owner can make, demote or remove admins.')}</span>
       ) : null}

@@ -1,6 +1,5 @@
 import { PERSON, personOf, WORKS_SHIFTS } from '../common/memberships';
 import { Injectable } from '@nestjs/common';
-import { Errors } from '../common/errors';
 import { type AuthUser, dbContext, type OrgContext } from '../common/request-context';
 import { addDays, localDate } from '../common/time';
 import { DatabaseService } from '../database/database.service';
@@ -26,7 +25,6 @@ export class DashboardService {
    * deliveries, and what is waiting for a decision.
    */
   async today(user: AuthUser, org: OrgContext) {
-    if (org.organizationType !== 'provider') throw Errors.forbidden();
     const base = await this.db.run(dbContext(user, org), async (tx) => {
       const clock = await tx.organization.findUniqueOrThrow({
         where: { id: org.organizationId },
@@ -149,14 +147,14 @@ export class DashboardService {
     });
     const [output, ordersDueNext] = await Promise.all([
       this.output.shiftOutput(user, org, base.today),
-      this.dueNext.dueNext(user, org),
+      // Decided 2026-11-29: a contractor has no production board; its orders are on Orders.
+      org.organizationType === 'provider' ? this.dueNext.dueNext(user, org) : Promise.resolve(null),
     ]);
     return { ...base, outputTotals: output.totals, ordersDueNext };
   }
 
   /** DSH-2: the employee's home: punch card, today's output, own tasks and My Orders, one call. */
   async home(user: AuthUser, org: OrgContext) {
-    if (org.organizationType !== 'provider') throw Errors.forbidden();
     const card = await this.shifts.card(user, org);
     const today = await this.db.run(dbContext(user, org), async (tx) =>
       localDate(
@@ -186,7 +184,8 @@ export class DashboardService {
           orderBy: [{ dueDate: 'asc' }],
         }),
       ),
-      org.actor === 'employee' && !org.employeeAccess.ordersDueNext
+      org.organizationType !== 'provider' ||
+      (org.actor === 'employee' && !org.employeeAccess.ordersDueNext)
         ? Promise.resolve(null)
         : this.dueNext.forEmployee(user, org, user.userId),
       this.db.run({ organizationId: null, userId: user.userId }, (tx) =>
