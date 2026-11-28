@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Empty, ErrorBox, Flag, Loading, PageHead } from '../../../components/ui';
 import {
   type ApiError,
@@ -98,6 +98,17 @@ export default function ShiftsPage() {
   const compact = span === 'month';
   // Decided 2026-11-28: planned shifts can be hidden, leaving the punches.
   const showPlan = session.me?.preferences?.showShiftPlan !== false;
+  // Decided 2026-11-29: on a phone, week days get room to read and the calendar scrolls sideways
+  // under the names, which stay put on the left; it opens scrolled to today.
+  const dayCol = compact ? 52 : span === 'week' && isPhone ? 128 : 0;
+  const scroller = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const box = scroller.current;
+    const cell = box?.querySelector<HTMLElement>('[data-today]');
+    const name = box?.querySelector<HTMLElement>('.cal-name');
+    if (!box || !cell || !name || box.scrollWidth <= box.clientWidth) return;
+    box.scrollLeft = Math.max(0, cell.offsetLeft - name.offsetWidth - cell.offsetWidth);
+  }, [span, from, Boolean(data)]);
 
   return (
     <div className="page wide">
@@ -105,7 +116,7 @@ export default function ShiftsPage() {
         title={t('Shifts')}
         sub={from === to ? formatDate(from) : `${formatDate(from)} – ${formatDate(to)}`}
       >
-        <div className="row wrap" style={{ justifyContent: 'center' }}>
+        <div className="row wrap shift-bar">
           <div className="tabs" role="tablist" aria-label={t('Calendar range')}>
             {(['day', 'week', 'month'] as Span[]).map((v) => (
               <button
@@ -119,23 +130,25 @@ export default function ShiftsPage() {
               </button>
             ))}
           </div>
-          <button
-            className="btn ghost"
-            onClick={() => setAnchor(move(span, anchor, -1))}
-            aria-label={t('Previous')}
-          >
-            ‹
-          </button>
-          <button className="btn ghost" onClick={() => setAnchor(today())}>
-            {t('Today')}
-          </button>
-          <button
-            className="btn ghost"
-            onClick={() => setAnchor(move(span, anchor, 1))}
-            aria-label={t('Next')}
-          >
-            ›
-          </button>
+          <span className="row nowrap step-nav">
+            <button
+              className="btn ghost"
+              onClick={() => setAnchor(move(span, anchor, -1))}
+              aria-label={t('Previous')}
+            >
+              ‹
+            </button>
+            <button className="btn ghost" onClick={() => setAnchor(today())}>
+              {t('Today')}
+            </button>
+            <button
+              className="btn ghost"
+              onClick={() => setAnchor(move(span, anchor, 1))}
+              aria-label={t('Next')}
+            >
+              ›
+            </button>
+          </span>
           <label className="chip plan-toggle">
             <input
               type="checkbox"
@@ -151,19 +164,20 @@ export default function ShiftsPage() {
       <ErrorBox error={error} onRetry={reload} />
       {data && !data.employees.length ? <Empty>{t('No employees yet.')}</Empty> : null}
       {data?.employees.length ? (
-        <div className="scroll">
+        <div className="scroll cal-scroll" ref={scroller}>
           <div
             className="cal"
             style={{
-              gridTemplateColumns: `minmax(120px, 170px) repeat(${shown.length}, ${compact ? 'minmax(52px, 1fr)' : 'minmax(0, 1fr)'})`,
-              minWidth: compact ? 120 + shown.length * 52 : undefined,
+              gridTemplateColumns: `var(--cal-name) repeat(${shown.length}, ${dayCol ? `minmax(${dayCol}px, 1fr)` : 'minmax(0, 1fr)'})`,
+              minWidth: dayCol ? 100 + shown.length * dayCol : undefined,
             }}
           >
-            <div className="h">{t('Employee')}</div>
+            <div className="h cal-name">{t('Employee')}</div>
             {shown.map((d) => (
               <div
                 key={d}
                 className="h"
+                data-today={d === now ? '' : undefined}
                 style={d === now ? { color: 'var(--primary)' } : undefined}
               >
                 {compact ? Number(d.slice(8)) : formatDate(d)}
@@ -240,7 +254,7 @@ function Row({
   const byDate = new Map(days.map((d) => [d.date, d]));
   return (
     <>
-      <div>
+      <div className="cal-name">
         <b>{name}</b>
       </div>
       {shown.map((date) => {

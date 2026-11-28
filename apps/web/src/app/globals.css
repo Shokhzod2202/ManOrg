@@ -798,9 +798,45 @@ table.t td {
   outline: 2px solid var(--flag);
   background: var(--flag-bg) !important;
 }
+/* Decided 2026-11-29: names stay on the left while the days scroll sideways. `clip`, not
+   `hidden`, so the sticky column sticks to the scrolling box around the calendar. */
+.cal {
+  --cal-name: minmax(120px, 170px);
+  overflow: clip;
+  /* Keeps the hidden "Add a punch" buttons inside the calendar, so they never widen the page. */
+  position: relative;
+}
+.cal > .cal-name {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: #fff;
+  box-shadow: 1px 0 0 var(--border);
+}
+.cal > .h.cal-name {
+  background: #f6f8fb;
+  z-index: 3;
+}
+.cal-scroll {
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.shift-bar {
+  justify-content: center;
+}
+.step-nav {
+  gap: 8px;
+  flex-wrap: nowrap;
+}
 @media (max-width: 760px) {
   .cal {
     min-width: 0;
+    --cal-name: 96px;
+  }
+  .cal > .cal-name {
+    padding: 8px 6px;
+    font-size: 13px;
+    overflow-wrap: anywhere;
   }
 }
 
