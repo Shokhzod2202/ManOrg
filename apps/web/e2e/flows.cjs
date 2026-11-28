@@ -1445,22 +1445,39 @@ async function rowAction(page, rowText, action) {
   if (!noOrders || onShift < 1) throw new Error('Contractor staff failed');
 
   // 38. Decided 2026-11-29. The ▾ beside the organization's name lists the person's
-  // organizations and switches with one tap (the newcomer belongs to three by now).
-  await newcomer.goto(`${W}/app`);
-  await newcomer.locator('.topbar .org-pick-btn').click();
-  const choices = await newcomer.locator('.org-pick-list [role="menuitemradio"]').count();
-  await newcomer
-    .locator('.org-pick-list [role="menuitemradio"]:has-text("Sunrise")')
-    .first()
+  // organizations and switches with one tap. A new person makes a bakery and a contractor.
+  const two = await b.newPage({ viewport: { width: 390, height: 844 } });
+  const stamp38 = Date.now() % 100000;
+  await two.goto(`${W}/register`);
+  await two.fill('label:has-text("Your name") input', `Two Orgs ${stamp38}`);
+  await two.fill('input[type=email]', `two${Date.now()}@example.test`);
+  await two.locator('.password input').nth(0).fill('Password123!');
+  await two.locator('.password input').nth(1).fill('Password123!');
+  await two.click('button:has-text("Create account")');
+  await two.waitForURL('**/start');
+  await two.click('[role=tab]:has-text("Create an organization")');
+  await two.fill('label:has-text("Organization name") input', `Pick Bakery ${stamp38}`);
+  await two.click('form button.btn.big');
+  await two.waitForURL('**/app');
+  await two.goto(`${W}/app/settings`);
+  await two.click('button:has-text("Create a new organization")');
+  await two.fill('form label:has-text("Organization name") input', `Pick Mart ${stamp38}`);
+  await two.click('form button:has-text("Create")');
+  await two.waitForURL('**/app');
+  await two.locator(`.topbar .brand-org:has-text("Pick Mart ${stamp38}")`).waitFor();
+  await two.locator('.topbar .org-pick-btn').click();
+  const choices = await two.locator('.org-pick-list [role="menuitemradio"]').count();
+  await two
+    .locator(`.org-pick-list [role="menuitemradio"]:has-text("Pick Bakery ${stamp38}")`)
     .click();
-  const switched = await newcomer
-    .locator('.topbar .brand-org:has-text("Sunrise")')
+  const switched = await two
+    .locator(`.topbar .brand-org:has-text("Pick Bakery ${stamp38}")`)
     .waitFor({ timeout: 8000 })
     .then(
       () => true,
       () => false,
     );
-  log('38 organization ▾: choices', choices, '| switched to Sunrise from the top bar:', switched);
+  log('38 organization ▾: choices', choices, '| switched from the top bar:', switched);
   if (choices < 2 || !switched) throw new Error('Organization switch in the top bar failed');
 
   await b.close();
