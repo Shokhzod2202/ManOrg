@@ -1560,3 +1560,38 @@ b.neg {
   border: 0;
   font: inherit;
 }
+
+/* Decided 2026-11-28: one employee's output day by day. */
+button.name-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--primary);
+  cursor: pointer;
+  text-align: left;
+}
+button.name-link b {
+  color: var(--primary);
+}
+.day-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 8px;
+}
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--surface);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-variant-numeric: tabular-nums;
+}
+.day-card {
+  gap: 10px;
+}
+.day-title {
+  margin: 0;
+  font-size: 16px;
+}

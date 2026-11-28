@@ -938,4 +938,16 @@ export const ko: Record<string, string> = {
     '재료비가 없는 제품 {n}개 (제품에서 설정).',
   'No output in the last 60 days:': '최근 60일간 생산 기록 없음:',
   '1 day': '1일',
+  'Day by day': '일별',
+  '{name}: output day by day': '{name}: 일별 생산량',
+  Days: '일수',
+  Pace: '속도',
+  'Items per hour': '시간당 개수',
+  'Pace is the expected time for what was made ÷ the time worked (cleaning left out); 100% is on pace.':
+    '속도 = 만든 제품의 예상 시간 ÷ 근무 시간(청소 제외). 100%면 예상 속도입니다.',
+  'No finished shift this day: hours count once the shift is ended.':
+    '이날 끝난 근무가 없습니다. 근무가 끝나면 시간이 포함됩니다.',
+  'team {team}: {n} in all': '{team} 팀: 전체 {n}개',
+  '{n} days with output have no finished shift and are left out of pace.':
+    '생산 기록은 있지만 끝난 근무가 없는 {n}일은 속도 계산에서 빠졌습니다.',
 };

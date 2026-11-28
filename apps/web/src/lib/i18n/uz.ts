@@ -951,4 +951,16 @@ export const uz: Record<string, string> = {
     '{n} ta mahsulotning ingredient xarajati yoʻq (Mahsulotlarda kiriting).',
   'No output in the last 60 days:': 'Oxirgi 60 kunda ishlab chiqarish yoʻq:',
   '1 day': '1 kun',
+  'Day by day': 'Kunma-kun',
+  '{name}: output day by day': '{name}: kunma-kun ishlab chiqarish',
+  Days: 'Kunlar',
+  Pace: 'Surʼat',
+  'Items per hour': 'Soatiga dona',
+  'Pace is the expected time for what was made ÷ the time worked (cleaning left out); 100% is on pace.':
+    "Surʼat = tayyorlangan mahsulotning kutilgan vaqti ÷ ishlangan vaqt (tozalash hisobga olinmaydi); 100% — kutilgan sur'at.",
+  'No finished shift this day: hours count once the shift is ended.':
+    'Bu kunda tugagan smena yoʻq: smena tugagach soatlar hisoblanadi.',
+  'team {team}: {n} in all': '{team} jamoasi: jami {n}',
+  '{n} days with output have no finished shift and are left out of pace.':
+    'Ishlab chiqarish bor, lekin tugagan smenasi yoʻq {n} kun surʼatdan chiqarildi.',
 };

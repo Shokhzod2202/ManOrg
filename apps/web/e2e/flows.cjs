@@ -985,12 +985,16 @@ async function rowAction(page, rowText, action) {
   const minaRate = boss.locator('details.hours-person', { hasText: 'Mina Park' });
   await minaRate.waitFor();
   if (!(await minaRate.evaluate((el) => el.open))) await minaRate.locator('summary').click();
-  await minaRate.locator('.owner-rate input').fill('11000');
+  // A different rate each run (an unchanged rate cannot be saved again).
+  const rate = 10000 + (Date.now() % 50) * 100;
+  await minaRate.locator('.owner-rate input').fill(String(rate));
   await minaRate.locator('.owner-rate button:has-text("Save")').click();
   await minaRate.locator('.owner-rate .pill.ok').waitFor();
   await boss.goto(`${W}/app/output`);
   await boss.locator('text=Latest output').waitFor();
   await boss.locator('select[aria-label="Employee"]').selectOption({ label: 'Mina Park' });
+  // Decided 2026-11-28: an employee opens day by day; Efficiency is the next tab.
+  await boss.locator('[role=tab]:has-text("Efficiency")').click();
   const effTotal = await boss
     .locator('[data-testid=eff-total]')
     .waitFor({ timeout: 10000 })
@@ -998,7 +1002,9 @@ async function rowAction(page, rowText, action) {
       () => boss.textContent('[data-testid=eff-total]'),
       () => '',
     );
-  const laborShown = await boss.locator('.eff-kpis:has-text("₩11,000/h")').count();
+  const laborShown = await boss
+    .locator(`.eff-kpis:has-text("₩${rate.toLocaleString('en-US')}/h")`)
+    .count();
   const minaHome = await as(b, 'mina@sunrise.test', { width: 390, height: 844 });
   const myHours = await minaHome
     .locator('[data-testid=my-month-hours]')
@@ -1017,6 +1023,37 @@ async function rowAction(page, rowText, action) {
     myHours,
   );
   if (!effTotal || laborShown !== 1 || !myHours) throw new Error('Efficiency or My hours failed');
+
+  // 29. Decided 2026-11-28. Tapping an employee's name on Output opens their output day by day,
+  // with each day's numbers; Efficiency stays one tab over.
+  await boss.goto(`${W}/app/output`);
+  await boss.locator('button.name-link', { hasText: 'Mina Park' }).click();
+  const dayCards = await boss
+    .locator('[data-testid=output-day]')
+    .first()
+    .waitFor({ timeout: 10000 })
+    .then(
+      () => boss.locator('[data-testid=output-day]').count(),
+      () => 0,
+    );
+  const paceShown = await boss.locator('.day-summary .stat:has-text("Pace")').count();
+  await boss.locator('[role=tab]:has-text("Efficiency")').click();
+  const effAgain = await boss
+    .locator('[data-testid=eff-total]')
+    .waitFor({ timeout: 10000 })
+    .then(
+      () => true,
+      () => false,
+    );
+  log(
+    '29 day by day: days shown =',
+    dayCards,
+    '| pace shown:',
+    paceShown === 1,
+    '| Efficiency tab:',
+    effAgain,
+  );
+  if (!dayCards || paceShown !== 1 || !effAgain) throw new Error('Output day by day failed');
 
   await b.close();
 })().catch((e) => {
