@@ -32,6 +32,8 @@ interface SessionValue {
   setOrdersView: (view: 'list' | 'matrix' | 'products') => Promise<void>;
   /** Decided 2026-11-30: custom order, A to Z, or by product type; kept on the account. */
   setProductSort: (sort: 'custom' | 'name' | 'type') => Promise<void>;
+  /** Decided 2026-11-28: show or hide planned shifts on the Shifts page; kept on the account. */
+  setShowShiftPlan: (show: boolean) => Promise<void>;
   /** Changes the language here and, when signed in, on the account (phase 3). */
   setLanguage: (locale: Locale) => void;
 }
@@ -154,6 +156,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         const updated = await patch<Me>(
           '/me',
           { preferences: { productSort: sort } },
+          { org: null },
+        );
+        setMe(updated);
+      },
+      setShowShiftPlan: async (show) => {
+        if (me) setMe({ ...me, preferences: { ...me.preferences, showShiftPlan: show } });
+        const updated = await patch<Me>(
+          '/me',
+          { preferences: { showShiftPlan: show } },
           { org: null },
         );
         setMe(updated);

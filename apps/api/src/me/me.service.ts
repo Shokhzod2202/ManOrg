@@ -196,11 +196,13 @@ function readPreferences(stored: unknown): {
   ordersView: 'list' | 'matrix' | 'products';
   arrivalPrompt: boolean;
   productSort: 'custom' | 'name' | 'type';
+  showShiftPlan: boolean;
 } {
   const p = (stored ?? {}) as {
     ordersView?: unknown;
     arrivalPrompt?: unknown;
     productSort?: unknown;
+    showShiftPlan?: unknown;
   };
   return {
     ordersView:
@@ -211,5 +213,7 @@ function readPreferences(stored: unknown): {
     // Decided 2026-11-30: how product lists are sorted: the admin's custom order (default), A to
     // Z, or by product type.
     productSort: p.productSort === 'name' || p.productSort === 'type' ? p.productSort : 'custom',
+    // Decided 2026-11-28: whether the Shifts page shows the planned shifts (on by default).
+    showShiftPlan: p.showShiftPlan !== false,
   };
 }

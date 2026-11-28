@@ -1162,6 +1162,25 @@ async function rowAction(page, rowText, action) {
   log('32 thrown away per pack shown on the card:', wasteShown);
   if (!wasteShown) throw new Error('Thrown away per pack failed');
 
+  // 33. Decided 2026-11-28. Planned shifts can be hidden on Shifts (kept on the account), leaving
+  // the punches; then shown again.
+  await boss.goto(`${W}/app/shifts`);
+  const planBox = boss.locator('.plan-toggle input');
+  await planBox.waitFor();
+  if (!(await planBox.isChecked())) await planBox.check();
+  await boss.waitForTimeout(800);
+  await planBox.uncheck();
+  await boss.waitForTimeout(800);
+  await boss.reload();
+  await boss.locator('.plan-toggle input').waitFor();
+  await boss.waitForTimeout(800);
+  const keptOff = !(await boss.locator('.plan-toggle input').isChecked());
+  const planLinesHidden = (await boss.locator('.plan-line').count()) === 0;
+  await boss.locator('.plan-toggle input').check();
+  await boss.waitForTimeout(800);
+  log('33 plan hidden and kept after reload:', keptOff, '| no plan lines:', planLinesHidden);
+  if (!keptOff || !planLinesHidden) throw new Error('Hiding planned shifts failed');
+
   await b.close();
 })().catch((e) => {
   console.error('FAILED', e.message.slice(0, 400));

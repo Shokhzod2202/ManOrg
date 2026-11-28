@@ -17,6 +17,8 @@ export const updateMeSchema = z
         arrivalPrompt: z.boolean().optional(),
         /** Decided 2026-11-30: how product lists are sorted. */
         productSort: z.enum(['custom', 'name', 'type']).optional(),
+        /** Decided 2026-11-28: show or hide planned shifts on the Shifts page. */
+        showShiftPlan: z.boolean().optional(),
       })
       .optional(),
   })

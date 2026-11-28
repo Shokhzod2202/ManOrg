@@ -972,4 +972,11 @@ export const ko: Record<string, string> = {
   'Must be less than the pack.': '팩보다 적어야 합니다.',
   '{usable} {unit} of each pack can be used; costs use that.':
     '팩마다 {usable}{unit}을 쓸 수 있으며, 원가는 이 양으로 계산합니다.',
+  'Show planned shifts': '계획된 근무 보기',
+  'Plan {start}–{end}': '계획 {start}–{end}',
+  'ends {date}': '{date} 종료',
+  now: '현재',
+  '{time} worked': '{time} 근무',
+  'paused {time}': '{time} 휴식',
+  'back {time}': '{time} 복귀',
 };

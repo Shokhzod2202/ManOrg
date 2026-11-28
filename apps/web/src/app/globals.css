@@ -1665,3 +1665,16 @@ button.kpi.on {
   border-top: 1px solid var(--border);
   padding-top: 10px;
 }
+/* Decided 2026-11-28: planned shifts can be hidden; punches show each pause. */
+.plan-toggle {
+  cursor: pointer;
+}
+.punch-session {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.punch-steps {
+  font-size: 12px;
+  opacity: 0.85;
+}

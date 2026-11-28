@@ -986,4 +986,11 @@ export const uz: Record<string, string> = {
   'Must be less than the pack.': 'Qadoqdan kam boʻlishi kerak.',
   '{usable} {unit} of each pack can be used; costs use that.':
     'Har qadoqdan {usable} {unit} ishlatiladi; tannarx shundan hisoblanadi.',
+  'Show planned shifts': 'Rejalashtirilgan smenalarni koʻrsatish',
+  'Plan {start}–{end}': 'Reja {start}–{end}',
+  'ends {date}': '{date} tugaydi',
+  now: 'hozir',
+  '{time} worked': '{time} ishlangan',
+  'paused {time}': '{time} tanaffus',
+  'back {time}': '{time} qaytdi',
 };

@@ -6102,6 +6102,9 @@ components:
     Preferences:
       type: object
       properties:
+        showShiftPlan:
+          type: boolean
+          description: Whether the Shifts page shows planned shifts and their flags (default true; decided 2026-11-28).
         productSort:
           type: string
           enum: [custom, name, type]

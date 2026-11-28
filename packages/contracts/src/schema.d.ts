@@ -3945,6 +3945,8 @@ export interface components {
             name: string;
         };
         Preferences: {
+            /** @description Whether the Shifts page shows planned shifts and their flags (default true; decided 2026-11-28). */
+            showShiftPlan?: boolean;
             /**
              * @description How product lists are sorted: the admin's custom order (default), A to Z, or by type (decided 2026-11-30).
              * @enum {string}

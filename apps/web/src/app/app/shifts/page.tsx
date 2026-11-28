@@ -69,7 +69,8 @@ function move(span: Span, anchor: string, step: number): string {
 
 /** SHF-2, SHF-6 to SHF-8: calendar by day, week or month, one colour per person, red for differences. */
 export default function ShiftsPage() {
-  const { actor } = useSession();
+  const session = useSession();
+  const { actor } = session;
   const admin = actor === 'org_admin';
   const [span, setSpan] = useState<Span>('week');
   const [anchor, setAnchor] = useState(today());
@@ -95,6 +96,8 @@ export default function ShiftsPage() {
   for (let d = from; d <= to; d = addDays(d, 1)) shown.push(d);
   const now = today();
   const compact = span === 'month';
+  // Decided 2026-11-28: planned shifts can be hidden, leaving the punches.
+  const showPlan = session.me?.preferences?.showShiftPlan !== false;
 
   return (
     <div className="page wide">
@@ -133,6 +136,14 @@ export default function ShiftsPage() {
           >
             ›
           </button>
+          <label className="chip plan-toggle">
+            <input
+              type="checkbox"
+              checked={showPlan}
+              onChange={(e) => void session.setShowShiftPlan(e.target.checked)}
+            />
+            {t('Show planned shifts')}
+          </label>
         </div>
       </PageHead>
       {admin ? <PunchRequests /> : null}
@@ -174,6 +185,7 @@ export default function ShiftsPage() {
                 days={e.days}
                 shown={shown}
                 compact={compact}
+                showPlan={showPlan}
                 onPick={
                   // Someone removed keeps their history but gets no new punches.
                   admin && !e.removedOn
@@ -214,6 +226,7 @@ function Row({
   days,
   shown,
   compact,
+  showPlan,
   onPick,
 }: {
   name: string;
@@ -221,6 +234,7 @@ function Row({
   days: Day[];
   shown: string[];
   compact: boolean;
+  showPlan: boolean;
   onPick?: (date: string) => void;
 }) {
   const byDate = new Map(days.map((d) => [d.date, d]));
@@ -231,9 +245,10 @@ function Row({
       </div>
       {shown.map((date) => {
         const d = byDate.get(date);
-        const s = d?.sessions[0];
-        const flagged = Boolean(d?.flags.length);
-        if (!d || (!d.planned && !d.sessions.length))
+        // Every flag compares punches with the plan, so hiding the plan hides them too.
+        const flags = showPlan ? (d?.flags ?? []) : [];
+        const flagged = Boolean(flags.length);
+        if (!d || ((!showPlan || !d.planned) && !d.sessions.length))
           return (
             <div key={date}>
               {onPick ? (
@@ -257,10 +272,10 @@ function Row({
                   font: 'inherit',
                 }}
                 onClick={onPick ? () => onPick(date) : undefined}
-                title={d.flags.map((f) => f.message).join(' ')}
+                title={flags.map((f) => f.message).join(' ')}
               >
                 <b>{d.workedMinutes ? `${Math.round(d.workedMinutes / 6) / 10} h` : '—'}</b>
-                {flagged ? <Flag>{d.flags.length}</Flag> : null}
+                {flagged ? <Flag>{flags.length}</Flag> : null}
               </button>
             </div>
           );
@@ -280,22 +295,31 @@ function Row({
                   : undefined
               }
             >
-              {d.planned ? (
-                <span>
-                  Plan {d.planned.startTime}–{d.planned.endTime}
+              {showPlan && d.planned ? (
+                <span className="plan-line">
+                  {t('Plan {start}–{end}', {
+                    start: d.planned.startTime,
+                    end: d.planned.endTime,
+                  })}
                   {d.planned.endDate !== d.planned.startDate
-                    ? ` (ends ${formatDate(d.planned.endDate)})`
+                    ? ` (${t('ends {date}', { date: formatDate(d.planned.endDate) })})`
                     : ''}
                 </span>
               ) : null}
-              {s ? (
-                <b>
-                  {formatTime(s.startedAt)}–
-                  {s.endedAt ? formatTime(s.endedAt) : s.status === 'ended' ? '?' : 'now'}
-                </b>
+              {d.sessions.map((s, i) => (
+                <span key={i} className="punch-session">
+                  <b>
+                    {formatTime(s.startedAt)}–
+                    {s.endedAt ? formatTime(s.endedAt) : s.status === 'ended' ? '?' : t('now')}
+                  </b>
+                  {/* Decided 2026-11-28: each pause and return, so the day's punches read in order. */}
+                  <PunchSteps events={s.events} />
+                </span>
+              ))}
+              {d.workedMinutes ? (
+                <span>{t('{time} worked', { time: formatMinutes(d.workedMinutes) })}</span>
               ) : null}
-              {d.workedMinutes ? <span>{formatMinutes(d.workedMinutes)}</span> : null}
-              {d.flags.map((f) => (
+              {flags.map((f) => (
                 <Flag key={f.code}>{flagText(f)}</Flag>
               ))}
             </div>
@@ -304,6 +328,26 @@ function Row({
       })}
     </>
   );
+}
+
+/**
+ * Decided 2026-11-28: the punches of one shift in order: started, each pause and back, ended.
+ * Just a start and an end are already in the time range above, so only pauses are listed.
+ */
+function PunchSteps({ events }: { events: Day['sessions'][number]['events'] }) {
+  const steps: string[] = [];
+  let paused = false;
+  for (const e of events) {
+    if (e.eventType === 'pause') {
+      steps.push(t('paused {time}', { time: formatTime(e.occurredAt) }));
+      paused = true;
+    } else if (e.eventType === 'start' && paused) {
+      steps.push(t('back {time}', { time: formatTime(e.occurredAt) }));
+      paused = false;
+    }
+  }
+  if (!steps.length) return null;
+  return <span className="punch-steps">{steps.join(' · ')}</span>;
 }
 
 /** SHF-5: approve or reject an employee's correction request. */

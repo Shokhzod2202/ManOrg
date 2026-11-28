@@ -149,6 +149,7 @@ describe('preferences (decided 2026-11-13)', () => {
       ordersView: 'products',
       arrivalPrompt: true,
       productSort: 'custom',
+      showShiftPlan: true,
     });
     await api
       .as(fresh)
@@ -159,11 +160,25 @@ describe('preferences (decided 2026-11-13)', () => {
       ordersView: 'matrix',
       arrivalPrompt: true,
       productSort: 'custom',
+      showShiftPlan: true,
     });
     await api
       .as(fresh)
       .patch('/me')
       .send({ preferences: { ordersView: 'grid' } })
       .expect(400);
+  });
+
+  it('remembers hiding planned shifts (decided 2026-11-28)', async () => {
+    const fresh = await api.register('Plan Hider');
+    await api
+      .as(fresh)
+      .patch('/me')
+      .send({ preferences: { showShiftPlan: false } })
+      .expect(200);
+    expect((await api.as(fresh).get('/me').expect(200)).body.preferences).toMatchObject({
+      showShiftPlan: false,
+      ordersView: 'products',
+    });
   });
 });
