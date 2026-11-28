@@ -3093,6 +3093,19 @@ export interface components {
                 ingredientCost: number;
                 laborCost: number | null;
                 contribution: number;
+                /** @description Result per hour worked that day. */
+                perHour: number | null;
+                /** @description What was made that day and what it brought in (decided 2026-11-28). */
+                products: {
+                    /** Format: uuid */
+                    productId: string;
+                    name: string;
+                    quantity: number;
+                    revenue: number;
+                    ingredientCost: number;
+                    laborCost: number | null;
+                    contribution: number;
+                }[];
             }[];
             totals: {
                 quantity: number;

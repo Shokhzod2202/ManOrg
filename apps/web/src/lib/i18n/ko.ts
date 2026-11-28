@@ -954,4 +954,6 @@ export const ko: Record<string, string> = {
   'My output': '내 생산량',
   '{n} pieces on {d} days': '{d}일 동안 {n}개',
   'No product matches.': '일치하는 제품이 없습니다.',
+  '{month}: {amount} in all': '{month}: 합계 {amount}',
+  'Hours without output logged.': '생산 기록 없이 근무한 시간입니다.',
 };

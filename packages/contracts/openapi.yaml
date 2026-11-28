@@ -4935,7 +4935,18 @@ components:
           type: array
           items:
             type: object
-            required: [date, minutes, quantity, revenue, ingredientCost, laborCost, contribution]
+            required:
+              [
+                date,
+                minutes,
+                quantity,
+                revenue,
+                ingredientCost,
+                laborCost,
+                contribution,
+                perHour,
+                products,
+              ]
             properties:
               date: { type: string, format: date }
               minutes: { type: integer }
@@ -4944,6 +4955,22 @@ components:
               ingredientCost: { type: integer }
               laborCost: { type: [integer, 'null'] }
               contribution: { type: integer }
+              perHour: { type: [integer, 'null'], description: Result per hour worked that day. }
+              products:
+                type: array
+                description: What was made that day and what it brought in (decided 2026-11-28).
+                items:
+                  type: object
+                  required:
+                    [productId, name, quantity, revenue, ingredientCost, laborCost, contribution]
+                  properties:
+                    productId: { type: string, format: uuid }
+                    name: { type: string }
+                    quantity: { type: number }
+                    revenue: { type: integer }
+                    ingredientCost: { type: integer }
+                    laborCost: { type: [integer, 'null'] }
+                    contribution: { type: integer }
         totals:
           type: object
           required:

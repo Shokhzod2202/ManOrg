@@ -993,8 +993,18 @@ async function rowAction(page, rowText, action) {
   await boss.goto(`${W}/app/output`);
   await boss.locator('text=Latest output').waitFor();
   await boss.locator('select[aria-label="Employee"]').selectOption({ label: 'Mina Park' });
-  // Decided 2026-11-28: an employee opens day by day; Efficiency is the next tab.
+  // Decided 2026-11-28: an employee opens day by day; Efficiency is the next tab, by day first
+  // (each day's products and what they brought in), the month one tap over.
   await boss.locator('[role=tab]:has-text("Efficiency")').click();
+  const effDayLines = await boss
+    .locator('[data-testid=eff-day] .eff-lines tr')
+    .first()
+    .waitFor({ timeout: 10000 })
+    .then(
+      () => boss.locator('[data-testid=eff-day] .eff-lines tr').count(),
+      () => 0,
+    );
+  await boss.locator('.tabs [role=tab]:has-text("Month")').click();
   const effTotal = await boss
     .locator('[data-testid=eff-total]')
     .waitFor({ timeout: 10000 })
@@ -1015,14 +1025,17 @@ async function rowAction(page, rowText, action) {
     );
   await minaHome.context().close();
   log(
-    '28 efficiency:',
+    '28 efficiency by day: product lines =',
+    effDayLines,
+    '| month:',
     effTotal,
     '| labor at the hourly cost:',
     laborShown === 1,
     '| My hours on home:',
     myHours,
   );
-  if (!effTotal || laborShown !== 1 || !myHours) throw new Error('Efficiency or My hours failed');
+  if (!effDayLines || !effTotal || laborShown !== 1 || !myHours)
+    throw new Error('Efficiency or My hours failed');
 
   // 29. Decided 2026-11-28. Tapping an employee's name on Output opens their output day by day,
   // with each day's numbers; Efficiency stays one tab over.
@@ -1039,7 +1052,8 @@ async function rowAction(page, rowText, action) {
   const paceShown = await boss.locator('.day-summary .stat:has-text("Pace")').count();
   await boss.locator('[role=tab]:has-text("Efficiency")').click();
   const effAgain = await boss
-    .locator('[data-testid=eff-total]')
+    .locator('[data-testid=eff-day]')
+    .first()
     .waitFor({ timeout: 10000 })
     .then(
       () => true,

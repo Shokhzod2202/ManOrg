@@ -967,4 +967,6 @@ export const uz: Record<string, string> = {
   'My output': 'Mening ishlab chiqarishim',
   '{n} pieces on {d} days': '{d} kunda {n} dona',
   'No product matches.': 'Mos mahsulot yoʻq.',
+  '{month}: {amount} in all': '{month}: jami {amount}',
+  'Hours without output logged.': 'Ishlab chiqarish yozilmagan soatlar.',
 };

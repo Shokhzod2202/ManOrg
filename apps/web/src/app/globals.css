@@ -1595,3 +1595,47 @@ button.name-link b {
   margin: 0;
   font-size: 16px;
 }
+
+/* Decided 2026-11-28: efficiency day by day. */
+.eff-notes {
+  gap: 6px;
+  text-align: center;
+  align-items: center;
+}
+.eff-day {
+  gap: 8px;
+}
+.eff-day-total {
+  font: 700 20px var(--heading);
+  font-variant-numeric: tabular-nums;
+}
+.eff-day-total.pos {
+  color: var(--ok);
+}
+.eff-day-total.neg {
+  color: var(--flag);
+}
+table.t.eff-lines td {
+  padding: 6px 4px;
+}
+table.t.eff-lines .qty-col {
+  text-align: right;
+  width: 1%;
+  white-space: nowrap;
+  padding-right: 14px;
+}
+table.t.eff-lines .money-col {
+  text-align: right;
+  width: 1%;
+  white-space: nowrap;
+}
+span.pos {
+  color: var(--ok);
+}
+span.neg {
+  color: var(--flag);
+}
+.small-kpis {
+  justify-content: flex-start;
+  font-size: 13px;
+}

@@ -547,6 +547,8 @@ export class OutputService {
       });
       const byProduct = new Map<string, Acc>();
       const byDay = new Map<string, Acc & { minutes: number; unassignedLabor: number }>();
+      // Decided 2026-11-28: each day's products too, not only the month's.
+      const dayProducts = new Map<string, Map<string, Acc>>();
       const dates = new Set([...workedDays.keys(), ...lines.map((l) => l.date)]);
       for (const date of [...dates].sort()) {
         const minutes = workedDays.get(date)?.minutes ?? 0;
@@ -576,11 +578,16 @@ export class OutputService {
             laborCost: dayLabor * weight,
           };
           const acc = byProduct.get(x.productId) ?? zero();
+          const perDay = dayProducts.get(date) ?? new Map<string, Acc>();
+          const dayAcc = perDay.get(x.productId) ?? zero();
           for (const k of Object.keys(part) as (keyof Acc)[]) {
             acc[k] += part[k];
             day[k] += part[k];
+            dayAcc[k] += part[k];
           }
           byProduct.set(x.productId, acc);
+          perDay.set(x.productId, dayAcc);
+          dayProducts.set(date, perDay);
         }
         byDay.set(date, day);
       }
@@ -627,6 +634,24 @@ export class OutputService {
           contribution: r(
             d.revenue - d.ingredientCost - (labor ? d.laborCost + d.unassignedLabor : 0),
           ),
+          perHour:
+            d.minutes > 0
+              ? r(
+                  (d.revenue - d.ingredientCost - (labor ? d.laborCost + d.unassignedLabor : 0)) /
+                    (d.minutes / 60),
+                )
+              : null,
+          products: [...(dayProducts.get(date)?.entries() ?? [])]
+            .map(([productId, a]) => ({
+              productId,
+              name: products.get(productId)?.name ?? '',
+              quantity: r2(a.quantity),
+              revenue: r(a.revenue),
+              ingredientCost: r(a.ingredientCost),
+              laborCost: labor ? r(a.laborCost) : null,
+              contribution: r(a.revenue - a.ingredientCost - (labor ? a.laborCost : 0)),
+            }))
+            .sort((a, b) => b.quantity - a.quantity),
         })),
         totals: {
           quantity: r2(sum('quantity')),

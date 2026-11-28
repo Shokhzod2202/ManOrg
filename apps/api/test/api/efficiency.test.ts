@@ -146,7 +146,24 @@ describe('efficiency', () => {
       }),
     ]);
     expect(res.body.days).toEqual([
-      expect.objectContaining({ date: d(5), minutes: 480, contribution: 44_000 }),
+      expect.objectContaining({
+        date: d(5),
+        minutes: 480,
+        contribution: 44_000,
+        perHour: 5_500,
+        // Decided 2026-11-28: each day's products.
+        products: [
+          {
+            productId: w.a.productId,
+            name: 'Alpha Bread',
+            quantity: 200,
+            revenue: 200_000,
+            ingredientCost: 60_000,
+            laborCost: 96_000,
+            contribution: 44_000,
+          },
+        ],
+      }),
       expect.objectContaining({
         date: d(6),
         minutes: 120,

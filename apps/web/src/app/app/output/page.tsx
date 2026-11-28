@@ -424,6 +424,8 @@ function Efficiency({ employeeId, onBack }: { employeeId: string; onBack: () => 
   const { membership } = useSession();
   const owner = membership?.owner === true;
   const [month, setMonth] = useState<string | null>(null);
+  // Decided 2026-11-28: day by day first; the month's totals are one tap over.
+  const [scope, setScope] = useState<'day' | 'month'>('day');
   const { data, error, loading, reload } = useApi<Schemas['Efficiency']>(
     `/output/efficiency?employee_id=${employeeId}${month ? `&month=${month}` : ''}`,
   );
@@ -431,6 +433,44 @@ function Efficiency({ employeeId, onBack }: { employeeId: string; onBack: () => 
   const thisMonth = today().slice(0, 7);
   const money = (n: number | null | undefined) => (n == null ? '—' : won(n));
   const tone = (n: number) => (n < 0 ? 'neg' : 'pos');
+  // What is missing from the figures, shown above both views.
+  const notes =
+    data &&
+    (!data.labor || data.missing.daysWithoutHours || data.missing.prices || data.missing.costs) ? (
+      <>
+        {!data.labor ? (
+          owner ? (
+            <Link className="hint-bad" href="/app/hours">
+              {t('Set {name}’s hourly cost in Work hours to include labor.', {
+                name: data.employee.name,
+              })}
+            </Link>
+          ) : (
+            <span className="muted small">{t('Labor cost is shown to owners only.')}</span>
+          )
+        ) : null}
+        {data.missing.daysWithoutHours ? (
+          <span className="hint-bad">
+            {t(
+              '{n} days have output but no finished shift, so their labor is not counted. End those shifts in Shifts.',
+              { n: data.missing.daysWithoutHours },
+            )}
+          </span>
+        ) : null}
+        {data.missing.prices ? (
+          <span className="hint-bad">
+            {t('{n} products have no price and count as ₩0.', { n: data.missing.prices })}
+          </span>
+        ) : null}
+        {data.missing.costs ? (
+          <Link className="hint-bad" href="/app/products">
+            {t('{n} products have no ingredient cost yet (set it in Products).', {
+              n: data.missing.costs,
+            })}
+          </Link>
+        ) : null}
+      </>
+    ) : null;
   return (
     <div className="stack" style={{ gap: 14 }}>
       <div className="viewbar">
@@ -461,141 +501,180 @@ function Efficiency({ employeeId, onBack }: { employeeId: string; onBack: () => 
       <ErrorBox error={error} onRetry={reload} />
       {data && !loading ? (
         <>
-          <section className="card eff-head">
-            <span className="muted">
-              {t('{name} brought in', { name: data.employee.name })}
-              {!data.labor ? ` (${t('before labor cost')})` : ''}
-            </span>
-            <b className={`eff-big ${tone(data.totals.contribution)}`} data-testid="eff-total">
-              {won(data.totals.contribution)}
-            </b>
-            <span className="muted small">
-              {data.totals.perHour != null
-                ? t('{amount} per hour · {hours} worked', {
-                    amount: won(data.totals.perHour),
-                    hours: formatMinutes(data.minutes),
-                  })
-                : t('No finished shifts this month.')}
-            </span>
-            <div className="eff-kpis">
-              <span>
-                {t('Pieces')} <b>{data.totals.quantity}</b>
-              </span>
-              <span>
-                {t('Sales value')} <b>{won(data.totals.revenue)}</b>
-              </span>
-              <span>
-                {t('Ingredients')} <b>−{won(data.totals.ingredientCost)}</b>
-              </span>
-              {data.labor ? (
-                <span>
-                  {t('Labor')} <b>−{money(data.totals.laborCost)}</b>
-                  {data.hourlyRate != null ? (
-                    <span className="muted small">
-                      {' '}
-                      ({t('{amount}/h', { amount: won(data.hourlyRate) })})
+          <div className="tabs" role="tablist" style={{ alignSelf: 'center' }}>
+            <button
+              role="tab"
+              aria-selected={scope === 'day'}
+              className={scope === 'day' ? 'on' : ''}
+              onClick={() => setScope('day')}
+            >
+              {t('By day')}
+            </button>
+            <button
+              role="tab"
+              aria-selected={scope === 'month'}
+              className={scope === 'month' ? 'on' : ''}
+              onClick={() => setScope('month')}
+            >
+              {t('Month')}
+            </button>
+          </div>
+          {notes ? <section className="card eff-notes">{notes}</section> : null}
+          {scope === 'day' ? (
+            <>
+              <p className="muted small" style={{ margin: 0, textAlign: 'center' }}>
+                {t('{month}: {amount} in all', {
+                  month: monthLabel(data.month),
+                  amount: won(data.totals.contribution),
+                })}
+                {!data.labor ? ` (${t('before labor cost')})` : ''}
+              </p>
+              {!data.days.length ? <Empty>{t('No output this month.')}</Empty> : null}
+              {[...data.days].reverse().map((d) => (
+                <section key={d.date} className="card eff-day" data-testid="eff-day">
+                  <div className="row between wrap">
+                    <h3 className="day-title">
+                      {formatDate(d.date)}
+                      {d.date === today() ? (
+                        <span className="muted small"> · {t('today')}</span>
+                      ) : null}
+                    </h3>
+                    <b className={`eff-day-total ${tone(d.contribution)}`}>{won(d.contribution)}</b>
+                  </div>
+                  <span className="muted small">
+                    {[
+                      formatMinutes(d.minutes),
+                      t('{n} pieces', { n: d.quantity }),
+                      d.perHour != null ? t('{amount}/h', { amount: won(d.perHour) }) : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </span>
+                  {d.products.length ? (
+                    <table className="t eff-lines">
+                      <tbody>
+                        {d.products.map((p) => (
+                          <tr key={p.productId}>
+                            <td>{p.name}</td>
+                            <td className="qty-col">
+                              <b>{p.quantity}</b>
+                            </td>
+                            <td className="money-col">
+                              <span className={tone(p.contribution)}>{won(p.contribution)}</span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <span className="muted small">{t('Hours without output logged.')}</span>
+                  )}
+                  <div className="eff-kpis small-kpis">
+                    <span>
+                      {t('Sales value')} <b>{won(d.revenue)}</b>
+                    </span>
+                    <span>
+                      {t('Ingredients')} <b>−{won(d.ingredientCost)}</b>
+                    </span>
+                    {data.labor ? (
+                      <span>
+                        {t('Labor')} <b>−{money(d.laborCost)}</b>
+                      </span>
+                    ) : null}
+                  </div>
+                  {d.minutes === 0 && d.products.length ? (
+                    <span className="hint-bad">
+                      {t('No finished shift this day: hours count once the shift is ended.')}
                     </span>
                   ) : null}
+                </section>
+              ))}
+            </>
+          ) : (
+            <>
+              <section className="card eff-head">
+                <span className="muted">
+                  {t('{name} brought in', { name: data.employee.name })}
+                  {!data.labor ? ` (${t('before labor cost')})` : ''}
                 </span>
-              ) : null}
-            </div>
-            {!data.labor ? (
-              owner ? (
-                <Link className="hint-bad" href="/app/hours">
-                  {t('Set {name}’s hourly cost in Work hours to include labor.', {
-                    name: data.employee.name,
-                  })}
-                </Link>
-              ) : (
-                <span className="muted small">{t('Labor cost is shown to owners only.')}</span>
-              )
-            ) : null}
-            {data.missing.daysWithoutHours ? (
-              <span className="hint-bad">
-                {t(
-                  '{n} days have output but no finished shift, so their labor is not counted. End those shifts in Shifts.',
-                  { n: data.missing.daysWithoutHours },
-                )}
-              </span>
-            ) : null}
-            {data.missing.prices ? (
-              <span className="hint-bad">
-                {t('{n} products have no price and count as ₩0.', { n: data.missing.prices })}
-              </span>
-            ) : null}
-            {data.missing.costs ? (
-              <Link className="hint-bad" href="/app/products">
-                {t('{n} products have no ingredient cost yet (set it in Products).', {
-                  n: data.missing.costs,
-                })}
-              </Link>
-            ) : null}
-          </section>
-          <section className="card">
-            <h2>{t('By product')}</h2>
-            {!data.products.length ? <Empty>{t('No output this month.')}</Empty> : null}
-            <table className="t cards">
-              <thead>
-                <tr>
-                  <th>{t('Product')}</th>
-                  <th>{t('Pieces')}</th>
-                  <th>{t('Sales value')}</th>
-                  <th>{t('Ingredients')}</th>
-                  {data.labor ? <th>{t('Labor')}</th> : null}
-                  <th>{t('Result')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.products.map((p) => (
-                  <tr key={p.productId}>
-                    <td data-label={t('Product')}>
-                      <b>{p.name}</b>
-                      {p.unitPrice != null ? (
-                        <span className="muted small"> · {won(p.unitPrice)}</span>
+                <b className={`eff-big ${tone(data.totals.contribution)}`} data-testid="eff-total">
+                  {won(data.totals.contribution)}
+                </b>
+                <span className="muted small">
+                  {data.totals.perHour != null
+                    ? t('{amount} per hour · {hours} worked', {
+                        amount: won(data.totals.perHour),
+                        hours: formatMinutes(data.minutes),
+                      })
+                    : t('No finished shifts this month.')}
+                </span>
+                <div className="eff-kpis">
+                  <span>
+                    {t('Pieces')} <b>{data.totals.quantity}</b>
+                  </span>
+                  <span>
+                    {t('Sales value')} <b>{won(data.totals.revenue)}</b>
+                  </span>
+                  <span>
+                    {t('Ingredients')} <b>−{won(data.totals.ingredientCost)}</b>
+                  </span>
+                  {data.labor ? (
+                    <span>
+                      {t('Labor')} <b>−{money(data.totals.laborCost)}</b>
+                      {data.hourlyRate != null ? (
+                        <span className="muted small">
+                          {' '}
+                          ({t('{amount}/h', { amount: won(data.hourlyRate) })})
+                        </span>
                       ) : null}
-                    </td>
-                    <td data-label={t('Pieces')}>{p.quantity}</td>
-                    <td data-label={t('Sales value')}>{won(p.revenue)}</td>
-                    <td data-label={t('Ingredients')}>−{won(p.ingredientCost)}</td>
-                    {data.labor ? <td data-label={t('Labor')}>−{money(p.laborCost)}</td> : null}
-                    <td data-label={t('Result')}>
-                      <b className={tone(p.contribution)}>{won(p.contribution)}</b>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {data.labor && data.totals.unassignedLabor ? (
-              <span className="muted small">
-                {t('Hours on days without output cost {amount}; they are in the total.', {
-                  amount: won(data.totals.unassignedLabor),
-                })}
-              </span>
-            ) : null}
-          </section>
-          <section className="card">
-            <h2>{t('By day')}</h2>
-            {!data.days.length ? <Empty>{t('No output this month.')}</Empty> : null}
-            <table className="t">
-              <tbody>
-                {data.days.map((d) => (
-                  <tr key={d.date}>
-                    <td>{formatDate(d.date)}</td>
-                    <td className="muted small">{formatMinutes(d.minutes)}</td>
-                    <td className="muted small">{t('{n} pieces', { n: d.quantity })}</td>
-                    <td style={{ textAlign: 'right' }}>
-                      <b className={tone(d.contribution)}>{won(d.contribution)}</b>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <span className="muted small">
-              {t(
-                'At today’s prices and ingredient costs; labor at the hourly cost of each day. Team output is shared equally.',
-              )}
-            </span>
-          </section>
+                    </span>
+                  ) : null}
+                </div>
+              </section>
+              <section className="card">
+                <h2>{t('By product')}</h2>
+                {!data.products.length ? <Empty>{t('No output this month.')}</Empty> : null}
+                <table className="t cards">
+                  <thead>
+                    <tr>
+                      <th>{t('Product')}</th>
+                      <th>{t('Pieces')}</th>
+                      <th>{t('Sales value')}</th>
+                      <th>{t('Ingredients')}</th>
+                      {data.labor ? <th>{t('Labor')}</th> : null}
+                      <th>{t('Result')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.products.map((p) => (
+                      <tr key={p.productId}>
+                        <td data-label={t('Product')}>
+                          <b>{p.name}</b>
+                          {p.unitPrice != null ? (
+                            <span className="muted small"> · {won(p.unitPrice)}</span>
+                          ) : null}
+                        </td>
+                        <td data-label={t('Pieces')}>{p.quantity}</td>
+                        <td data-label={t('Sales value')}>{won(p.revenue)}</td>
+                        <td data-label={t('Ingredients')}>−{won(p.ingredientCost)}</td>
+                        {data.labor ? <td data-label={t('Labor')}>−{money(p.laborCost)}</td> : null}
+                        <td data-label={t('Result')}>
+                          <b className={tone(p.contribution)}>{won(p.contribution)}</b>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {data.labor && data.totals.unassignedLabor ? (
+                  <span className="muted small">
+                    {t('Hours on days without output cost {amount}; they are in the total.', {
+                      amount: won(data.totals.unassignedLabor),
+                    })}
+                  </span>
+                ) : null}
+              </section>
+            </>
+          )}
         </>
       ) : null}
     </div>
