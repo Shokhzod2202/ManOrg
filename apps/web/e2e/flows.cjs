@@ -1227,14 +1227,16 @@ async function rowAction(page, rowText, action) {
   // 34. Decided 2026-11-28. A private wall-screen link: the admin makes two, anyone with a link
   // opens it without signing in and picks how it looks (kept in that browser); deleting one link
   // stops only that one.
-  await admin.goto(`${W}/app/settings`);
-  const wl = admin.locator('[data-testid="wall-links"]');
+  // A fresh sign-in: earlier steps leave the first admin page in another state.
+  const wallAdmin = await as(b, 'admin@sunrise.test');
+  await wallAdmin.goto(`${W}/app/settings`);
+  const wl = wallAdmin.locator('[data-testid="wall-links"]');
   await wl.waitFor();
   const makeLink = async (name) => {
     await wl.locator('input[aria-label="Link name"]').fill(name);
     await wl.locator('button:has-text("Create link")').click();
     const box = wl.locator('[data-testid="wall-link-url"]');
-    await admin.waitForFunction(
+    await wallAdmin.waitForFunction(
       (n) => document.querySelector('.wall-made b')?.textContent?.includes(n),
       name,
     );
@@ -1266,7 +1268,7 @@ async function rowAction(page, rowText, action) {
   const tvRow = wl.locator('[data-testid="wall-link"]', { hasText: `Kitchen TV ${stamp}` });
   await tvRow.locator('.more-btn').click();
   await tvRow.locator('.more-list button:has-text("Delete link")').click();
-  await confirmInPage(admin);
+  await confirmInPage(wallAdmin);
   await tvRow.waitFor({ state: 'detached' });
   await viewer.reload();
   const tvGone = await viewer
@@ -1288,7 +1290,7 @@ async function rowAction(page, rowText, action) {
   const hallRow = wl.locator('[data-testid="wall-link"]', { hasText: `Hall ${stamp}` });
   await hallRow.locator('.more-btn').click();
   await hallRow.locator('.more-list button:has-text("Delete link")').click();
-  await confirmInPage(admin);
+  await confirmInPage(wallAdmin);
   log(
     '34 wall link opens without account, faces:',
     JSON.stringify(faces),
@@ -1304,6 +1306,27 @@ async function rowAction(page, rowText, action) {
   if (Object.values(faces).some((n) => !n) || !faceKept || !noMoney || !tvGone || !hallWorks)
     throw new Error('Wall screen links failed');
 
+  // 35. Decided 2026-11-29. Shifts on a phone: the page fits the screen, and names stay on the
+  // left while the month's days scroll sideways.
+  const phoneAdmin = await as(b, 'admin@sunrise.test', { width: 390, height: 844 });
+  await phoneAdmin.goto(`${W}/app/shifts`);
+  await phoneAdmin.locator('[role="tab"]:has-text("Month")').click();
+  await phoneAdmin.locator('.cal > .cal-name').nth(1).waitFor();
+  await phoneAdmin.waitForTimeout(1000);
+  const pageWidth = await phoneAdmin.evaluate(() => document.documentElement.scrollWidth);
+  const nameBefore = (await phoneAdmin.locator('.cal > .cal-name').nth(1).boundingBox()).x;
+  await phoneAdmin.locator('.cal-scroll').evaluate((e) => (e.scrollLeft = 0));
+  await phoneAdmin.locator('.cal-scroll').evaluate((e) => (e.scrollLeft = 400));
+  await phoneAdmin.waitForTimeout(300);
+  const nameAfter = (await phoneAdmin.locator('.cal > .cal-name').nth(1).boundingBox()).x;
+  log(
+    '35 phone month: page width',
+    pageWidth,
+    '| name stays:',
+    Math.abs(nameAfter - nameBefore) < 2,
+  );
+  if (pageWidth > 390 || Math.abs(nameAfter - nameBefore) >= 2)
+    throw new Error('Shifts on a phone failed');
   await b.close();
 })().catch((e) => {
   console.error('FAILED', e.message.slice(0, 400));
