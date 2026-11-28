@@ -37,6 +37,42 @@ export class DueNextService {
   }
 
   /**
+   * Decided 2026-11-28: the board for a shared wall screen, read inside the organization the link
+   * belongs to. No money and no people: orders, products, quantities and what is made.
+   */
+  publicBoard(tx: Tx, organizationId: string) {
+    return this.select(tx, organizationId).then((orders) => {
+      const { orders: shown, totals: t } = board(orders, false);
+      return {
+        orders: shown.map((o) => ({
+          orderId: o.orderId,
+          contractor: o.contractor,
+          deliveryDate: o.deliveryDate,
+          approxTime: o.approxTime,
+          deliveryStatus: o.deliveryStatus,
+          lines: o.lines.map((l) => ({
+            productId: l.productId,
+            productName: l.productName,
+            sortOrder: l.sortOrder,
+            typeName: l.typeName,
+            quantity: l.quantity,
+            madeQuantity: l.madeQuantity,
+          })),
+        })),
+        totals: t.map((x) => ({
+          productId: x.productId,
+          productName: x.productName,
+          sortOrder: x.sortOrder,
+          typeName: x.typeName,
+          quantity: x.quantity,
+          madeQuantity: x.madeQuantity,
+          done: x.done,
+        })),
+      };
+    });
+  }
+
+  /**
    * TOD-5 to TOD-7: only the products assigned to the employee, each at the full quantity (the
    * admin splits shared work by hand). An employee opens their own; the admin opens anyone's.
    */

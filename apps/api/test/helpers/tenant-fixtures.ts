@@ -73,6 +73,14 @@ export async function createTenantWithEveryTable(label: string): Promise<TenantF
     await tx.punchChangeRequest.create({
       data: { ...org, employeeId: employee!.id, shiftDate: new Date('2026-11-02') },
     });
+    await tx.wallLink.create({
+      data: {
+        ...org,
+        name: 'Kitchen TV',
+        tokenHash: `fixture-${org.organizationId}`,
+        createdById: employee!.id,
+      },
+    });
     await tx.hourlyRate.create({
       data: { ...org, employeeId: employee!.id, hourlyRate: 10_000, createdById: employee!.id },
     });

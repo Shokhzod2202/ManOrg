@@ -1336,6 +1336,68 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/wall-links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Private wall-screen links that still work (admins) */
+        get: operations["listWallLinks"];
+        put?: never;
+        /**
+         * Make a private wall-screen link (admins)
+         * @description Decided 2026-11-28. Anyone with the link sees the orders due next without an account and picks how it looks. Only a hash of the secret is stored, so `path` is returned this once. Audited.
+         */
+        post: operations["createWallLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/wall-links/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a wall-screen link (admins)
+         * @description The link stops working at once; other links keep working. Audited.
+         */
+        delete: operations["deleteWallLink"];
+        options?: never;
+        head?: never;
+        /** Rename a wall-screen link (admins) */
+        patch: operations["renameWallLink"];
+        trace?: never;
+    };
+    "/public/wall/{orgId}/{secret}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The wall screen behind a private link (no account)
+         * @description Decided 2026-11-28. The orders due next of the link's organization: contractors, approximate times, products, quantities and what is made. No money and no people. 404 for a wrong or deleted link.
+         */
+        get: operations["getWallScreen"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/punch-change-requests": {
         parameters: {
             query?: never;
@@ -3135,6 +3197,59 @@ export interface components {
                 /** @description Days with output but no finished shift, so no labor is counted for them. */
                 daysWithoutHours: number;
             };
+        };
+        WallLink: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** Format: date-time */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description When a screen last opened the link (updated every few minutes at most).
+             */
+            lastSeenAt: string | null;
+        };
+        WallScreen: {
+            organization: {
+                name: string;
+            };
+            link: {
+                name: string;
+            };
+            /** Format: date */
+            today: string;
+            /** Format: date-time */
+            generatedAt: string;
+            orders: {
+                /** Format: uuid */
+                orderId: string;
+                contractor: components["schemas"]["PersonRef"];
+                /** Format: date */
+                deliveryDate: string;
+                approxTime: components["schemas"]["ApproxTime"] | null;
+                /** @enum {string} */
+                deliveryStatus: "not_started" | "draft";
+                lines: {
+                    /** Format: uuid */
+                    productId: string;
+                    productName: string;
+                    sortOrder: number;
+                    typeName: string | null;
+                    quantity: number;
+                    madeQuantity: number;
+                }[];
+            }[];
+            totals: {
+                /** Format: uuid */
+                productId: string;
+                productName: string;
+                sortOrder: number;
+                typeName: string | null;
+                quantity: number;
+                madeQuantity: number;
+                done: boolean;
+            }[];
         };
         PersonRef: {
             /** Format: uuid */
@@ -6781,6 +6896,156 @@ export interface operations {
             400: components["responses"]["ValidationFailed"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listWallLinks: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The links (never their secret). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["WallLink"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createWallLink: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example Kitchen TV */
+                    name: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The link, with its path (shown once). */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WallLink"] & {
+                        /** @example /screen/{organizationId}/{secret} */
+                        path: string;
+                    };
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteWallLink: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    renameWallLink: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The link. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WallLink"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getWallScreen: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                orgId: string;
+                secret: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The screen. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WallScreen"];
+                };
+            };
             404: components["responses"]["NotFound"];
         };
     };

@@ -1224,6 +1224,86 @@ async function rowAction(page, rowText, action) {
   log('33 plan hidden and kept after reload:', keptOff, '| no plan lines:', planLinesHidden);
   if (!keptOff || !planLinesHidden) throw new Error('Hiding planned shifts failed');
 
+  // 34. Decided 2026-11-28. A private wall-screen link: the admin makes two, anyone with a link
+  // opens it without signing in and picks how it looks (kept in that browser); deleting one link
+  // stops only that one.
+  await admin.goto(`${W}/app/settings`);
+  const wl = admin.locator('[data-testid="wall-links"]');
+  await wl.waitFor();
+  const makeLink = async (name) => {
+    await wl.locator('input[aria-label="Link name"]').fill(name);
+    await wl.locator('button:has-text("Create link")').click();
+    const box = wl.locator('[data-testid="wall-link-url"]');
+    await admin.waitForFunction(
+      (n) => document.querySelector('.wall-made b')?.textContent?.includes(n),
+      name,
+    );
+    return (await box.inputValue()).replace(/^http:\/\/localhost:3000/, W);
+  };
+  const stamp = Date.now().toString(36);
+  const tvUrl = await makeLink(`Kitchen TV ${stamp}`);
+  const hallUrl = await makeLink(`Hall ${stamp}`);
+  const viewer = await (await b.newContext({ viewport: { width: 1280, height: 800 } })).newPage();
+  await viewer.goto(tvUrl);
+  await viewer.locator('.wall-head h1').waitFor();
+  const faces = {};
+  for (const f of ['Products', 'List', 'Matrix', 'Overview']) {
+    await viewer.locator(`.wall-controls [role="tab"]:has-text("${f}")`).click();
+    await viewer.waitForTimeout(300);
+    faces[f] =
+      (await viewer.locator(`[data-testid="face-${f.toLowerCase()}"]`).count()) +
+      (await viewer.locator('.empty').count());
+    await viewer.screenshot({ path: `${OUT}/34-wall-${f.toLowerCase()}.png` });
+  }
+  await viewer.reload();
+  await viewer.locator('.wall-head h1').waitFor();
+  const faceKept =
+    (
+      await viewer.locator('.wall-controls [role="tab"][aria-selected="true"]').innerText()
+    ).trim() === 'Overview';
+  const noMoney = !/₩|won|salary/i.test(await viewer.locator('main').innerText());
+  // Delete the TV link: it stops at once; the hall link keeps working.
+  const tvRow = wl.locator('[data-testid="wall-link"]', { hasText: `Kitchen TV ${stamp}` });
+  await tvRow.locator('.more-btn').click();
+  await tvRow.locator('.more-list button:has-text("Delete link")').click();
+  await confirmInPage(admin);
+  await tvRow.waitFor({ state: 'detached' });
+  await viewer.reload();
+  const tvGone = await viewer
+    .locator('text=This screen link no longer works.')
+    .waitFor({ timeout: 8000 })
+    .then(
+      () => true,
+      () => false,
+    );
+  await viewer.goto(hallUrl);
+  const hallWorks = await viewer
+    .locator('.wall-head h1')
+    .waitFor({ timeout: 8000 })
+    .then(
+      () => true,
+      () => false,
+    );
+  // Tidy up the hall link too.
+  const hallRow = wl.locator('[data-testid="wall-link"]', { hasText: `Hall ${stamp}` });
+  await hallRow.locator('.more-btn').click();
+  await hallRow.locator('.more-list button:has-text("Delete link")').click();
+  await confirmInPage(admin);
+  log(
+    '34 wall link opens without account, faces:',
+    JSON.stringify(faces),
+    '| face kept:',
+    faceKept,
+    '| no money:',
+    noMoney,
+    '| deleted link stops:',
+    tvGone,
+    '| other link still works:',
+    hallWorks,
+  );
+  if (Object.values(faces).some((n) => !n) || !faceKept || !noMoney || !tvGone || !hallWorks)
+    throw new Error('Wall screen links failed');
+
   await b.close();
 })().catch((e) => {
   console.error('FAILED', e.message.slice(0, 400));

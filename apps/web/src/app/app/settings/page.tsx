@@ -1,10 +1,22 @@
 'use client';
 
 import { confirmAction } from '../../../components/confirm';
+import { MoreMenu } from '../../../components/menu';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useRef, useState } from 'react';
 import { Avatar, Empty, ErrorBox, Loading, PageHead, PasswordInput } from '../../../components/ui';
-import { api, type ApiError, del, get, patch, post, put, type Schemas } from '../../../lib/api';
+import {
+  api,
+  type ApiError,
+  del,
+  formatDate,
+  formatTime,
+  get,
+  patch,
+  post,
+  put,
+  type Schemas,
+} from '../../../lib/api';
 import { useSession } from '../../../lib/session';
 import { refreshApi, useApi } from '../../../lib/use-api';
 import { LanguagePicker, t } from '../../../lib/i18n';
@@ -32,6 +44,9 @@ export default function SettingsPage() {
         />
       ) : null}
       {s.actor === 'org_admin' ? <WhoWorksShifts /> : null}
+      {s.actor === 'org_admin' && s.membership?.organization.type === 'provider' ? (
+        <WallLinks />
+      ) : null}
       {s.actor === 'org_admin' && s.membership?.owner ? (
         <Switches<Bot>
           title={t('Bot permissions')}
@@ -934,6 +949,187 @@ function BakeryLocation() {
             </button>
           </div>
         </>
+      ) : null}
+    </section>
+  );
+}
+
+/**
+ * Decided 2026-11-28: private links to the wall screen. Anyone with a link sees the orders due
+ * next in a browser, no account needed, and picks how it looks. Deleting a link stops only that
+ * link; the full link is shown once, when it is made.
+ */
+function WallLinks() {
+  const { data, error, loading, reload } = useApi<{ items: Schemas['WallLink'][] }>('/wall-links');
+  const [name, setName] = useState('');
+  const [made, setMade] = useState<{ name: string; url: string } | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [err, setErr] = useState<ApiError | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState<{ id: string; name: string } | null>(null);
+
+  async function create(e: FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    setErr(null);
+    setBusy(true);
+    try {
+      const row = await post<Schemas['WallLink'] & { path: string }>('/wall-links', {
+        name: name.trim(),
+      });
+      setMade({ name: row.name, url: `${window.location.origin}${row.path}` });
+      setCopied(false);
+      setName('');
+      reload();
+    } catch (x) {
+      setErr(x as ApiError);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function copy(url: string) {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+    } catch {
+      // Clipboard blocked (some in-app browsers): the link stays selectable on screen.
+      setCopied(false);
+    }
+  }
+
+  async function remove(l: Schemas['WallLink']) {
+    const ok = await confirmAction(t('Delete the link “{name}”?', { name: l.name }), {
+      detail: t('Screens using this link stop showing orders at once. Other links keep working.'),
+      confirmLabel: t('Delete link'),
+      danger: true,
+    });
+    if (!ok) return;
+    setErr(null);
+    try {
+      await del(`/wall-links/${l.id}`);
+      if (made && made.name === l.name) setMade(null);
+      reload();
+    } catch (x) {
+      setErr(x as ApiError);
+    }
+  }
+
+  async function rename(e: FormEvent) {
+    e.preventDefault();
+    if (!editing) return;
+    const next = editing.name.trim();
+    setErr(null);
+    try {
+      if (next) await patch(`/wall-links/${editing.id}`, { name: next });
+      setEditing(null);
+      reload();
+    } catch (x) {
+      setErr(x as ApiError);
+    }
+  }
+
+  return (
+    <section className="card" data-testid="wall-links">
+      <h2>{t('Wall screen links')}</h2>
+      <p className="muted small" style={{ margin: 0 }}>
+        {t(
+          'Share a private link to the wall screen. Anyone with the link sees the orders due next in a browser, without an account, and picks how it looks. No prices or people are shown.',
+        )}
+      </p>
+      <form className="row wrap" onSubmit={(e) => void create(e)}>
+        <input
+          className="input"
+          style={{ flex: 1, minWidth: 160 }}
+          value={name}
+          maxLength={60}
+          onChange={(e) => setName(e.target.value)}
+          placeholder={t('Name, e.g. Kitchen TV')}
+          aria-label={t('Link name')}
+        />
+        <button className="btn" disabled={busy || !name.trim()}>
+          {t('Create link')}
+        </button>
+      </form>
+      <ErrorBox error={error ?? err} />
+      {made ? (
+        <div className="stack wall-made" style={{ gap: 8 }}>
+          <b>{t('Link for “{name}”', { name: made.name })}</b>
+          <input
+            className="input"
+            readOnly
+            value={made.url}
+            aria-label={t('Screen link')}
+            data-testid="wall-link-url"
+            onFocus={(e) => e.target.select()}
+          />
+          <div className="row wrap">
+            <button type="button" className="btn" onClick={() => void copy(made.url)}>
+              {copied ? t('Copied') : t('Copy link')}
+            </button>
+            <a className="btn ghost" href={made.url} target="_blank" rel="noreferrer">
+              {t('Open')}
+            </a>
+          </div>
+          <span className="hint-bad">
+            {t(
+              'Copy it now: the full link is shown only once. Lost it? Delete it and make a new one.',
+            )}
+          </span>
+        </div>
+      ) : null}
+      {loading && !data ? <Loading /> : null}
+      {data && !data.items.length ? <Empty>{t('No links yet.')}</Empty> : null}
+      {data?.items.length ? (
+        <ul className="batch-list">
+          {data.items.map((l) =>
+            editing?.id === l.id ? (
+              <li key={l.id}>
+                <form className="row wrap" style={{ flex: 1 }} onSubmit={(e) => void rename(e)}>
+                  <input
+                    className="input"
+                    style={{ flex: 1, minWidth: 140 }}
+                    autoFocus
+                    maxLength={60}
+                    value={editing.name}
+                    aria-label={t('Link name')}
+                    onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+                  />
+                  <button className="btn small-btn">{t('Save')}</button>
+                  <button
+                    type="button"
+                    className="btn ghost small-btn"
+                    onClick={() => setEditing(null)}
+                  >
+                    {t('Cancel')}
+                  </button>
+                </form>
+              </li>
+            ) : (
+              <li key={l.id} data-testid="wall-link">
+                <span>
+                  <b>{l.name}</b>
+                  <span className="muted small">
+                    {' '}
+                    · {t('made {date}', { date: formatDate(l.createdAt.slice(0, 10)) })} ·{' '}
+                    {l.lastSeenAt
+                      ? t('last opened {when}', {
+                          when: `${formatDate(l.lastSeenAt.slice(0, 10))} ${formatTime(l.lastSeenAt)}`,
+                        })
+                      : t('not opened yet')}
+                  </span>
+                </span>
+                <MoreMenu
+                  label={t('More actions for {name}', { name: l.name })}
+                  items={[
+                    { label: t('Rename'), onSelect: () => setEditing({ id: l.id, name: l.name }) },
+                    { label: t('Delete link'), danger: true, onSelect: () => void remove(l) },
+                  ]}
+                />
+              </li>
+            ),
+          )}
+        </ul>
       ) : null}
     </section>
   );

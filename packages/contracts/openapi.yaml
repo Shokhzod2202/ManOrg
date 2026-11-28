@@ -2282,6 +2282,131 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /wall-links:
+    get:
+      operationId: listWallLinks
+      x-tenant-scoped: true
+      summary: Private wall-screen links that still work (admins)
+      tags: [deliveries]
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: The links (never their secret).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/WallLink' } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      operationId: createWallLink
+      summary: Make a private wall-screen link (admins)
+      description: >-
+        Decided 2026-11-28. Anyone with the link sees the orders due next without an account and
+        picks how it looks. Only a hash of the secret is stored, so `path` is returned this once.
+        Audited.
+      tags: [deliveries]
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name]
+              properties:
+                name: { type: string, minLength: 1, maxLength: 60, example: Kitchen TV }
+      responses:
+        '201':
+          description: The link, with its path (shown once).
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/WallLink'
+                  - type: object
+                    required: [path]
+                    properties:
+                      path: { type: string, example: '/screen/{organizationId}/{secret}' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /wall-links/{id}:
+    patch:
+      operationId: renameWallLink
+      summary: Rename a wall-screen link (admins)
+      tags: [deliveries]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name]
+              properties:
+                name: { type: string, minLength: 1, maxLength: 60 }
+      responses:
+        '200':
+          description: The link.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WallLink' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      operationId: deleteWallLink
+      summary: Delete a wall-screen link (admins)
+      description: The link stops working at once; other links keep working. Audited.
+      tags: [deliveries]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '204': { description: Deleted. }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /public/wall/{orgId}/{secret}:
+    get:
+      operationId: getWallScreen
+      summary: The wall screen behind a private link (no account)
+      description: >-
+        Decided 2026-11-28. The orders due next of the link's organization: contractors, approximate
+        times, products, quantities and what is made. No money and no people. 404 for a wrong or
+        deleted link.
+      tags: [deliveries]
+      security: []
+      x-tenant-scoped: false
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: secret
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: The screen.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WallScreen' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /punch-change-requests:
     post:
       operationId: requestPunchChange
@@ -5019,6 +5144,72 @@ components:
             daysWithoutHours:
               type: integer
               description: Days with output but no finished shift, so no labor is counted for them.
+    WallLink:
+      type: object
+      required: [id, name, createdAt, lastSeenAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        createdAt: { type: string, format: date-time }
+        lastSeenAt:
+          type: [string, 'null']
+          format: date-time
+          description: When a screen last opened the link (updated every few minutes at most).
+    WallScreen:
+      type: object
+      required: [organization, link, today, generatedAt, orders, totals]
+      properties:
+        organization:
+          type: object
+          required: [name]
+          properties:
+            name: { type: string }
+        link:
+          type: object
+          required: [name]
+          properties:
+            name: { type: string }
+        today: { type: string, format: date }
+        generatedAt: { type: string, format: date-time }
+        orders:
+          type: array
+          items:
+            type: object
+            required: [orderId, contractor, deliveryDate, approxTime, deliveryStatus, lines]
+            properties:
+              orderId: { type: string, format: uuid }
+              contractor: { $ref: '#/components/schemas/PersonRef' }
+              deliveryDate: { type: string, format: date }
+              approxTime:
+                oneOf:
+                  - $ref: '#/components/schemas/ApproxTime'
+                  - type: 'null'
+              deliveryStatus: { type: string, enum: [not_started, draft] }
+              lines:
+                type: array
+                items:
+                  type: object
+                  required: [productId, productName, sortOrder, typeName, quantity, madeQuantity]
+                  properties:
+                    productId: { type: string, format: uuid }
+                    productName: { type: string }
+                    sortOrder: { type: integer }
+                    typeName: { type: [string, 'null'] }
+                    quantity: { type: integer }
+                    madeQuantity: { type: integer }
+        totals:
+          type: array
+          items:
+            type: object
+            required: [productId, productName, sortOrder, typeName, quantity, madeQuantity, done]
+            properties:
+              productId: { type: string, format: uuid }
+              productName: { type: string }
+              sortOrder: { type: integer }
+              typeName: { type: [string, 'null'] }
+              quantity: { type: integer }
+              madeQuantity: { type: integer }
+              done: { type: boolean }
     PersonRef:
       type: object
       required: [id, name]

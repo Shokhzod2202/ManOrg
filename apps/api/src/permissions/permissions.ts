@@ -103,6 +103,8 @@ const MATRIX = {
 
   // Decided 2026-11-30: worked hours from punch cards (each person their own) and salary
   // advances ("avans"), which admins log when they transfer the money.
+  // Decided 2026-11-28: private links that show the wall screen without an account.
+  'wall.manage': { employee: false, org_admin: 'any', contractor_admin: false },
   'hours.read': { employee: 'own', org_admin: 'any', contractor_admin: false },
   'advances.manage': { employee: false, org_admin: 'any', contractor_admin: false },
 

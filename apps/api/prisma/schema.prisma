@@ -263,6 +263,7 @@ model Organization {
   productTypes               ProductType[]
   salaryAdvances             SalaryAdvance[]
   hourlyRates                HourlyRate[]
+  wallLinks                  WallLink[]
   ingredients                Ingredient[]
   productIngredients         ProductIngredient[]
   employeeProducts           EmployeeProduct[]
@@ -1331,4 +1332,26 @@ model HourlyRate {
 
   @@index([organizationId, employeeId, effectiveFrom])
   @@map("hourly_rates")
+}
+
+/// Decided 2026-11-28: a private link that shows the orders due next on any browser, without an
+/// account. The person viewing picks how it looks. Only a hash of its secret is kept; deleting it
+/// (revoked_at) stops that link at once.
+model WallLink {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  name           String
+  tokenHash      String    @unique @map("token_hash")
+  createdById    String    @map("created_by") @db.Uuid
+  lastSeenAt     DateTime? @map("last_seen_at") @db.Timestamptz(3)
+  revokedAt      DateTime? @map("revoked_at") @db.Timestamptz(3)
+  revokedById    String?   @map("revoked_by") @db.Uuid
+  version        Int       @default(1)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId])
+  @@map("wall_links")
 }
