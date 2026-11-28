@@ -956,4 +956,6 @@ export const ko: Record<string, string> = {
   'No product matches.': '일치하는 제품이 없습니다.',
   '{month}: {amount} in all': '{month}: 합계 {amount}',
   'Hours without output logged.': '생산 기록 없이 근무한 시간입니다.',
+  'Open Shifts': '근무 화면 열기',
+  'Close the list': '목록 닫기',
 };

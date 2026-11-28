@@ -1639,3 +1639,14 @@ span.neg {
   justify-content: flex-start;
   font-size: 13px;
 }
+/* Decided 2026-11-28: the "On shift now" tile is a button that opens the list. */
+button.kpi {
+  background: var(--bg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+button.kpi.on {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--soft);
+}

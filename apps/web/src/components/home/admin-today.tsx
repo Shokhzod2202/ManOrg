@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
 import { useSession } from '../../lib/session';
 import { MyPunchCard } from './punch-card';
 import { formatDate, formatMinutes, formatTime, type Schemas } from '../../lib/api';
@@ -41,6 +42,8 @@ const STATUS: Record<string, string> = {
 export function AdminToday() {
   const { membership } = useSession();
   const { data, error, loading, reload } = useApi<Today>('/dashboard/today', 30_000);
+  // Decided 2026-11-28: tapping "On shift now" shows who, since when and for how long.
+  const [showShift, setShowShift] = useState(false);
   if (loading && !data) return <Loading />;
   if (!data) return <ErrorBox error={error} onRetry={reload} />;
   const w = data.waiting;
@@ -61,10 +64,16 @@ export function AdminToday() {
       <ErrorBox error={error} onRetry={reload} />
       {membership?.worksShifts ? <MyPunchCard /> : null}
       <div className="kpis">
-        <div className="kpi">
+        <button
+          type="button"
+          className={showShift ? 'kpi on' : 'kpi'}
+          aria-expanded={showShift}
+          aria-controls="on-shift-now"
+          onClick={() => setShowShift(!showShift)}
+        >
           <b>{data.onShift.length}</b>
           <span>{t('On shift now')}</span>
-        </div>
+        </button>
         {waiting.map((k) => (
           <Link key={k.href} className="kpi" href={k.href}>
             <b>{k.n}</b>
@@ -72,6 +81,25 @@ export function AdminToday() {
           </Link>
         ))}
       </div>
+      {showShift ? (
+        <section className="card" id="on-shift-now" data-testid="on-shift-now">
+          <div className="row between">
+            <h2>{t('On shift now')}</h2>
+            <button
+              type="button"
+              className="btn ghost small-btn"
+              onClick={() => setShowShift(false)}
+              aria-label={t('Close the list')}
+            >
+              ✕
+            </button>
+          </div>
+          <OnShiftTable rows={data.onShift} today={data.today} />
+          <Link className="small" href="/app/shifts">
+            {t('Open Shifts')}
+          </Link>
+        </section>
+      ) : null}
       <section className="stack">
         <h2 className="center">{t('Orders due next')}</h2>
         <OrdersBoard />
@@ -79,39 +107,7 @@ export function AdminToday() {
       <div className="grid2">
         <section className="card">
           <h2>{t('On shift')}</h2>
-          {data.onShift.length ? (
-            <table className="t cards">
-              <thead>
-                <tr>
-                  <th>{t('Name')}</th>
-                  <th>{t('Status')}</th>
-                  <th>{t('Since')}</th>
-                  <th>{t('Worked')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.onShift.map((p) => (
-                  <tr key={p.employee?.id}>
-                    <td data-label={t('Name')}>
-                      <b>{p.employee?.name}</b>
-                      {p.employee?.title ? (
-                        <span className="muted small"> · {p.employee.title}</span>
-                      ) : null}
-                    </td>
-                    <td data-label={t('Status')}>
-                      <span className={p.status === 'working' ? 'pill ok' : 'pill warn'}>
-                        {p.status === 'working' ? t('Working') : t('Paused')}
-                      </span>
-                    </td>
-                    <td data-label={t('Since')}>{formatTime(p.startedAt)}</td>
-                    <td data-label={t('Worked')}>{formatMinutes(p.workedMinutes ?? 0)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <Empty>{t('Nobody is on shift.')}</Empty>
-          )}
+          <OnShiftTable rows={data.onShift} today={data.today} />
           {data.flags.length ? (
             <div className="stack">
               <b>{t('Needs a look')}</b>
@@ -208,5 +204,56 @@ export function AdminToday() {
         </section>
       </div>
     </div>
+  );
+}
+
+/** The organization's local date of an instant (Asia/Seoul by default), as YYYY-MM-DD. */
+const localDay = (iso: string, timeZone = 'Asia/Seoul') =>
+  new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(iso));
+
+/** Who is on shift now: status, when they started (with the day if not today) and time worked. */
+function OnShiftTable({ rows, today }: { rows: Today['onShift']; today: string }) {
+  if (!rows.length) return <Empty>{t('Nobody is on shift.')}</Empty>;
+  return (
+    <table className="t cards">
+      <thead>
+        <tr>
+          <th>{t('Name')}</th>
+          <th>{t('Status')}</th>
+          <th>{t('Since')}</th>
+          <th>{t('Worked')}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((p) => {
+          const day = p.startedAt ? localDay(p.startedAt) : today;
+          return (
+            <tr key={p.employee?.id}>
+              <td data-label={t('Name')}>
+                <b>{p.employee?.name}</b>
+                {p.employee?.title ? (
+                  <span className="muted small"> · {p.employee.title}</span>
+                ) : null}
+              </td>
+              <td data-label={t('Status')}>
+                <span className={p.status === 'working' ? 'pill ok' : 'pill warn'}>
+                  {p.status === 'working' ? t('Working') : t('Paused')}
+                </span>
+              </td>
+              <td data-label={t('Since')}>
+                {day !== today ? `${formatDate(day)} ` : ''}
+                {formatTime(p.startedAt)}
+              </td>
+              <td data-label={t('Worked')}>{formatMinutes(p.workedMinutes ?? 0)}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
   );
 }

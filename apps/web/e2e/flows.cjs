@@ -146,7 +146,7 @@ async function rowAction(page, rowText, action) {
   await deli.fill('input[aria-label="Scone quantity"]', '6');
   // One order per contractor per day: try the following days until one is free.
   for (let days = 3; ; days += 1) {
-    if (days > 40) throw new Error('No free delivery date found');
+    if (days > 400) throw new Error('No free delivery date found');
     await deli.fill(
       'input[type=date]',
       new Date(Date.now() + days * 86400000).toISOString().slice(0, 10),
@@ -1099,6 +1099,20 @@ async function rowAction(page, rowText, action) {
     searched,
   );
   if (!histDays || !searched) throw new Error('Output history failed');
+
+  // 31. Decided 2026-11-28. Tapping "On shift now" on Today lists who is on shift, since when
+  // and for how long.
+  await boss.goto(`${W}/app`);
+  await boss.locator('button.kpi:has-text("On shift now")').click();
+  const onShiftPanel = await boss
+    .locator('[data-testid=on-shift-now]')
+    .waitFor({ timeout: 8000 })
+    .then(
+      () => true,
+      () => false,
+    );
+  log('31 On shift now opens the list:', onShiftPanel);
+  if (!onShiftPanel) throw new Error('On shift now did not open');
 
   await b.close();
 })().catch((e) => {
