@@ -105,6 +105,8 @@ const MATRIX = {
   // advances ("avans"), which admins log when they transfer the money.
   // Decided 2026-11-28: private links that show the wall screen without an account.
   'wall.manage': { employee: false, org_admin: 'any', contractor_admin: false },
+  // Decided 2026-11-29: API keys for outside bots (the service also checks the owner).
+  'agentKeys.manage': { employee: false, org_admin: 'any', contractor_admin: false },
   'hours.read': { employee: 'own', org_admin: 'any', contractor_admin: false },
   'advances.manage': { employee: false, org_admin: 'any', contractor_admin: false },
 
@@ -137,6 +139,7 @@ export const BOT_BY_SETTING: Readonly<Partial<Record<Capability, BotAccessKey>>>
 export const BOT_NEVER: ReadonlySet<Capability> = new Set<Capability>([
   'botAccess.manage',
   'bot.use',
+  'agentKeys.manage',
   'organization.create',
   'organization.apply',
 ]);

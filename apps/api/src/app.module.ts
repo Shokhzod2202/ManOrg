@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { AgentsModule } from './agents/agents.module';
 import { ApplicationsController } from './applications/applications.controller';
 import { ApplicationsService } from './applications/applications.service';
 import { AuditModule } from './audit/audit.module';
@@ -52,6 +53,7 @@ import { OrgContextGuard } from './permissions/org-context.guard';
     DatabaseModule,
     AuditModule,
     AuthModule,
+    AgentsModule,
     StorageModule,
     ShiftsModule,
     OutputModule,

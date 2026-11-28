@@ -1378,6 +1378,81 @@ export interface paths {
         patch: operations["renameWallLink"];
         trace?: never;
     };
+    "/agent-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** API keys for outside bots that still work (owner only) */
+        get: operations["listAgentKeys"];
+        put?: never;
+        /**
+         * Make an API key for an outside bot (owner only)
+         * @description Decided 2026-11-29. `read` keys only read; `write` keys may also add and change; no key deletes. Only a hash is stored, so `key` is returned this once. Not available to API keys or the in-app bot. Audited.
+         */
+        post: operations["createAgentKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent-keys/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete an API key (owner only); it stops at once, other keys keep working */
+        delete: operations["deleteAgentKey"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent/whoami": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Which organization and key this is, and the rules (a bot's first call)
+         * @description With an API key the X-Organization-Id header may be left out: the key belongs to one organization.
+         */
+        get: operations["agentWhoami"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/openapi.yaml": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** This API description, for outside bots to learn the endpoints */
+        get: operations["getOpenApi"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/public/wall/{orgId}/{secret}": {
         parameters: {
             query?: never;
@@ -3197,6 +3272,22 @@ export interface components {
                 /** @description Days with output but no finished shift, so no labor is counted for them. */
                 daysWithoutHours: number;
             };
+        };
+        AgentKey: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** @enum {string} */
+            access: "read" | "write";
+            /** @description The key's last four characters. */
+            hint: string;
+            /** Format: date-time */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description When a bot last used the key (updated once a minute at most).
+             */
+            lastUsedAt: string | null;
         };
         WallLink: {
             /** Format: uuid */
@@ -7023,6 +7114,159 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    listAgentKeys: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The keys (never the key itself; `hint` is its last four characters). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["AgentKey"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createAgentKey: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example Grok */
+                    name: string;
+                    /** @enum {string} */
+                    access: "read" | "write";
+                };
+            };
+        };
+        responses: {
+            /** @description The key, shown once. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentKey"] & {
+                        /** @example mok_{organization id}_{secret} */
+                        key: string;
+                    };
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteAgentKey: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path: {
+                id: components["parameters"]["IdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. Audited. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    agentWhoami: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization the request acts in; must be one of the caller's active memberships. */
+                "X-Organization-Id": components["parameters"]["OrganizationId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The organization, the key (null for a signed-in person) and the rules. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        organization: {
+                            /** Format: uuid */
+                            id: string;
+                            name: string;
+                        };
+                        key: {
+                            name: string;
+                            /** @enum {string} */
+                            access: "read" | "write";
+                        } | null;
+                        rules: string[];
+                        /** @example /api/v1/openapi.yaml */
+                        openapi: string;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getOpenApi: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The OpenAPI document. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/yaml": string;
+                };
+            };
         };
     };
     getWallScreen: {

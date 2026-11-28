@@ -14,6 +14,18 @@ info:
     - Lists return `{ items, nextCursor }`; pass `cursor` back to get the next page.
     - Edits send `If-Match` with the row `version`; a stale version answers 409 VERSION_CONFLICT.
 
+    Outside bots (decided 2026-11-29)
+    - The owner makes an API key in Settings → "API keys for bots" and gives it to the bot (Grok
+      or any agent). The bot sends `Authorization: Bearer mok_…` on every request.
+    - A key belongs to one organization, so `X-Organization-Id` may be left out. It works on the
+      organization endpoints only (not /auth or /me) and acts as the bot: the bot's permissions
+      and the owner's Bot permissions switches apply, and owner-only data stays hidden.
+    - "read" keys may use GET only (403 AGENT_READ_ONLY otherwise); "write" keys may also use POST,
+      PUT and PATCH. DELETE is always refused (403 AGENT_NO_DELETE). At most 120 requests a
+      minute per key (429 AGENT_RATE_LIMITED).
+    - Start with GET /agent/whoami. Every change is in the audit log as the bot, with the key as
+      actor, on behalf of the owner. A deleted key answers 401 at once.
+
     `x-tenant-scoped: true` on an operation means its response holds organization data; the
     tenant-isolation suite calls every such GET and fails if it returns another organization's
     rows.
@@ -2380,6 +2392,129 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /agent-keys:
+    get:
+      operationId: listAgentKeys
+      x-tenant-scoped: true
+      summary: API keys for outside bots that still work (owner only)
+      tags: [organizations]
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: The keys (never the key itself; `hint` is its last four characters).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/AgentKey' } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      operationId: createAgentKey
+      summary: Make an API key for an outside bot (owner only)
+      description: >-
+        Decided 2026-11-29. `read` keys only read; `write` keys may also add and change; no key
+        deletes. Only a hash is stored, so `key` is returned this once. Not available to API keys
+        or the in-app bot. Audited.
+      tags: [organizations]
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name, access]
+              properties:
+                name: { type: string, minLength: 1, maxLength: 60, example: Grok }
+                access: { type: string, enum: [read, write] }
+      responses:
+        '201':
+          description: The key, shown once.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/AgentKey'
+                  - type: object
+                    required: [key]
+                    properties:
+                      key: { type: string, example: 'mok_{organization id}_{secret}' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /agent-keys/{id}:
+    delete:
+      operationId: deleteAgentKey
+      summary: Delete an API key (owner only); it stops at once, other keys keep working
+      tags: [organizations]
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204': { description: Deleted. Audited. }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /agent/whoami:
+    get:
+      operationId: agentWhoami
+      summary: Which organization and key this is, and the rules (a bot's first call)
+      description: >-
+        With an API key the X-Organization-Id header may be left out: the key belongs to one
+        organization.
+      tags: [organizations]
+      x-tenant-scoped: true
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: The organization, the key (null for a signed-in person) and the rules.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [organization, key, rules, openapi]
+                properties:
+                  organization:
+                    type: object
+                    required: [id, name]
+                    properties:
+                      id: { type: string, format: uuid }
+                      name: { type: string }
+                  key:
+                    oneOf:
+                      - type: object
+                        required: [name, access]
+                        properties:
+                          name: { type: string }
+                          access: { type: string, enum: [read, write] }
+                      - type: 'null'
+                  rules: { type: array, items: { type: string } }
+                  openapi: { type: string, example: /api/v1/openapi.yaml }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /openapi.yaml:
+    get:
+      operationId: getOpenApi
+      summary: This API description, for outside bots to learn the endpoints
+      tags: [system]
+      security: []
+      x-tenant-scoped: false
+      responses:
+        '200':
+          description: The OpenAPI document.
+          content:
+            application/yaml:
+              schema: { type: string }
   /public/wall/{orgId}/{secret}:
     get:
       operationId: getWallScreen
@@ -4085,6 +4220,9 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+      description: >-
+        A signed-in person's access token, or an outside bot's API key (`mok_…`, decided
+        2026-11-29).
 
   parameters:
     IdPath:
@@ -5144,6 +5282,19 @@ components:
             daysWithoutHours:
               type: integer
               description: Days with output but no finished shift, so no labor is counted for them.
+    AgentKey:
+      type: object
+      required: [id, name, access, hint, createdAt, lastUsedAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        access: { type: string, enum: [read, write] }
+        hint: { type: string, description: The key's last four characters. }
+        createdAt: { type: string, format: date-time }
+        lastUsedAt:
+          type: [string, 'null']
+          format: date-time
+          description: When a bot last used the key (updated once a minute at most).
     WallLink:
       type: object
       required: [id, name, createdAt, lastSeenAt]

@@ -6,8 +6,18 @@ import { type BotAccess } from '../permissions/bot-access';
 import { type EmployeeAccess } from '../permissions/employee-access';
 import { type Actor, can, type Capability } from '../permissions/permissions';
 
+/** Decided 2026-11-29: the API key an outside bot signed in with. */
+export interface AgentKeyRef {
+  id: string;
+  name: string;
+  access: 'read' | 'write';
+  organizationId: string;
+}
+
 export interface AuthUser {
   userId: string;
+  /** Set for a request made with an outside bot's API key; it then also acts as the bot. */
+  agentKey?: AgentKeyRef;
   /** Set when the AI bot acts for this admin (spec section 10); audit rows then say "bot". */
   viaBot?: boolean;
 }

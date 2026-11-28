@@ -44,6 +44,8 @@ const schema = z.object({
   /** Optional: a gateway in front of the provider's API (also used by local checks). */
   LLM_BASE_URL: z.string().optional(),
   LLM_EFFORT: z.enum(['low', 'medium', 'high', 'xhigh', 'max']).default('high'),
+  /** Decided 2026-11-29: requests a minute for each outside bot's API key. */
+  AGENT_REQUESTS_PER_MINUTE: z.coerce.number().int().positive().default(120),
   BOT_MESSAGES_PER_MINUTE: z.coerce.number().int().positive().default(10),
   BOT_MONTHLY_TOKEN_BUDGET: z.coerce.number().int().positive().default(2_000_000),
   BOT_RETENTION_DAYS: z.coerce.number().int().positive().default(90),

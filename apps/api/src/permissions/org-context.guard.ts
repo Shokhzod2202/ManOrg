@@ -42,7 +42,14 @@ export class OrgContextGuard implements CanActivate {
     const user = req.user;
     if (!user) throw Errors.unauthenticated();
 
-    const header = req.header('x-organization-id');
+    // Decided 2026-11-29: an API key belongs to one organization, so the header may be left out;
+    // naming another organization finds nothing.
+    const header = user.agentKey
+      ? (req.header('x-organization-id') ?? user.agentKey.organizationId)
+      : req.header('x-organization-id');
+    if (user.agentKey && header !== user.agentKey.organizationId) {
+      throw Errors.notFound('Organization');
+    }
     if (!header) {
       if (requirement.kind === 'optional') return true;
       throw Errors.badRequest('ORGANIZATION_REQUIRED', 'Send the X-Organization-Id header.');
@@ -67,14 +74,18 @@ export class OrgContextGuard implements CanActivate {
     );
     if (!membership) throw Errors.notFound('Organization');
 
-    const actor = actorFor(membership.organization.type, membership.role);
+    const memberActor = actorFor(membership.organization.type, membership.role);
+    if (user.agentKey && memberActor !== 'org_admin') throw Errors.notFound('Organization');
+    // An outside bot acts as the bot: its column of the matrix and the Bot permissions apply.
+    const actor = user.agentKey ? 'bot' : memberActor;
+    const worksShifts = user.agentKey ? false : membership.worksShifts;
     const settings = {
       employeeAccess: resolveEmployeeAccess(membership.organization.employeeAccess),
       botAccess: resolveBotAccess(membership.organization.botAccess),
     };
     if (
       requirement.capability &&
-      !memberCan(actor, requirement.capability, settings, membership.worksShifts)
+      !memberCan(actor, requirement.capability, settings, worksShifts)
     ) {
       throw Errors.forbidden();
     }
@@ -87,7 +98,7 @@ export class OrgContextGuard implements CanActivate {
       actor,
       ...settings,
       owner: membership.owner,
-      worksShifts: membership.worksShifts,
+      worksShifts,
     };
     return true;
   }

@@ -1020,4 +1020,28 @@ export const ko: Record<string, string> = {
   'Everything is made.': '모두 만들었습니다.',
   'Next deliveries': '다음 배송',
   Ready: '준비됨',
+  'Delete the key “{name}”?': '“{name}” 키를 삭제할까요?',
+  'A bot using this key stops at once. Other keys keep working.':
+    '이 키를 쓰는 봇은 바로 멈춥니다. 다른 키는 계속 작동합니다.',
+  'Delete key': '키 삭제',
+  'API keys for bots': '봇용 API 키',
+  'Connect an outside bot, such as Grok, to the app. It works in this organization like the in-app bot: your Bot permissions apply, owner-only data stays hidden, it can never delete, and every change it makes is in the history.':
+    'Grok 같은 외부 봇을 앱에 연결하세요. 앱 안의 봇처럼 이 조직에서만 작동합니다. 봇 권한 설정이 적용되고, 소유자 전용 정보는 숨겨지며, 절대 삭제할 수 없고, 모든 변경은 기록에 남습니다.',
+  'Name, e.g. Grok': '이름, 예: Grok',
+  'Key name': '키 이름',
+  'What the bot may do': '봇이 할 수 있는 일',
+  'Read only': '읽기만',
+  'Read and change': '읽기와 변경',
+  'Create key': '키 만들기',
+  'Key for “{name}”': '“{name}” 키',
+  'API key': 'API 키',
+  'Copy setup for your bot': '봇 설정 복사',
+  'Copy key only': '키만 복사',
+  'Paste the setup into your bot. It holds the key, the address and the rules.':
+    '설정을 봇에 붙여 넣으세요. 키, 주소, 규칙이 들어 있습니다.',
+  'Copy it now: the key is shown only once. Anyone with it can act as your bot, so keep it secret. Lost it? Delete it and make a new one.':
+    '지금 복사하세요. 키는 한 번만 보입니다. 키가 있으면 누구나 봇처럼 행동할 수 있으니 비밀로 하세요. 잃어버렸다면 삭제하고 새로 만드세요.',
+  'No keys yet.': '아직 키가 없습니다.',
+  'last used {when}': '마지막 사용 {when}',
+  'not used yet': '아직 사용 안 함',
 };

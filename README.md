@@ -82,6 +82,19 @@ Set `LLM_PROVIDER=anthropic` (Claude, default model `claude-opus-5-5`) or `xai` 
 every change is previewed and applied only on Confirm. Weekly check on the real model (spends
 tokens): `node scripts/bot-live-check.mjs` with `API_URL` and an admin's sign-in.
 
+## Outside bots (Grok and other agents)
+
+The owner makes an API key in Settings → "API keys for bots": **Read only** or **Read and
+change**, then presses "Copy setup for your bot" and pastes it into the bot. The bot calls the
+same REST API as the apps with `Authorization: Bearer mok_…`; no `X-Organization-Id` is needed.
+
+- Start with `GET /api/v1/agent/whoami`; the whole API is described at `/api/v1/openapi.yaml`.
+- A key acts as the bot in its one organization: Bot permissions apply, owner-only data stays
+  hidden, `DELETE` is always refused, and read keys may only `GET`.
+- Every change is in the audit log as the bot, with the key as actor, on behalf of the owner.
+- Deleting the key in Settings stops it at once. At most `AGENT_REQUESTS_PER_MINUTE` (default 120)
+  requests a minute per key.
+
 ## Other commands
 
 ```bash

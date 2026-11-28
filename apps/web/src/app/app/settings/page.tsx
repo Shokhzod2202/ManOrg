@@ -47,6 +47,11 @@ export default function SettingsPage() {
       {s.actor === 'org_admin' && s.membership?.organization.type === 'provider' ? (
         <WallLinks />
       ) : null}
+      {s.actor === 'org_admin' &&
+      s.membership?.owner &&
+      s.membership.organization.type === 'provider' ? (
+        <AgentKeys />
+      ) : null}
       {s.actor === 'org_admin' && s.membership?.owner ? (
         <Switches<Bot>
           title={t('Bot permissions')}
@@ -1129,6 +1134,186 @@ function WallLinks() {
               </li>
             ),
           )}
+        </ul>
+      ) : null}
+    </section>
+  );
+}
+
+/**
+ * Decided 2026-11-29: API keys the owner gives outside bots (Grok or any agent) to use the app's
+ * API. Read keys only read; read-and-write keys also add and change; no key deletes. The key is
+ * shown once, with everything a bot needs to connect.
+ */
+function AgentKeys() {
+  const { data, error, loading, reload } = useApi<{ items: Schemas['AgentKey'][] }>('/agent-keys');
+  const [name, setName] = useState('');
+  const [access, setAccess] = useState<'read' | 'write'>('read');
+  const [made, setMade] = useState<{ name: string; access: string; key: string } | null>(null);
+  const [copied, setCopied] = useState<'key' | 'setup' | null>(null);
+  const [err, setErr] = useState<ApiError | null>(null);
+  const [busy, setBusy] = useState(false);
+  const base = typeof window === 'undefined' ? '' : `${window.location.origin}/api/v1`;
+
+  async function create(e: FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    setErr(null);
+    setBusy(true);
+    try {
+      const row = await post<Schemas['AgentKey'] & { key: string }>('/agent-keys', {
+        name: name.trim(),
+        access,
+      });
+      setMade({ name: row.name, access: row.access, key: row.key });
+      setCopied(null);
+      setName('');
+      reload();
+    } catch (x) {
+      setErr(x as ApiError);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Written in English on purpose: it is read by the bot, not shown to people.
+  const setup = (key: string, keyAccess: string) =>
+    [
+      'You can use the API of my bakery management app.',
+      `Base URL: ${base}`,
+      `Send this header on every request: Authorization: Bearer ${key}`,
+      `API description (OpenAPI): ${base}/openapi.yaml`,
+      'Start with GET /agent/whoami to see the organization and the rules.',
+      keyAccess === 'write'
+        ? 'This key may read (GET) and add or change (POST, PUT, PATCH). It cannot delete.'
+        : 'This key may only read (GET).',
+      'When you edit an existing record, send If-Match with the version you read.',
+      'Keep the key secret.',
+    ].join('\n');
+
+  async function copy(text: string, what: 'key' | 'setup') {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(what);
+    } catch {
+      // Clipboard blocked (some in-app browsers): the key stays selectable on screen.
+      setCopied(null);
+    }
+  }
+
+  async function remove(k: Schemas['AgentKey']) {
+    const ok = await confirmAction(t('Delete the key “{name}”?', { name: k.name }), {
+      detail: t('A bot using this key stops at once. Other keys keep working.'),
+      confirmLabel: t('Delete key'),
+      danger: true,
+    });
+    if (!ok) return;
+    setErr(null);
+    try {
+      await del(`/agent-keys/${k.id}`);
+      if (made?.name === k.name) setMade(null);
+      reload();
+    } catch (x) {
+      setErr(x as ApiError);
+    }
+  }
+
+  return (
+    <section className="card" data-testid="agent-keys">
+      <h2>{t('API keys for bots')}</h2>
+      <p className="muted small" style={{ margin: 0 }}>
+        {t(
+          'Connect an outside bot, such as Grok, to the app. It works in this organization like the in-app bot: your Bot permissions apply, owner-only data stays hidden, it can never delete, and every change it makes is in the history.',
+        )}
+      </p>
+      <form className="stack" style={{ gap: 8 }} onSubmit={(e) => void create(e)}>
+        <input
+          className="input"
+          value={name}
+          maxLength={60}
+          onChange={(e) => setName(e.target.value)}
+          placeholder={t('Name, e.g. Grok')}
+          aria-label={t('Key name')}
+        />
+        <div className="tabs" role="radiogroup" aria-label={t('What the bot may do')}>
+          {(['read', 'write'] as const).map((a) => (
+            <button
+              key={a}
+              type="button"
+              role="radio"
+              aria-checked={access === a}
+              className={access === a ? 'on' : ''}
+              onClick={() => setAccess(a)}
+            >
+              {a === 'read' ? t('Read only') : t('Read and change')}
+            </button>
+          ))}
+        </div>
+        <button className="btn" disabled={busy || !name.trim()}>
+          {t('Create key')}
+        </button>
+      </form>
+      <ErrorBox error={error ?? err} />
+      {made ? (
+        <div className="stack wall-made" style={{ gap: 8 }}>
+          <b>{t('Key for “{name}”', { name: made.name })}</b>
+          <input
+            className="input"
+            readOnly
+            value={made.key}
+            aria-label={t('API key')}
+            data-testid="agent-key-value"
+            onFocus={(e) => e.target.select()}
+          />
+          <div className="row wrap">
+            <button
+              type="button"
+              className="btn"
+              onClick={() => void copy(setup(made.key, made.access), 'setup')}
+            >
+              {copied === 'setup' ? t('Copied') : t('Copy setup for your bot')}
+            </button>
+            <button type="button" className="btn ghost" onClick={() => void copy(made.key, 'key')}>
+              {copied === 'key' ? t('Copied') : t('Copy key only')}
+            </button>
+          </div>
+          <span className="muted small">
+            {t('Paste the setup into your bot. It holds the key, the address and the rules.')}
+          </span>
+          <span className="hint-bad">
+            {t(
+              'Copy it now: the key is shown only once. Anyone with it can act as your bot, so keep it secret. Lost it? Delete it and make a new one.',
+            )}
+          </span>
+        </div>
+      ) : null}
+      {loading && !data ? <Loading /> : null}
+      {data && !data.items.length ? <Empty>{t('No keys yet.')}</Empty> : null}
+      {data?.items.length ? (
+        <ul className="batch-list">
+          {data.items.map((k) => (
+            <li key={k.id} data-testid="agent-key">
+              <span>
+                <b>{k.name}</b>{' '}
+                <span className={k.access === 'write' ? 'pill warn' : 'pill'}>
+                  {k.access === 'write' ? t('Read and change') : t('Read only')}
+                </span>
+                <span className="muted small">
+                  {' '}
+                  · …{k.hint} ·{' '}
+                  {k.lastUsedAt
+                    ? t('last used {when}', {
+                        when: `${formatDate(k.lastUsedAt.slice(0, 10))} ${formatTime(k.lastUsedAt)}`,
+                      })
+                    : t('not used yet')}
+                </span>
+              </span>
+              <MoreMenu
+                label={t('More actions for {name}', { name: k.name })}
+                items={[{ label: t('Delete key'), danger: true, onSelect: () => void remove(k) }]}
+              />
+            </li>
+          ))}
         </ul>
       ) : null}
     </section>

@@ -81,6 +81,16 @@ export async function createTenantWithEveryTable(label: string): Promise<TenantF
         createdById: employee!.id,
       },
     });
+    await tx.agentKey.create({
+      data: {
+        ...org,
+        name: 'Grok',
+        access: 'read',
+        tokenHash: `fixture-agent-${org.organizationId}`,
+        hint: 'abcd',
+        createdById: employee!.id,
+      },
+    });
     await tx.hourlyRate.create({
       data: { ...org, employeeId: employee!.id, hourlyRate: 10_000, createdById: employee!.id },
     });

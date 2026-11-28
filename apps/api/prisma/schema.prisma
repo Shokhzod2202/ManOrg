@@ -264,6 +264,7 @@ model Organization {
   salaryAdvances             SalaryAdvance[]
   hourlyRates                HourlyRate[]
   wallLinks                  WallLink[]
+  agentKeys                  AgentKey[]
   ingredients                Ingredient[]
   productIngredients         ProductIngredient[]
   employeeProducts           EmployeeProduct[]
@@ -1354,4 +1355,30 @@ model WallLink {
 
   @@index([organizationId])
   @@map("wall_links")
+}
+
+/// Decided 2026-11-29: API keys the owner gives outside bots (Grok and others). A key acts in one
+/// organization as the bot, for the owner who made it; "read" keys may only read, "write" keys
+/// may also add and change, and no key deletes. Only a hash of the key is stored.
+model AgentKey {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  name           String
+  /// "read" or "write".
+  access         String
+  tokenHash      String    @unique @map("token_hash")
+  /// The last four characters, so the owner can tell keys apart.
+  hint           String
+  createdById    String    @map("created_by") @db.Uuid
+  lastUsedAt     DateTime? @map("last_used_at") @db.Timestamptz(3)
+  revokedAt      DateTime? @map("revoked_at") @db.Timestamptz(3)
+  revokedById    String?   @map("revoked_by") @db.Uuid
+  version        Int       @default(1)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId])
+  @@map("agent_keys")
 }

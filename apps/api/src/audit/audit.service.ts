@@ -71,7 +71,13 @@ export function userActor(userId: string): AuditActor {
 }
 
 /** The audit actor for a request: the person, or the bot acting on that admin's behalf. */
-export function actorFor(user: { userId: string; viaBot?: boolean }): AuditActor {
+export function actorFor(user: {
+  userId: string;
+  viaBot?: boolean;
+  agentKey?: { id: string };
+}): AuditActor {
+  // Decided 2026-11-29: an outside bot's change names its API key as the actor.
+  if (user.agentKey) return { type: 'bot', id: user.agentKey.id, onBehalfOf: user.userId };
   return user.viaBot
     ? { type: 'bot', id: user.userId, onBehalfOf: user.userId }
     : { type: 'user', id: user.userId };

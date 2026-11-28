@@ -1033,4 +1033,28 @@ export const uz: Record<string, string> = {
   'Everything is made.': 'Hammasi tayyor.',
   'Next deliveries': 'Navbatdagi yetkazishlar',
   Ready: 'Tayyor',
+  'Delete the key “{name}”?': '“{name}” kaliti oʻchirilsinmi?',
+  'A bot using this key stops at once. Other keys keep working.':
+    'Bu kalitdan foydalanayotgan bot darhol toʻxtaydi. Boshqa kalitlar ishlashda davom etadi.',
+  'Delete key': 'Kalitni oʻchirish',
+  'API keys for bots': 'Botlar uchun API kalitlari',
+  'Connect an outside bot, such as Grok, to the app. It works in this organization like the in-app bot: your Bot permissions apply, owner-only data stays hidden, it can never delete, and every change it makes is in the history.':
+    'Grok kabi tashqi botni ilovaga ulang. U ilovadagi bot kabi faqat shu tashkilotda ishlaydi: Bot ruxsatlari amal qiladi, faqat egasi koʻradigan maʼlumotlar yashirin qoladi, hech narsani oʻchira olmaydi va har bir oʻzgarishi tarixda saqlanadi.',
+  'Name, e.g. Grok': 'Nomi, masalan: Grok',
+  'Key name': 'Kalit nomi',
+  'What the bot may do': 'Bot nima qila oladi',
+  'Read only': 'Faqat oʻqish',
+  'Read and change': 'Oʻqish va oʻzgartirish',
+  'Create key': 'Kalit yaratish',
+  'Key for “{name}”': '“{name}” uchun kalit',
+  'API key': 'API kalit',
+  'Copy setup for your bot': 'Bot uchun sozlamani nusxalash',
+  'Copy key only': 'Faqat kalitni nusxalash',
+  'Paste the setup into your bot. It holds the key, the address and the rules.':
+    'Sozlamani botingizga joylang. Unda kalit, manzil va qoidalar bor.',
+  'Copy it now: the key is shown only once. Anyone with it can act as your bot, so keep it secret. Lost it? Delete it and make a new one.':
+    'Hozir nusxa oling: kalit faqat bir marta koʻrsatiladi. Kaliti bor har kim botingiz nomidan ishlay oladi, shuning uchun uni sir saqlang. Yoʻqotdingizmi? Oʻchirib, yangisini yarating.',
+  'No keys yet.': 'Hali kalitlar yoʻq.',
+  'last used {when}': 'oxirgi ishlatilgan {when}',
+  'not used yet': 'hali ishlatilmagan',
 };

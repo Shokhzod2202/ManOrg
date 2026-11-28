@@ -1327,6 +1327,57 @@ async function rowAction(page, rowText, action) {
   );
   if (pageWidth > 390 || Math.abs(nameAfter - nameBefore) >= 2)
     throw new Error('Shifts on a phone failed');
+  // 36. Decided 2026-11-29. The owner makes an API key for an outside bot in Settings; the bot
+  // reads with it (no organization header), a read key cannot change anything, nothing can be
+  // deleted, and a deleted key stops at once.
+  const keyOwner = await as(b, 'admin@sunrise.test');
+  await keyOwner.goto(`${W}/app/settings`);
+  const ak = keyOwner.locator('[data-testid="agent-keys"]');
+  await ak.waitFor();
+  const keyName = `Grok ${Date.now().toString(36)}`;
+  await ak.locator('input[aria-label="Key name"]').fill(keyName);
+  await ak.locator('[role="radio"]:has-text("Read only")').click();
+  await ak.locator('button:has-text("Create key")').click();
+  const keyBox = ak.locator('[data-testid="agent-key-value"]');
+  await keyBox.waitFor();
+  const apiKey = await keyBox.inputValue();
+  const bot = await (await b.newContext()).request;
+  const asBot = { headers: { Authorization: `Bearer ${apiKey}` } };
+  const who = await bot.get(`${W}/api/v1/agent/whoami`, asBot);
+  const whoBody = await who.json();
+  const products = await bot.get(`${W}/api/v1/products`, asBot);
+  const write = await bot.post(`${W}/api/v1/ingredients`, {
+    ...asBot,
+    data: { name: 'Salt', source: 'Shop', packQuantity: 1, packUnit: 'kg', packPrice: 1000 },
+  });
+  const writeCode = (await write.json()).error?.code;
+  const keyRow = ak.locator('[data-testid="agent-key"]', { hasText: keyName });
+  await keyRow.locator('.more-btn').click();
+  await keyRow.locator('.more-list button:has-text("Delete key")').click();
+  await confirmInPage(keyOwner);
+  await keyRow.waitFor({ state: 'detached' });
+  const after = await bot.get(`${W}/api/v1/products`, asBot);
+  log(
+    '36 bot key: whoami',
+    who.status(),
+    whoBody.key?.access,
+    '| products',
+    products.status(),
+    '| write with read key:',
+    write.status(),
+    writeCode,
+    '| after delete:',
+    after.status(),
+  );
+  if (
+    who.status() !== 200 ||
+    whoBody.key?.name !== keyName ||
+    products.status() !== 200 ||
+    writeCode !== 'AGENT_READ_ONLY' ||
+    after.status() !== 401
+  )
+    throw new Error('API keys for bots failed');
+
   await b.close();
 })().catch((e) => {
   console.error('FAILED', e.message.slice(0, 400));
